@@ -1,0 +1,197 @@
+/* -----------------------------------------------------------------------------
+ * People graph — ambient motion + react-flow overrides.
+ *
+ * Motion rule: NEVER transform the node body. All animation lives in halo
+ * pseudo-rings that ORBIT the nodes. This keeps text, avatars, and the
+ * drag surface rock-steady while the graph still feels alive.
+ * -------------------------------------------------------------------------- */
+
+/* Person halo — a subtle ring that breathes outward around the node.
+ * Scale+opacity only; runs on the compositor. Motion off when the user
+ * prefers reduced motion. */
+@keyframes people-graph-halo-out {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.22;
+  }
+  50% {
+    transform: scale(1.22);
+    opacity: 0;
+  }
+}
+
+/* Me anchor glow — very slow opacity wash, no scale. Me is the still
+ * point, so its motion is even more restrained than the person halos. */
+@keyframes people-graph-me-glow {
+  0%, 100% { opacity: 0.35; }
+  50%      { opacity: 0.6; }
+}
+
+.people-graph__halo {
+  position: absolute;
+  inset: -8px;
+  border-radius: 9999px;
+  border: 1px solid var(--color-fg-subtle, #909090);
+  pointer-events: none;
+  animation: people-graph-halo-out 4.6s ease-in-out infinite;
+  animation-delay: var(--halo-delay, 0s);
+  transform-origin: center;
+  will-change: transform, opacity;
+}
+
+.people-graph__halo--accent {
+  border-color: var(--color-accent, #22c55e);
+}
+
+.people-graph__me-glow {
+  position: absolute;
+  inset: -14px;
+  border-radius: 9999px;
+  box-shadow:
+    0 0 0 1px var(--color-accent, #22c55e),
+    0 0 28px 2px var(--color-accent-subtle, rgba(34, 197, 94, 0.12));
+  pointer-events: none;
+  animation: people-graph-me-glow 7s ease-in-out infinite;
+}
+
+.people-graph__edge-pulse {
+  animation: people-graph-me-glow 5s ease-in-out infinite;
+  animation-delay: var(--pulse-delay, 0s);
+}
+
+/* Flowing dashes for edges with translation activity. The dasharray sets
+ * the rhythm; stroke-dashoffset is animated so the dashes drift along
+ * the path, suggesting "data is moving here". Applied only on live +
+ * non-revealed edges so selected edges stay visually quiet. */
+@keyframes people-graph-edge-flow {
+  to { stroke-dashoffset: -28; }
+}
+
+.people-graph__edge-flow {
+  stroke-dasharray: 6 8;
+  animation: people-graph-edge-flow 1.6s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .people-graph__halo,
+  .people-graph__me-glow,
+  .people-graph__edge-pulse,
+  .people-graph__edge-flow {
+    animation: none;
+  }
+  .people-graph__halo {
+    opacity: 0.15;
+  }
+  .people-graph__edge-flow {
+    stroke-dasharray: 0;
+  }
+}
+
+/* react-flow surface tuning — blend into the Okuro dark theme. */
+.people-graph .react-flow__background {
+  background-color: var(--color-surface);
+}
+.people-graph .react-flow__controls {
+  background-color: var(--color-surface-elevated);
+  border: 1px solid var(--color-border, var(--color-border, #262626));
+  border-radius: 6px;
+  overflow: hidden;
+}
+.people-graph .react-flow__controls-button {
+  background-color: transparent;
+  border-color: var(--color-border, var(--color-border, #262626));
+  color: var(--color-fg-secondary, #b0b0b0);
+}
+.people-graph .react-flow__controls-button:hover {
+  background-color: var(--color-surface-subtle);
+  color: var(--color-fg-primary, #e0e0e0);
+}
+/* Round selection ring — `outline` does not follow border-radius, so we
+ * apply a `box-shadow` ring directly on the round inner body. Targets the
+ * `.rounded-full` body inside the node wrapper so the ring traces the
+ * actual avatar shape. */
+.people-graph .react-flow__node.selected .rounded-full {
+  box-shadow:
+    0 0 0 2px var(--color-accent, #22c55e),
+    0 0 16px 2px rgba(34, 197, 94, 0.35);
+}
+
+/* Selected edge — brighter stroke; pairs with the on-select label reveal. */
+.people-graph .react-flow__edge.selected .people-graph__edge-path {
+  stroke: var(--color-accent, #22c55e);
+  stroke-width: 2.2;
+}
+
+/* Dragging — stronger cursor hint on person nodes so the affordance is
+ * obvious. React Flow adds its own grab cursor; this just raises the
+ * priority so our rounded avatars don't fall back to default. */
+.people-graph .react-flow__node[data-id]:not([data-id="me"]) {
+  cursor: grab;
+}
+.people-graph .react-flow__node[data-id]:not([data-id="me"]):active {
+  cursor: grabbing;
+}
+
+/* Group bubble — dashed white circle (no fill) + small title chip
+ * sitting on the top edge. The chip is the ONLY interactive part:
+ * drag it to reposition the group. The circle is click-through so
+ * persons inside remain reachable. */
+/* React Flow's OWN wrapper, not ours. Marking the bubble node selectable
+ * (so clicking the chip reveals the group's edge labels) makes RF add
+ * .selectable, whose stylesheet sets `pointer-events: all` on this wrapper
+ * — and since the bubble is a 600px box drawn over its own members, that
+ * made the circle swallow every click meant for a person inside it.
+ * Overriding here restores click-through. Selection still works: the chip
+ * below opts back in, and an event starting on the chip bubbles up to RF's
+ * handler on this wrapper regardless of the wrapper's own hit-testing. */
+.react-flow__node-group-bubble,
+.react-flow__node-group-bubble.selectable {
+  pointer-events: none;
+}
+
+.people-graph__group-bubble {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  /* Wrapper itself does not catch events — children opt in. */
+  pointer-events: none;
+}
+
+.people-graph__group-circle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: 9999px;
+  border: 1.5px dashed rgba(255, 255, 255, 0.55);
+  background: transparent;
+  pointer-events: none;
+}
+
+.people-graph__group-title-chip {
+  /* Centered on the circle's geometric center — the chip IS the
+   * gravity well that members orbit. */
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 12px;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  background: var(--color-surface-elevated, #1a1a1a);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  /* The chip is the drag handle — opt back into pointer events. */
+  pointer-events: auto;
+  cursor: grab;
+  user-select: none;
+}
+
+.people-graph__group-title-chip:active {
+  cursor: grabbing;
+}

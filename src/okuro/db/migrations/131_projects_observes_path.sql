@@ -1,0 +1,100 @@
+-- <!-- AGENT_HEADER
+-- role: code
+-- purpose: 131_projects_observes_path — separate "this project IS this tree"
+--   (ownership) from "this project's work HAPPENS IN that tree" (observation),
+--   and enforce the ownership invariant that was assumed but never declared.
+-- index: content
+-- AGENT_HEADER_END -->
+--
+-- WHY THIS EXISTS. projects.path carries two meanings with different
+-- cardinality, exactly as projects.active did before migration 100:
+--
+--   OWNERSHIP    one-to-one   "this project IS this tree"
+--     cortex/roots.py:76   root registration (WHERE indexed = 1)
+--     cortex/roots.py:197  register_root, path -> existing row
+--     sense/commitments.py:298    agent_sessions.project_path -> slug
+--     orchestrator/dispatcher.py:481, api/state_reader.py:656
+--     sense/projects.py:94, telemetry.py:758, providers/claude.py:132,1998
+--     cli/cmd_git_guards.py:755
+--
+--   OBSERVATION  many-to-one  "this project's work HAPPENS IN that tree"
+--     sense/status.py:455  _repo_activity(), and the staleness verdict on it
+--
+-- Modelling both in one column forces the many-to-one case to violate the
+-- one-to-one invariant. The trigger: okuro-design-systems is a BRAIN project
+-- — it owns decisions, artifacts and a charter, while its code lives inside
+-- the okuro repo. project_status reported
+--   repo_activity {is_git: false, why: "registered path does not exist"}
+-- and staleness.repo_age_days = null, so the git signal was simply absent.
+-- The only way to give it one was to set path = <home>/okuro, which
+-- would have put TWO projects on one path.
+--
+-- ── PART A — the ownership invariant ────────────────────────────────────────
+--
+-- MEASURED on the live store 2026-08-07, three facts:
+--
+--   1. projects.path has NO UNIQUE constraint. The only indexes are
+--      sqlite_autoindex_projects_1 (the id PRIMARY KEY) and
+--      idx_projects_indexed. A duplicate path is silently accepted.
+--
+--   2. On a duplicate, one slug SILENTLY WINS. cortex/roots.py:86 builds the
+--      path->slug map with `path_to_slug.setdefault(p, r["id"])` — first row
+--      in arbitrary SELECT order takes the path, the other project vanishes
+--      from the root set with no error. sense/commitments.py:298 and
+--      orchestrator/api/state_reader.py:656 both end in `LIMIT 1`, the same
+--      silent pick for session->project resolution.
+--
+--   3. ZERO duplicate paths exist today (106 rows, 106 non-empty paths,
+--      0 groups with count > 1). The invariant is real, relied upon, and
+--      unenforced — it has simply never been violated yet.
+--
+-- register_root already ASSUMES it, in a comment at cortex/roots.py:191:
+-- "a path should only ever have one slug", and raises when a slug is reused
+-- for a second path. This index states the other half of that rule in the
+-- schema, where every writer meets it, instead of in one function.
+--
+-- WHY THE INDEX IS PARTIAL, AND WHY ON `LIKE '/%'`. A non-absolute value in
+-- this column is not a location — it is a placeholder. That is not a new
+-- reading; cli/cmd_git_guards.py:766 already states it and already filters on
+-- it: "Many project rows carry a slug-ish placeholder ('unknown/foo') rather
+-- than a real location. Only absolute paths name a repo on this machine."
+-- Measured: 52 of 106 rows hold 'unknown/<slug>' and the test fixtures across
+-- tests/ use '.'. Constraining placeholders would refuse writes that never
+-- named a tree and so can never be ambiguous, while constraining absolute
+-- paths refuses exactly the corruption described above. cortex's own
+-- _db_project_paths already discards anything that does not exist on disk.
+--
+-- ── PART B — observation ────────────────────────────────────────────────────
+--
+-- observes_path is read by ONE consumer, sense/status.py::_repo_activity, and
+-- by nothing else. Cortex root registration and session->project resolution
+-- MUST NOT read it: a project that merely watches a tree must not become a
+-- cortex root (that injects a phantom duplicate root over an already-indexed
+-- path) and must not capture sessions running in it (that would steal them
+-- from the owner). Pinned by tests/sense/test_project_path_ownership.py.
+--
+-- Additive and backwards compatible: nullable, no default, no backfill.
+-- _repo_activity falls back to `path` when it is NULL, so all 106 existing
+-- rows behave byte-identically. Like migration 100, this migration changes no
+-- behaviour on its own — it only makes the second meaning expressible.
+--
+-- WHY A COLUMN AND NOT managed_repos. managed_repos was considered as the
+-- existing "binding" (envelope taxonomy: an FK that POINTS a resource). It
+-- does not fit: it is a registry of CLONED REMOTE repos — url is NOT NULL,
+-- with workspace/tier/clone-status/last_indexed_sha/default_branch — and all
+-- 18 live rows sit under ~/.okuro/repos/. <home>/okuro is a local
+-- working tree with no clone URL, so binding through that table would mean
+-- fabricating clone metadata for a repo that was never cloned, and would put
+-- observation behind a sync lifecycle that has nothing to do with it.
+--
+-- WHY ONE COLUMN AND NOT A JOIN TABLE. The required cardinality is many
+-- projects -> one tree. A nullable column gives exactly that. A join table
+-- would additionally allow one project -> many trees, which nothing asks for
+-- and which _repo_activity could not render (it reports a single HEAD).
+
+ALTER TABLE projects ADD COLUMN observes_path TEXT;
+
+-- Ownership is one-to-one, for values that actually name a location.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_path_unique
+    ON projects(path)
+    WHERE path IS NOT NULL AND path != '' AND path LIKE '/%';

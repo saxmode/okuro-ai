@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en" data-theme="okuro">
+<head>
+<meta charset="utf-8">
+<title>prism · board kit — ports + high-cardinality</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../board/tokens.css">
+<link rel="stylesheet" href="../board/theme.css">
+<link rel="stylesheet" href="../board/components.css">
+<link rel="stylesheet" href="../board/components-ext.css">
+<link rel="stylesheet" href="../board/zoom-stage.css">
+<link rel="stylesheet" href="gallery.css">
+<script src="gallery.js" defer></script>
+<style>
+  .ext-fills { display:grid; grid-template-columns: repeat(3, 1fr); gap: 24px; align-items:start; }
+  .ext-fills.wide { grid-template-columns: 1fr; }
+  .ext-specimen { min-width:0; border:1px solid var(--border-soft); border-radius: var(--radius-card); padding: 16px; background: var(--bg-base); }
+  .ext-fill-label { font-family: var(--font-mono); font-size: 11px; letter-spacing:1px; text-transform:uppercase; color: var(--fg-tertiary); margin-bottom: 12px; }
+  @media (max-width:1100px){ .ext-fills{ grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<div class="gallery-wrap">
+  <div class="gallery-head">
+    <div><h1>Ports + high-cardinality</h1><div class="sub">v2 ports + new high-card components · min / typical / max fill · brand <span data-brand-label></span></div></div>
+    <div class="grow"></div>
+    <span class="viewport-readout"></span>
+    <div class="brand-switch" role="group" aria-label="brand">
+      <button data-brand="okuro">okuro · dark</button>
+      <button data-brand="northwind">Northwind · dark</button>
+      <button data-brand="meridian">Meridian · light</button>
+    </div>
+    <div class="gallery-links">
+      <a href="index.html">Overview</a>
+      <a href="design-language.html">Design language</a>
+      <a href="components.html">Components</a>
+      <a href="components-ext.html" class="active">Ports + high-card</a>
+      <a href="archetypes.html">Archetypes</a>
+      <a href="reflow.html">L3 reflow</a>
+    </div>
+  </div>
+
+  <div class="spec-section">
+    <h2>Coverage</h2>
+    <p class="spec-note">Every W1-added component at min / typical / max capacity. (3b) v2 ports re-skinned to the design language, consuming only the theme contract: provenance · evidence-list · bias-check · chart · flow-embed · statement · pull-quote · matrix. (3c) new high-cardinality (10–40 items, closing the 13-principles truncation class): dense-table · two-col-list · tag-wall. Switch brand to verify uniformity across okuro/northwind/meridian.</p>
+  </div>
+
+  <div id="ext-root"></div>
+
+  <footer class="site-footer"><span class="accent">prism board kit</span><span class="footer-meta"><span>ports + high-cardinality specimen</span></span></footer>
+</div>
+
+<script>
+/* Curated (non-lorem) specimens at 3 fill levels. Content is realistic so this
+   page doubles as the G-A user-eye review surface; the numeric-gate harness
+   scans .ext-specimen for AA / type-floor / whitespace / pixel gates. */
+(function () {
+  "use strict";
+  var R = document.getElementById("ext-root");
+  function sec(title, note) {
+    var s = document.createElement("div"); s.className = "spec-section";
+    s.innerHTML = "<h2>" + title + "</h2>" + (note ? '<p class="spec-note">' + note + "</p>" : "");
+    var f = document.createElement("div"); f.className = "ext-fills";
+    s.appendChild(f); R.appendChild(s); return f;
+  }
+  function spec(container, comp, fill, html, wide) {
+    if (wide) container.className = "ext-fills wide";
+    var d = document.createElement("div"); d.className = "ext-specimen";
+    d.setAttribute("data-component", comp); d.setAttribute("data-fill", fill);
+    d.innerHTML = '<div class="ext-fill-label">' + fill + "</div>" + html;
+    container.appendChild(d);
+  }
+  function rep(n, fn) { var a = []; for (var i = 0; i < n; i++) a.push(fn(i)); return a.join(""); }
+
+  // ── provenance ──
+  var f = sec("provenance · source-ref affordance", "Quiet on-demand source strip any block can carry. min 1 · typical 2 · max 5 refs.");
+  function prov(n) {
+    return '<div class="provenance"><span class="prov-label">Sources</span>' + rep(n, function (i) {
+      return '<span class="prov-ref"><a class="prov-src" href="#">okuro artifact ' + (7712 + i)
+        + '</a><span class="prov-as-of">2026-0' + (i % 7 + 1) + '</span></span>';
+    }) + "</div>";
+  }
+  spec(f, "provenance", "min", prov(1)); spec(f, "provenance", "typical", prov(2)); spec(f, "provenance", "max", prov(5));
+
+  // ── evidence-list ──
+  f = sec("evidence-list · rigor nutrition label", "Claim + source grade + confidence pips + as-of. min 2 · typical 4 · max 10.");
+  var CLAIMS = ["Local inference removes per-token cloud cost", "Recipient PII never leaves the LAN",
+    "Entailment re-run after every audience adaptation", "48GB VRAM fits the 70B draft model",
+    "Deterministic fallback resolves when inference fails", "Brand switch restyles without regeneration",
+    "The composition solver is deterministic per seed", "Height model p90 error stays inside one row-unit",
+    "Every block can surface its provenance", "High-cardinality claims render without truncation"];
+  function evid(n) {
+    return '<div class="evidence-list">' + rep(n, function (i) {
+      var g = "abcd"[i % 4], pips = rep(3, function (j) { return '<span class="pip' + (j <= i % 3 ? " on" : "") + '"></span>'; });
+      return '<div class="evidence-row"><div class="evidence-claim">' + CLAIMS[i] + '</div>'
+        + '<span class="evidence-grade ' + g + '">' + g.toUpperCase() + '</span>'
+        + '<span class="evidence-conf">' + pips + '</span><span class="evidence-as-of">2026-07</span></div>';
+    }) + "</div>";
+  }
+  spec(f, "evidence-list", "min", evid(2)); spec(f, "evidence-list", "typical", evid(4)); spec(f, "evidence-list", "max", evid(10), true);
+
+  // ── bias-check ──
+  f = sec("bias-check · rigor", "Cognitive bias + risk + counter-measure. min 2 · typical 3 · max 8.");
+  var BIAS = [["Anchoring", "high", "Elicit an independent estimate before showing the prior"],
+    ["Confirmation", "high", "Assign a red-team to argue the opposite verdict"],
+    ["Availability", "med", "Weight by base rate, not by the most recent incident"],
+    ["Sunk cost", "med", "Decide on marginal value, ignore prior spend"],
+    ["Authority", "low", "Rank by evidence quality, not seniority"],
+    ["Optimism", "med", "Book a reference-class outside view"],
+    ["Framing", "low", "Present the same number both ways"],
+    ["Recency", "low", "Compare against the trailing median"]];
+  function bias(n) {
+    return '<div class="bias-check">' + rep(n, function (i) {
+      return '<div class="bias-row"><div class="bias-name">' + BIAS[i][0] + '</div>'
+        + '<span class="bias-risk ' + BIAS[i][1] + '">' + BIAS[i][1] + '</span>'
+        + '<div class="bias-counter">' + BIAS[i][2] + "</div></div>";
+    }) + "</div>";
+  }
+  spec(f, "bias-check", "min", bias(2)); spec(f, "bias-check", "typical", bias(3)); spec(f, "bias-check", "max", bias(8), true);
+
+  // ── chart (dep-free SVG) ──
+  f = sec("chart · dep-free SVG", "Single-hue bars + annotation. min 2 · typical 6 · max 16 data.");
+  function chart(n) {
+    var W = 560, H = 240, pad = 28, bw = (W - pad * 2) / n;
+    var vals = []; for (var i = 0; i < n; i++) vals.push(30 + ((i * 53) % 160));
+    var bars = vals.map(function (v, i) {
+      var x = pad + i * bw + 3, y = H - pad - v;
+      return '<rect class="bar" x="' + x + '" y="' + y + '" width="' + (bw - 6) + '" height="' + v + '"></rect>';
+    }).join("");
+    return '<div class="chart"><div class="chart-head"><span class="chart-title">Tokens per request</span>'
+      + '<span class="chart-unit">count</span></div><svg viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="xMidYMid meet">'
+      + '<line class="axis" x1="' + pad + '" y1="' + (H - pad) + '" x2="' + (W - pad) + '" y2="' + (H - pad) + '"></line>'
+      + bars + '</svg><div class="chart-annotation">Peak at request 4 — the retrieval fan-out.</div></div>';
+  }
+  spec(f, "chart", "min", chart(2)); spec(f, "chart", "typical", chart(6)); spec(f, "chart", "max", chart(16), true);
+
+  // ── flow-embed + statement + pull-quote (single-capacity) ──
+  f = sec("flow-embed · statement · pull-quote", "Single-capacity ports. Shown once each.");
+  spec(f, "flow-embed", "single", '<div class="flow-embed"><div class="flow-embed-head">'
+    + '<span class="flow-embed-icon">⌘</span><span class="flow-embed-title">Deck build pipeline</span>'
+    + '<span class="flow-embed-id">flow_7f3a</span><button class="flow-embed-max">Maximize</button></div>'
+    + '<div class="flow-embed-canvas"><span class="flow-node">mine</span><span class="flow-node">compose</span>'
+    + '<span class="flow-node">render</span></div></div>');
+  spec(f, "statement", "single", '<div class="statement"><div class="statement-kicker">The wedge</div>'
+    + '<p class="statement-text">No competitor tailors <span class="accent">layout</span> to the reader</p></div>');
+  spec(f, "pull-quote", "single", '<div class="pull-quote"><div class="pull-quote-text">The legacy works. '
+    + 'It also leaks.</div><div class="pull-quote-attr"><span class="who">Board overview</span>, Northwind</div></div>');
+
+  // ── matrix ──
+  f = sec("matrix · feature comparison", "yes/no/partial grid, winner column tinted. min 2 · typical 6 · max 16 rows.");
+  var FEAT = ["Runs on-LAN", "Per-token cost", "Audience-tailored layout", "Provenance per claim",
+    "Live brand switch", "Offline fallback", "High-cardinality render", "In-deck simulator",
+    "Multi-model sparring", "Flow embed", "Depth ladder", "Entailment gate",
+    "Scroll + grid nav", "Vision A/B", "Illustrator source", "Export self-contained"];
+  function matrix(n) {
+    var cols = ["prism", "Gamma", "Tome", "Pitch"];
+    var head = "<thead><tr><th class='feature-col'>Feature</th>" + cols.map(function (c, j) {
+      return "<th" + (j === 0 ? " class='winner-col'" : "") + ">" + c + "</th>";
+    }).join("") + "</tr></thead>";
+    var body = "<tbody>" + rep(n, function (i) {
+      return "<tr><td class='feature-cell'>" + FEAT[i] + "</td>" + cols.map(function (c, j) {
+        var m = j === 0 ? '<span class="cell-yes">✓</span>'
+          : ((i + j) % 3 === 0 ? '<span class="cell-partial">~</span>' : '<span class="cell-no">✗</span>');
+        return "<td" + (j === 0 ? " class='winner-col'" : "") + ">" + m + "</td>";
+      }).join("") + "</tr>";
+    }) + "</tbody>";
+    return "<div class='matrix-wrap'><table class='matrix'>" + head + body + "</table></div>";
+  }
+  spec(f, "matrix", "min", matrix(2)); spec(f, "matrix", "typical", matrix(6)); spec(f, "matrix", "max", matrix(16), true);
+
+  // ── dense-table (high-cardinality) ──
+  f = sec("dense-table · high-cardinality", "Open-ended, sticky header, zebra, scrolls in-frame. min 8 · typical 16 · max 30 rows.");
+  function dense(n) {
+    var head = "<thead><tr><th>Endpoint</th><th>Method</th><th>Owner</th><th class='num'>p95 ms</th></tr></thead>";
+    var body = "<tbody>" + rep(n, function (i) {
+      return "<tr><td><span class='cell-strong'>/api/v" + (i % 3 + 1) + "/resource" + i + "</span></td>"
+        + "<td>" + ["GET", "POST", "PUT"][i % 3] + "</td><td>platform</td><td class='num'>" + (40 + (i * 17) % 300) + "</td></tr>";
+    }) + "</tbody>";
+    return "<div class='dense-table-wrap'><table class='dense-table'>" + head + body + "</table></div>";
+  }
+  spec(f, "dense-table", "min", dense(8)); spec(f, "dense-table", "typical", dense(16)); spec(f, "dense-table", "max", dense(30), true);
+
+  // ── two-col-list (high-cardinality) ──
+  f = sec("two-col-list · high-cardinality", "8–24 short items balanced across two columns. min 8 · typical 14 · max 24.");
+  function twocol(n) {
+    return '<div class="two-col-list">' + rep(n, function (i) {
+      return '<div class="tcl-item"><span class="tcl-mark"></span><div><div class="tcl-title">Principle '
+        + (i + 1) + '</div><div class="tcl-sub">one-line rationale</div></div></div>';
+    }) + "</div>";
+  }
+  spec(f, "two-column-list", "min", twocol(8)); spec(f, "two-column-list", "typical", twocol(14)); spec(f, "two-column-list", "max", twocol(24), true);
+
+  // ── tag-wall (high-cardinality) ──
+  f = sec("tag-wall · high-cardinality", "10–40 chips as a scannable wall. min 10 · typical 20 · max 40.");
+  var STACK = ["Python", "FastAPI", "SQLite", "Playwright", "numpy", "Vite", "React", "Alpine.js",
+    "Tailwind", "Docker", "Caddy", "systemd", "ComfyUI", "JetBrains Mono", "Be Vietnam Pro", "MCP",
+    "cytoscape", "dagre", "ReactFlow", "SVG", "WCAG-AA", "color-mix", "container-queries", "ResizeObserver",
+    "IntersectionObserver", "beam-search", "lstsq", "jsonschema", "bridge", "keyring", "cortex", "okuro",
+    "prism", "board-kit", "12-col grid", "1600×900", "ZoomStage", "reveal", "shadow-root", "deck2"];
+  function tags(n) {
+    return '<div class="tag-wall">' + rep(n, function (i) {
+      var t = i % 6 === 0 ? " accent" : (i % 9 === 0 ? " ok" : "");
+      return '<span class="tw-tag' + t + '">' + STACK[i] + "</span>";
+    }) + "</div>";
+  }
+  spec(f, "tag-wall", "min", tags(10)); spec(f, "tag-wall", "typical", tags(20)); spec(f, "tag-wall", "max", tags(40), true);
+})();
+</script>
+</body>
+</html>

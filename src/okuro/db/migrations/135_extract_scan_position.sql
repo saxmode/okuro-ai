@@ -1,0 +1,37 @@
+-- <!-- AGENT_HEADER
+-- role: code
+-- purpose: 135_extract_scan_position — turn the harvest watermark from a flag into a position.
+-- index: content
+-- AGENT_HEADER_END -->
+--
+-- Migration 134 recorded "extractor E has scanned session S" as a boolean fact.
+-- That is wrong for an append-only log, and it is wrong in the one direction
+-- that costs data.
+--
+-- A session is not a closed object. Claude Code RESUMES a transcript, so one
+-- JSONL accumulates across days and `trace-ingest` appends new agent_events
+-- rows to a session that was harvested weeks ago. Those rows carry their
+-- ORIGINAL timestamps, so the session does not get re-tiered hot — it stays
+-- cool and stays compactable. Under a boolean watermark the gate reads
+-- "harvested" and nulls text no extractor has ever seen, reporting
+-- refused_by_reason == {} — a clean success. That is exactly the loss the gate
+-- exists to prevent, arriving through the gate itself.
+--
+-- Reproduced before this migration was written: harvest both extractors, insert
+-- one late tool_result carrying a Session-ID line with an old timestamp, then
+-- compact. Result: `refused: {} | nulled: 2`, the link destroyed before any
+-- harvest saw it.
+--
+-- The fix is to record HOW FAR the scan got, not THAT it ran.
+-- `scanned_through_ord` is the highest agent_events.ord present in the session
+-- when the harvest started; anything beyond it is unscanned by definition, and
+-- the gate refuses the session until a later harvest catches up.
+--
+-- Default -1 rather than 0: ord is 0-based, so 0 is a real position (the first
+-- event) and cannot double as "nothing scanned". Existing rows written by 134
+-- take the default and are therefore treated as fully stale — correct, and the
+-- conservative direction: they are re-harvested on the next run rather than
+-- trusted on a position nobody recorded.
+
+ALTER TABLE trace_extract_scanned
+    ADD COLUMN scanned_through_ord INTEGER NOT NULL DEFAULT -1;

@@ -1,0 +1,15 @@
+<!-- archetype: flow-sequence (kit-spec 3b · mcp ceo-step). Slots: eyebrow, title, lede, steps[5-8] -->
+<section class="slide" data-archetype="flow-sequence">
+  <div class="slide-inner">
+    <div class="slide-eyebrow" data-slot="eyebrow"><span class="slide-num">09</span> Request lifecycle</div>
+    <h1 class="slide-title" data-slot="title">Edge first, cloud <span class="accent">last</span></h1>
+    <p class="slide-lede" data-slot="lede">Where each step runs — and the latency it adds — read at a glance.</p>
+    <div data-slot="steps">
+      <div class="ceo-step"><span class="ceo-num user">1</span><div class="ceo-what">User speaks a command in the room</div><span class="ceo-tool">wake-word</span><span class="ceo-ms">0 ms</span></div>
+      <div class="ceo-step"><span class="ceo-num edge">2</span><div class="ceo-what">Local STT transcribes on-device</div><span class="ceo-tool">whisper.cpp</span><span class="ceo-ms">18 ms</span></div>
+      <div class="ceo-step"><span class="ceo-num edge">3</span><div class="ceo-what">Intent resolved by the local model</div><span class="ceo-tool">llama-local</span><span class="ceo-ms">42 ms</span></div>
+      <div class="ceo-step"><span class="ceo-num cloud">4</span><div class="ceo-what">Only novel asks escalate to cloud</div><span class="ceo-tool">bridge</span><span class="ceo-ms">210 ms</span></div>
+      <div class="ceo-step"><span class="ceo-num edge">5</span><div class="ceo-what">Action executes against the broker</div><span class="ceo-tool">mcp-call</span><span class="ceo-ms">12 ms</span></div>
+    </div>
+  </div>
+</section>

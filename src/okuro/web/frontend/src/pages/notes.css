@@ -1,0 +1,60 @@
+/* Readable line-length control for the notes editor surfaces.
+   A data-measure attribute on the editor <main> centers the prose column at a
+   capped width; "wide" is the default full-width flow (no rule needed).
+   Applies to the WYSIWYG (Milkdown ProseMirror) surface and the split-preview
+   prose. The raw source editor (CodeMirror) stays full-width — measure is a
+   prose-readability lever, not a code lever. */
+[data-measure="narrow"] .milkdown-host .ProseMirror,
+[data-measure="narrow"] .note-prose {
+  max-width: 62ch;
+  margin-inline: auto;
+}
+[data-measure="med"] .milkdown-host .ProseMirror,
+[data-measure="med"] .note-prose {
+  max-width: 84ch;
+  margin-inline: auto;
+}
+
+/* Embedded images scale with the note column (which the measure caps). */
+.milkdown-host .ProseMirror img,
+.note-prose img {
+  max-width: 100%;
+  height: auto;
+}
+/* Scribbles fill the note width so they track narrow/med/wide + window resize.
+   Targeted by src (not alt) because Crepe rewrites image alt to a size ratio. */
+.milkdown-host .ProseMirror img[src*="/api/notes/drawings/"],
+.note-prose img[src*="/api/notes/drawings/"] {
+  width: 100%;
+  display: block;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 2rem);
+  cursor: pointer;
+}
+
+/* Headings break only between words, never mid-word (fixes the fractured H1 on
+   a crushed narrow editor). */
+.milkdown-host .ProseMirror :is(h1, h2, h3, h4),
+.note-prose :is(h1, h2, h3, h4) {
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+/* iPad: the whole scribble window must be un-selectable + no Pencil Scribble
+   callout over the colour swatches / buttons. */
+.scribble-window,
+.scribble-window * {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+/* Only the CANVAS is a draw surface (touch-action:none = app owns all gestures).
+   The toolbar uses `manipulation` so the Pencil taps buttons instead of Safari
+   treating a `none` region as a place to draw. */
+.scribble-window canvas {
+  touch-action: none;
+}
+.scribble-window .scribble-header,
+.scribble-window .scribble-header * {
+  touch-action: manipulation;
+}

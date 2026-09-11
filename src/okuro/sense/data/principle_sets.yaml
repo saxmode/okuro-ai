@@ -1,0 +1,40 @@
+# Principle sets — named bundles of principle IDs.
+#
+# Where `principles.yaml` defines the atomic DPs (DP01 MONEY-EFFICIENT etc.),
+# `principle_sets` compose them into project-level constraint bundles that a
+# brand can reference via its `principles` slot.
+#
+# A project under a brand inherits that brand's principle_set; bootstrap
+# surfaces the members alongside the user's own principle selection.
+
+principle_sets:
+  - id: foundation
+    name: "Foundation"
+    description: "Defaults for internal okuro-shaped tooling. Systems-first, AI-first, no-bloat."
+    status: active
+    principles:
+      - DP01   # MONEY-EFFICIENT
+      - DP03   # SUGGEST-OR-SILENT
+      - DP05   # AI-FIRST
+      - DP09   # NO-BLOAT
+      - DP10   # SYSTEMATIC-NOT-SPECIFIC
+
+  - id: public-api
+    name: "Public API"
+    description: "Constraints for surfaces that face the outside world. Validation-heavy, LAN-only is inverted (explicit exposure only), backward-compatibility matters."
+    status: active
+    principles:
+      - DP01   # MONEY-EFFICIENT
+      - DP03   # SUGGEST-OR-SILENT
+      - DP07   # OBSERVE-NOT-ASK
+      - DP10   # SYSTEMATIC-NOT-SPECIFIC
+
+  - id: internal-tool
+    name: "Internal tool"
+    description: "Velocity-biased bundle for LAN-only tooling. Allow creative defaults, skip belt-and-braces validation."
+    status: active
+    principles:
+      - DP04   # DISRUPT-DEFAULT
+      - DP05   # AI-FIRST
+      - DP08   # CRAZY-FIRST
+      - DP09   # NO-BLOAT

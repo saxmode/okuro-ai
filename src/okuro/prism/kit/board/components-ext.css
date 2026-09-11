@@ -1,0 +1,200 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   prism · board kit · components-ext.css   (PRISM v4 W1 §3 items 3b + 3c)
+
+   W1 ADDITIONS, hand-authored to the ONE design language (gallery/
+   design-language.html). NOTHING here is LLM-styled. Every colour, font,
+   radius, space flows through the 70-token theme contract (board/theme.css)
+   + the structural extras (board/tokens.css) — zero literal hex, zero literal
+   font, so all three brands (okuro/northwind/meridian) theme correctly, dark + light.
+
+   (3b) v2 PORTS — claim-shape / feature gaps the v3 kit lacked (inventory
+        GAP LIST), re-skinned from the 39-block catalog to this design language:
+        .provenance .evidence-list .bias-check .chart .flow-embed
+        .statement .pull-quote .matrix
+   (3c) NEW HIGH-CARDINALITY — hold 10-20+ items readably, closing the
+        13-principles silent-truncation class every fixed archetype (cap 3-8)
+        fails: .dense-table .two-col-list .tag-wall
+
+   Design-language invariants honoured (kit-spec §6 / design-language.html):
+     · 8px spacing rhythm · radius-by-size · mono = machine-data only
+     · chips: 3px radius, uppercase, 10-11px, 600-700 wt, -dim tint + -text ink
+     · measure caps (prose 72ch, body 76ch) · accent scarcity · AA text roles
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ════════════════  (3b) PORT · PROVENANCE affordance  ════════════════
+   v2 shipped <Provenance> on EVERY block (blocks.tsx:166); the v3 kit had
+   none (inventory gap). A quiet, on-demand source-ref strip any component can
+   carry. Machine-data (source ids, dates, urls) is mono per the design rule. */
+.provenance {
+  display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline;
+  margin-top: 16px; padding-top: 12px; border-top: 1px dashed var(--border);
+  font-size: 12px; color: var(--fg-tertiary);
+}
+.provenance .prov-label {
+  font-size: 10px; letter-spacing: var(--track-eyebrow); text-transform: uppercase;
+  font-weight: var(--wt-bold); color: var(--fg-tertiary);
+}
+.provenance .prov-ref { display: inline-flex; align-items: baseline; gap: 6px; }
+.provenance .prov-src { color: var(--fg-secondary); font-weight: var(--wt-medium); }
+.provenance .prov-as-of { font-family: var(--font-mono); font-size: 11px; color: var(--fg-tertiary); }
+.provenance a.prov-src { text-decoration: none; border-bottom: 1px solid var(--accent-dim); color: var(--accent-text); }
+
+/* ════════════════  (3b) PORT · EVIDENCE list (rigor "nutrition label")  ═══
+   evidence (rigor-blocks.tsx:34): claim + source grade + confidence + as_of.
+   The provenance/rigor claim-shape the brief names. */
+.evidence-list { display: flex; flex-direction: column; gap: 10px; margin: 24px 0; }
+.evidence-row {
+  display: grid; grid-template-columns: 1fr 56px 96px 92px; gap: 16px; align-items: center;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-card); padding: 14px 18px;
+}
+.evidence-claim { font-size: 15px; color: var(--fg-body); line-height: 1.5; max-width: 76ch; }
+.evidence-grade {
+  justify-self: start; font-family: var(--font-mono); font-weight: var(--wt-bold);
+  font-size: 12px; padding: 2px 9px; border-radius: var(--radius-chip); text-transform: uppercase;
+}
+.evidence-grade.a { background: var(--ok-dim); color: var(--ok-text); }
+.evidence-grade.b { background: var(--info-dim); color: var(--info-text); }
+.evidence-grade.c { background: color-mix(in srgb, var(--gold) 16%, var(--bg-base)); color: var(--gold-text); }
+.evidence-grade.d { background: var(--warn-dim); color: var(--warn-text); }
+/* confidence pips (3-pip meter, v2 assumptionledger idiom) */
+.evidence-conf { display: inline-flex; gap: 3px; }
+.evidence-conf .pip { width: 8px; height: 8px; border-radius: 50%; background: var(--border-strong); }
+.evidence-conf .pip.on { background: var(--accent); }
+.evidence-as-of { font-family: var(--font-mono); font-size: 12px; color: var(--fg-tertiary); text-align: right; }
+
+/* ════════════════  (3b) PORT · BIAS CHECK (rigor)  ════════════════
+   biascheck (rigor-blocks.tsx:91): bias + risk severity + counter-measure. */
+.bias-check { display: flex; flex-direction: column; gap: 10px; margin: 24px 0; }
+.bias-row {
+  display: grid; grid-template-columns: 200px 80px 1fr; gap: 16px; align-items: start;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-card); padding: 14px 18px;
+}
+.bias-name { font-size: 14px; font-weight: var(--wt-semibold); color: var(--fg-primary); }
+.bias-risk {
+  justify-self: start; font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+  font-weight: var(--wt-bold); padding: 2px 8px; border-radius: var(--radius-chip);
+}
+.bias-risk.high { background: var(--warn-dim); color: var(--warn-text); }
+.bias-risk.med  { background: color-mix(in srgb, var(--gold) 16%, var(--bg-base)); color: var(--gold-text); }
+.bias-risk.low  { background: var(--bg-subtle); color: var(--fg-secondary); }
+.bias-counter { font-size: 14px; color: var(--fg-body); line-height: 1.5; max-width: 76ch; }
+
+/* ════════════════  (3b) PORT · CHART (dep-free SVG)  ════════════════
+   chart (chart-block.tsx): single-hue bar/line/area/pie + annotations. The
+   chart claim-shape the brief names. CSS frames the SVG; the SVG itself is
+   dep-free and authored/emitted by the pipeline. Single accent hue = the
+   "one contrast per deck" rule; categorical uses --chart-1..6. */
+.chart { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-card); padding: 24px 28px; margin: 24px 0; }
+.chart-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.chart-title { font-size: 15px; font-weight: var(--wt-semibold); color: var(--fg-primary); }
+.chart-unit { font-family: var(--font-mono); font-size: 11px; color: var(--fg-tertiary); text-transform: uppercase; letter-spacing: 1px; }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.chart .axis, .chart .grid-line { stroke: var(--border); stroke-width: 1; }
+.chart .axis-label { fill: var(--fg-tertiary); font-family: var(--font-mono); font-size: 11px; }
+.chart .bar { fill: var(--accent); }
+.chart .bar.dim { fill: var(--accent-dim); }
+.chart .series-line { fill: none; stroke: var(--accent); stroke-width: 2.5; }
+.chart .series-area { fill: var(--accent-soft); }
+.chart .data-label { fill: var(--fg-body); font-family: var(--font-mono); font-size: 12px; font-weight: 600; }
+.chart-annotation { margin-top: 14px; font-size: 13px; color: var(--fg-secondary); border-left: 2px solid var(--accent); padding-left: 12px; max-width: 72ch; }
+/* categorical bar tint hooks (pie/segmented) */
+.chart .cat-1 { fill: var(--chart-1); } .chart .cat-2 { fill: var(--chart-2); }
+.chart .cat-3 { fill: var(--chart-3); } .chart .cat-4 { fill: var(--chart-4); }
+.chart .cat-5 { fill: var(--chart-5); } .chart .cat-6 { fill: var(--chart-6); }
+
+/* ════════════════  (3b) PORT · FLOW EMBED  ════════════════
+   flow (flow-embed.tsx): embed a saved okuro flow by id. In the kit this is
+   the framed panel + header + maximize affordance; the live editor mounts in
+   the runtime (A4). A leapfrog v2 mechanic the v3 kit dropped. */
+.flow-embed { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-card); overflow: hidden; margin: 24px 0; }
+.flow-embed-head { display: flex; align-items: center; gap: 12px; padding: 12px 18px; background: var(--bg-elev); border-bottom: 1px solid var(--border); }
+.flow-embed-icon { width: 18px; height: 18px; border-radius: var(--radius-chip); background: var(--accent-dim); display: inline-flex; align-items: center; justify-content: center; color: var(--accent-text); font-size: 11px; flex-shrink: 0; }
+.flow-embed-title { font-size: 14px; font-weight: var(--wt-semibold); color: var(--fg-primary); }
+.flow-embed-id { font-family: var(--font-mono); font-size: 11px; color: var(--fg-tertiary); }
+.flow-embed-max { margin-left: auto; font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase; font-weight: var(--wt-semibold); color: var(--accent-text); border: 1px solid var(--accent); border-radius: var(--radius-input); padding: 4px 10px; background: none; cursor: pointer; }
+.flow-embed-canvas { height: 320px; display: flex; align-items: center; justify-content: center; background: var(--bg-base); background-image: radial-gradient(var(--border-soft) 1px, transparent 1px); background-size: 20px 20px; color: var(--fg-tertiary); font-size: 13px; }
+.flow-embed-canvas .flow-node { background: var(--bg-card); border: 1px solid var(--border-strong); border-radius: var(--radius-input); padding: 10px 16px; margin: 0 8px; font-size: 12px; color: var(--fg-body); }
+
+/* ════════════════  (3b) PORT · STATEMENT (typography hook)  ════════════
+   statement (typography-blocks.tsx:18): one assertion, huge type. The
+   maximal-impact L1 hook / quote-cover archetype the inventory flagged
+   missing. Accent scarcity: <=1 accent span. */
+.statement { display: flex; flex-direction: column; justify-content: center; gap: 24px; }
+.statement-text { font-size: 52px; line-height: var(--lh-tight); font-weight: var(--wt-heavy); letter-spacing: var(--track-display); color: var(--fg-primary); max-width: 20ch; margin: 0; }
+.statement-text .accent { color: var(--accent-text); }
+.statement-kicker { font-size: var(--fs-eyebrow); letter-spacing: var(--track-eyebrow); text-transform: uppercase; font-weight: var(--wt-bold); color: var(--accent-text); }
+
+/* ════════════════  (3b) PORT · PULL QUOTE  ════════════════
+   quote (typography-blocks.tsx:45): closes the quote claim-shape gap (kit had
+   only .prose blockquote). Oversized mark, attribution. */
+.pull-quote { position: relative; padding: 8px 0 8px 56px; margin: 24px 0; }
+.pull-quote::before { content: "\201C"; position: absolute; left: 0; top: -12px; font-size: 88px; line-height: 1; color: var(--accent-dim); font-family: var(--font-body); }
+.pull-quote-text { font-size: 28px; line-height: 1.4; font-weight: var(--wt-medium); color: var(--fg-primary); max-width: 40ch; }
+.pull-quote-attr { margin-top: 16px; font-size: 14px; color: var(--fg-tertiary); }
+.pull-quote-attr .who { color: var(--fg-secondary); font-weight: var(--wt-semibold); }
+
+/* ════════════════  (3b) PORT · MATRIX (feature comparison)  ════════════
+   matrix (data-blocks.tsx:39): yes/no/partial grid, winner-col tint. Distinct
+   from classification-table (verdict) — this is feature-by-option comparison. */
+.matrix-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-card); }
+.matrix { width: 100%; border-collapse: collapse; font-size: 14px; }
+.matrix th { background: var(--bg-elev); color: var(--fg-secondary); font-size: 11px; font-weight: var(--wt-bold); letter-spacing: 1px; text-transform: uppercase; padding: 12px 16px; text-align: center; border-bottom: 2px solid var(--border-strong); white-space: nowrap; }
+.matrix th.feature-col, .matrix td.feature-cell { text-align: left; }
+.matrix td { padding: 11px 16px; border-bottom: 1px solid var(--border-soft); text-align: center; color: var(--fg-body); }
+.matrix tr:last-child td { border-bottom: 0; }
+.matrix td.feature-cell { font-weight: var(--wt-medium); color: var(--fg-primary); }
+.matrix .cell-yes { color: var(--ok-text); font-weight: var(--wt-bold); }
+/* not-supported mark: --fg-tertiary (AA-normal by the resolver) not --fg-muted
+   (sub-AA on light themes) — a glyph is meaningful, not decorative (rule 8). */
+.matrix .cell-no { color: var(--fg-tertiary); }
+.matrix .cell-partial { color: var(--gold-text); }
+.matrix col.winner, .matrix .winner-col { background: var(--accent-soft); }
+.matrix th.winner-col { background: color-mix(in srgb, var(--accent) 12%, var(--bg-elev)); color: var(--accent-text); }
+
+/* ══════════════════  (3c) HIGH-CARDINALITY · DENSE TABLE  ══════════════════
+   Open-ended compact table, 10-30 rows, zebra + sticky header. Where the 13
+   fixed archetypes silently truncate (cap 3-8), the 13-principles claim renders
+   whole here. Scrolls inside its own frame — never overflows the slide. */
+.dense-table-wrap { max-height: 620px; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius-card); }
+.dense-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.dense-table thead th {
+  position: sticky; top: 0; z-index: 1;
+  background: var(--bg-elev); color: var(--fg-tertiary);
+  font-size: 10px; font-weight: var(--wt-bold); letter-spacing: 1px; text-transform: uppercase;
+  text-align: left; padding: 10px 14px; border-bottom: 2px solid var(--border-strong); white-space: nowrap;
+}
+.dense-table tbody td { padding: 8px 14px; border-bottom: 1px solid var(--border-soft); color: var(--fg-body); line-height: 1.45; vertical-align: top; }
+.dense-table tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--fg-primary) 3%, var(--bg-base)); }
+.dense-table tbody tr:hover td { background: var(--accent-soft); }
+.dense-table td.num { font-family: var(--font-mono); text-align: right; color: var(--fg-primary); }
+.dense-table td .cell-strong { color: var(--fg-primary); font-weight: var(--wt-semibold); }
+.dense-table tr.state-ok td:first-child { box-shadow: inset 3px 0 0 var(--ok); }
+.dense-table tr.state-warn td:first-child { box-shadow: inset 3px 0 0 var(--warn); }
+
+/* ══════════════════  (3c) HIGH-CARDINALITY · TWO-COLUMN LIST  ══════════════
+   8-24 short items balanced across two columns (CSS columns keep reading order
+   top-to-bottom then across). Each item: title + optional sub. */
+.two-col-list { column-count: 2; column-gap: 40px; margin: 24px 0; }
+.two-col-list .tcl-item { break-inside: avoid; display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border-soft); }
+.two-col-list .tcl-mark { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; margin-top: 8px; }
+.two-col-list .tcl-title { font-size: 15px; font-weight: var(--wt-medium); color: var(--fg-primary); line-height: 1.4; }
+.two-col-list .tcl-sub { font-size: 13px; color: var(--fg-tertiary); line-height: 1.45; margin-top: 2px; }
+@media (max-width: 900px) { .two-col-list { column-count: 1; } }
+
+/* ══════════════════  (3c) HIGH-CARDINALITY · TAG WALL  ══════════════════
+   10-40 chips as a scannable wall (tech stacks, capability sets, glossaries) —
+   a 40-item set that would overflow card-set fits here. Chips follow the
+   design-language chip idiom (3px radius, tint bg, -text ink). */
+.tag-wall { display: flex; flex-wrap: wrap; gap: 8px; margin: 24px 0; }
+.tag-wall .tw-tag {
+  font-size: 13px; font-weight: var(--wt-medium); color: var(--fg-body);
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-input); padding: 6px 12px; line-height: 1.3;
+}
+.tag-wall .tw-tag:hover { border-color: var(--border-strong); }
+.tag-wall .tw-tag.accent { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 30%, transparent); color: var(--accent-text); }
+.tag-wall .tw-tag.ok   { background: var(--ok-dim); border-color: color-mix(in srgb, var(--ok) 25%, transparent); color: var(--ok-text); }
+.tag-wall .tw-tag.warn { background: var(--warn-dim); border-color: color-mix(in srgb, var(--warn) 25%, transparent); color: var(--warn-text); }
+.tag-wall .tw-tag .tw-count { font-family: var(--font-mono); font-size: 11px; color: var(--fg-tertiary); margin-left: 6px; }

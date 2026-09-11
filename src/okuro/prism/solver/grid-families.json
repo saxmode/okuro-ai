@@ -1,0 +1,247 @@
+{
+  "_doc": "PRISM v4 W2 ENTRY GATE \u2014 frozen grid-family parameter sets (v4.1 B4 + solver-critique dim 4). Machine-readable; every parameter carries a `_src` research line-ref (DP13). Prose research not reducible to a parameter/score term is logged under `_excluded`. Consumed by solver/families.py; the beam scorer (solver/score.py) reads one weighted term per parameter class. Answer 7: the family is chosen PER DECK (input to the solver; selection heuristic is W3/W5 \u2014 see solver/selection.py) and drives placement via these params + the family-conformance score term.",
+  "version": "v4-w2",
+  "grid": {
+    "columns": 12,
+    "_src_columns": "12 divides 2/3/4/6 \u2014 Gerstner 'mobile grid' single denominator (typographic-layout-systems.md:78-82,89); v4.1 B1 fixed 12-col; layout.py substrate already 12-col.",
+    "canvas_px": 1600,
+    "canvas_pad_px": 64,
+    "content_w_px": 1472,
+    "_src_canvas": "height-model.json feature_recipe.col_px: round(col_span/12 * 1472) (1600 canvas - 2*64 pad)."
+  },
+  "families": {
+    "swiss": {
+      "label": "Swiss / International Typographic Style (M\u00fcller-Brockmann \u00b7 Gerstner \u00b7 Ruder)",
+      "split_whitelist": [
+        [
+          12
+        ],
+        [
+          6,
+          6
+        ],
+        [
+          8,
+          4
+        ],
+        [
+          4,
+          8
+        ],
+        [
+          4,
+          4,
+          4
+        ],
+        [
+          3,
+          3,
+          3,
+          3
+        ]
+      ],
+      "_src_split_whitelist": "critique dim4 (4|4|4,3|3|3|3,6|6,8|4); modular orthogonal grid typographic-layout-systems.md:56-67,275; subset of layout.py _LEGAL_SPANS:122-130. Even splits allowed (objective peer sets).",
+      "dominance_ratio": 1.5,
+      "_src_dominance_ratio": "critique dim4 Swiss 1.5\u00d7; objectivity/restraint (typographic-layout-systems.md:53-54); Ruder contrast is macro not dramatic (:98,:108). NB: brief parenthetical said 2.0 \u2014 pre-check (DEFECT 2) endorsed the critique dim-4 table; deviation logged.",
+      "asymmetry_bias": 0.4,
+      "_src_asymmetry_bias": "low \u2014 Swiss objectivity, grid-as-neutral-conduit (typographic-layout-systems.md:53-54); asymmetry present but restrained vs Bauhaus (rule #4 :270).",
+      "whitespace_floor": 0.15,
+      "_src_whitespace_floor": "moderate \u2014 active white space (Ruder :100,:255) but content-forward; less than Japanese Ma mandate.",
+      "alignment_strictness": 1.0,
+      "_src_alignment_strictness": "strict baseline + column alignment by construction (typographic-layout-systems.md:58,:241,:249).",
+      "prose_measure_floor": 5,
+      "_src_prose_measure_floor": "layout.py _MIN_PROSE_SPAN=5 (:65); Bringhurst 45-75ch (typographic-layout-systems.md:222-224,:268).",
+      "gutter_px": 24,
+      "baseline_unit_px": 45,
+      "_src_baseline_unit": "one baseline unit, all spacing a multiple (typographic-layout-systems.md:229-231,:269); 45px = height-model row_unit_px.",
+      "density_ceilings": {
+        "L1": 0.35,
+        "L2": 0.6,
+        "L3": 0.85
+      },
+      "_src_density_ceilings": "monotonic L1<L2<L3 (v4 \u00a73c density strictly rises; critique dim5); ceilings mid-high \u2014 Swiss admits dense modular grids.",
+      "max_void": 0.3,
+      "_src_max_void": "objective grid fills its modules; only modest deliberate void (typographic-layout-systems.md:53-54,:65). Ceiling above whitespace_floor 0.15."
+    },
+    "japanese": {
+      "label": "Japanese spatial aesthetics \u2014 Ma / notan / asymmetric balance",
+      "split_whitelist": [
+        [
+          12
+        ],
+        [
+          9,
+          3
+        ],
+        [
+          3,
+          9
+        ],
+        [
+          8,
+          4
+        ],
+        [
+          4,
+          8
+        ],
+        [
+          7,
+          5
+        ],
+        [
+          5,
+          7
+        ]
+      ],
+      "_src_split_whitelist": "critique dim4 (9|3,8|4,7|5); high asymmetry, focal isolated by space (typographic-layout-systems.md:145-160). Even 6|6 EXCLUDED \u2014 asymmetric balance by relationship, not mirroring (:150-151,:160).",
+      "dominance_ratio": 2.5,
+      "_src_dominance_ratio": "critique dim4 Japanese 2.5\u00d7 \u2014 focal isolated by space reads as strong dominance (typographic-layout-systems.md:145-147 Ma; :159 notan).",
+      "asymmetry_bias": 0.8,
+      "_src_asymmetry_bias": "high \u2014 off-center focal, uneven groupings, balance from relationship (typographic-layout-systems.md:150-151,:160).",
+      "whitespace_floor": 0.3,
+      "_src_whitespace_floor": "HIGH \u2014 Ma: interval is content; mandate >=1 void/spacer cell (notan) (typographic-layout-systems.md:145-147,:158-159; critique dim4 'mandate >=1 void/spacer cell \u2014 notan').",
+      "alignment_strictness": 0.9,
+      "_src_alignment_strictness": "strict baseline but Ma governs spacing rhythm (typographic-layout-systems.md:158).",
+      "prose_measure_floor": 5,
+      "_src_prose_measure_floor": "layout.py _MIN_PROSE_SPAN=5 (:65).",
+      "gutter_px": 40,
+      "baseline_unit_px": 45,
+      "_src_baseline_unit": "generous rung-level-aware gap scale (typographic-layout-systems.md:158); 45px kit row_unit.",
+      "density_ceilings": {
+        "L1": 0.25,
+        "L2": 0.45,
+        "L3": 0.65
+      },
+      "_src_density_ceilings": "LOWEST ceilings \u2014 minimalism = essentials only, never collapse whitespace to fit more (typographic-layout-systems.md:152,:158,:161).",
+      "max_void": 0.55,
+      "_src_max_void": "Ma tolerates the LARGEST void \u2014 the interval is content, filled/empty masses balance (typographic-layout-systems.md:145-147,:158-159). Ceiling well above floor 0.30."
+    },
+    "bauhaus": {
+      "label": "Bauhaus / New Typography (Tschichold \u00b7 Bayer \u00b7 Moholy-Nagy)",
+      "split_whitelist": [
+        [
+          12
+        ],
+        [
+          9,
+          3
+        ],
+        [
+          3,
+          9
+        ],
+        [
+          8,
+          4
+        ],
+        [
+          4,
+          8
+        ],
+        [
+          6,
+          6
+        ]
+      ],
+      "_src_split_whitelist": "critique dim4 (9|3,8|4,z-2x2); strikingly asymmetric + diagonal kinetic (typographic-layout-systems.md:121-135). 6|6 admitted ONLY as the z-pattern 2x2 quadrant (layout.py:346-347; :134 Z kinetic scan).",
+      "dominance_ratio": 3.0,
+      "_src_dominance_ratio": "critique dim4 Bauhaus 3\u00d7 (kinetic contrast) \u2014 size/weight/direction contrast is the whole ethos (typographic-layout-systems.md:124-126,:135; rule #10 :276). NB: brief parenthetical said 1.5 \u2014 contradicts research (Bauhaus = MAX contrast); pre-check endorsed critique dim-4; using 3.0, deviation logged.",
+      "asymmetry_bias": 0.9,
+      "_src_asymmetry_bias": "highest \u2014 reject symmetry, 'strikingly asymmetrical compositions' (typographic-layout-systems.md:121-122,:132; rule #4 :270).",
+      "whitespace_floor": 0.1,
+      "_src_whitespace_floor": "LOW \u2014 white space structural/load-bearing but the composition is kinetic-full, not airy (typographic-layout-systems.md:123,:133).",
+      "alignment_strictness": 0.5,
+      "_src_alignment_strictness": "loose baseline; diagonal reading path allowed (typographic-layout-systems.md:124; critique dim4 'baseline loose, reading path diagonal allowed').",
+      "prose_measure_floor": 5,
+      "_src_prose_measure_floor": "layout.py _MIN_PROSE_SPAN=5 (:65).",
+      "gutter_px": 16,
+      "baseline_unit_px": 45,
+      "_src_baseline_unit": "45px kit row_unit (loose adherence).",
+      "density_ceilings": {
+        "L1": 0.35,
+        "L2": 0.62,
+        "L3": 0.88
+      },
+      "_src_density_ceilings": "highest ceilings \u2014 kinetic contrast tolerates dense dynamic fields (typographic-layout-systems.md:124-126).",
+      "max_void": 0.35,
+      "_src_max_void": "kinetic tension allows some void for dynamism but the field is largely filled (typographic-layout-systems.md:123-126). Ceiling above floor 0.10."
+    },
+    "editorial": {
+      "label": "Editorial grid theory \u2014 column / hierarchical grids (magazine)",
+      "split_whitelist": [
+        [
+          12
+        ],
+        [
+          7,
+          5
+        ],
+        [
+          5,
+          7
+        ],
+        [
+          6,
+          6
+        ],
+        [
+          8,
+          4
+        ],
+        [
+          4,
+          8
+        ],
+        [
+          4,
+          4,
+          4
+        ]
+      ],
+      "_src_split_whitelist": "Column grid = N vertical columns + gutters, magazine/article mixed text+image (typographic-layout-systems.md:171-177 editorial 5-grid; efficient-web-layouts.md:90-96 split/duo, :83-88 card grid). Measure-driven 7|5/5|7 primary (layout.py:126).",
+      "dominance_ratio": 2.0,
+      "_src_dominance_ratio": "editorial features use hierarchical hero spreads (typographic-layout-systems.md:177,:188 hierarchical); 'clear/strong editorial' modular ratio 1.25-1.333 (:211-212) => moderate-high focal dominance. Between Swiss-calm and Bauhaus-kinetic.",
+      "asymmetry_bias": 0.5,
+      "_src_asymmetry_bias": "moderate \u2014 column grid balances text flow; hierarchical zones sized by importance (typographic-layout-systems.md:174,:177).",
+      "whitespace_floor": 0.15,
+      "_src_whitespace_floor": "moderate \u2014 wide margins in editorial/manuscript layouts (typographic-layout-systems.md:173).",
+      "alignment_strictness": 0.9,
+      "_src_alignment_strictness": "baseline grid \u2014 'horizontal lines all text sits on', vertical rhythm across the page (typographic-layout-systems.md:176,:187).",
+      "prose_measure_floor": 6,
+      "_src_prose_measure_floor": "editorial is prose-forward; optimal 45-75ch, 66 ideal (typographic-layout-systems.md:222-224) \u2014 floor raised above the 5-col default to protect measure.",
+      "gutter_px": 28,
+      "baseline_unit_px": 45,
+      "_src_baseline_unit": "baseline grid ties column height to line height (typographic-layout-systems.md:58,:229-231).",
+      "density_ceilings": {
+        "L1": 0.32,
+        "L2": 0.58,
+        "L3": 0.82
+      },
+      "_src_density_ceilings": "moderate \u2014 reading-forward, but feature spreads can go dense at L3.",
+      "max_void": 0.32,
+      "_src_max_void": "column grid fills its columns; wide margins are the void budget (typographic-layout-systems.md:173). Ceiling above floor 0.15."
+    }
+  },
+  "score_term_map": {
+    "_doc": "Which frozen parameter each solver/score.py term reads. Answer-7 fix (DEFECT 1): family-conformance is a first-class weighted term; focal-dominance reads the per-family dominance_ratio (DEFECT 2), not a global 2x.",
+    "reading_gravity": "candidate reading_order vs F/Z scan path (efficient-web-layouts.md:15,:28-32; typographic-layout-systems.md:134)",
+    "alignment": "alignment_strictness (penalty for off-baseline / non-grid spans)",
+    "whitespace": "whitespace_floor + max_void applied to MARGIN void only (uniform outer margin cols empty in every band + inter-row gutters) \u2014 void-as-margin class; in-band holes excluded (typographic-layout-systems.md:53-54,:100,:255)",
+    "density_band": "density_ceilings[level] (per-level ceiling + L1<L2<L3 monotonicity)",
+    "family_conformance": "asymmetry_bias + alignment_strictness + split_whitelist membership (the answer-7 term)",
+    "focal_dominance": "dominance_ratio (focal cell area / runner-up >= ratio)",
+    "balance": "notan mass balance: ink centroid + band occupancy spread, scaled by asymmetry_bias (typographic-layout-systems.md:148-149,:159)",
+    "space_utilization": "HOLE penalty \u2014 in-band void (horizontal empty cols + vertical hanging-column gaps) beside content, exempting only the uniform margin; holes get no max_void allowance (void-as-hole class)",
+    "macro_structure": "dominance_ratio at REGION (band) level \u2014 one dominant band mass vs runner-up + subordinate bands cleanly organised (no trailing spacer); the 'dominant band + supporting bands' skeleton (typographic-layout-systems.md:276 rule#10; :177 hierarchical)"
+  },
+  "_excluded": {
+    "_doc": "Research rules NOT reducible to a single parameter/score term \u2014 logged per entry gate ('Rules not reducible to a parameter/score term -> EXCLUDED + logged').",
+    "grid_is_an_aid_not_a_guarantee": "typographic-layout-systems.md:50-52,:66 \u2014 meta-principle; realised as the beam's 'only-improve, else stack (None)' contract (layout.py:28-30), not a scored param.",
+    "grid_as_programme_morphological_box": "typographic-layout-systems.md:73-82,:90 (Gerstner) \u2014 IS the solver architecture itself (candidate x emphasis-seed enumeration), not a param.",
+    "objectivity_designer_as_neutral_conduit": "typographic-layout-systems.md:53-54 \u2014 philosophy; approximated by asymmetry_bias + alignment_strictness.",
+    "modular_type_scale_ratio": "typographic-layout-systems.md:202-218 \u2014 font-size scale; EXCLUDED: the architecture-noir brand is monospace, size hierarchy is span+emphasis not font-px (:238); folded into dominance_ratio.",
+    "diataxis_documentation_spine": "efficient-web-layouts.md:126-131 \u2014 cross-page IA (depth ladder authoring), W3 not W2.",
+    "progressive_disclosure_accordion_tabs": "efficient-web-layouts.md:140-145,:207 \u2014 in-rung disclosure is a viewer affordance (W4), not a placement param."
+  }
+}

@@ -1,0 +1,666 @@
+{
+  "id": "okuro-wow-robin",
+  "title": "okuro — Complete Functional Reference",
+  "brand": "okuro",
+  "hero": {
+    "slide": {
+      "archetype": "hero",
+      "slots": {
+        "eyebrow": {
+          "text": "briefing",
+          "num": "01"
+        },
+        "title": [
+          {
+            "text": "okuro — Complete Functional "
+          },
+          {
+            "text": "Reference",
+            "accent": true
+          }
+        ],
+        "lede": "problem (fragmented knowledge, lock-in risk) -> system design (capability tiers, gated by hardware) -> capability delivered (90-role bench) -> integrity controls (contradiction detection) -> governance principles (doctrine limiting cost/risk) -> growth path (lab to Meridian at scale)",
+        "personas": [
+          {
+            "mark": "a",
+            "name": "Robin Vogt",
+            "lens": "Board member · northwind"
+          }
+        ],
+        "meta": [
+          {
+            "label": "family",
+            "value": "swiss"
+          },
+          {
+            "label": "audience",
+            "value": "single"
+          },
+          {
+            "label": "brand",
+            "value": "okuro"
+          }
+        ]
+      }
+    }
+  },
+  "topics": [
+    {
+      "id": "t1",
+      "title": "The Bet: Agent-Native OS",
+      "levels": {
+        "L0": {
+          "slide": {
+            "archetype": "disclosure-list",
+            "slots": {
+              "eyebrow": {
+                "text": "The Bet: Agent-Native OS",
+                "num": "01"
+              },
+              "title": [
+                {
+                  "text": "Okuro is personal AI infrastructure built to last: a durable foundation that any AI provider can plug into, rather than a single assistant tied to one vendor. The system calls this design an \"agent-native operating "
+                },
+                {
+                  "text": "system.\"",
+                  "accent": true
+                }
+              ],
+              "rows": [
+                {
+                  "mark": "1",
+                  "title": "Okuro is personal AI infrastructure built to last: a durable foundation that any AI provider can plug into, rather than "
+                }
+              ]
+            }
+          },
+          "provenance": [
+            {
+              "claim": "c1",
+              "quote": "personal AI-agent infrastructure — an",
+              "artifactId": "66b7d945-e097-4b06-9720-f83bb2d5daaf",
+              "artifactTitle": "okuro — Complete Functional Reference"
+            }
+          ],
+          "visual": {
+            "kind": "illustration",
+            "title": "The Bet: Agent-Native OS",
+            "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" viewBox=\"0 0 1200 600\" width=\"1200\" height=\"600\">\n<defs>\n  <filter id=\"glow\" x=\"-200%\" y=\"-200%\" width=\"500%\" height=\"500%\">\n    <feGaussianBlur stdDeviation=\"6\" result=\"b\"/>\n    <feMerge><feMergeNode in=\"b\"/><feMergeNode in=\"SourceGraphic\"/></feMerge>\n  </filter>\n  <filter id=\"glow_soft\" x=\"-200%\" y=\"-200%\" width=\"500%\" height=\"500%\">\n    <feGaussianBlur stdDeviation=\"14\"/>\n  </filter>\n  <filter id=\"bloom\" x=\"-300%\" y=\"-300%\" width=\"700%\" height=\"700%\">\n    <feGaussianBlur in=\"SourceGraphic\" stdDeviation=\"3\"  result=\"b1\"/>\n    <feGaussianBlur in=\"SourceGraphic\" stdDeviation=\"9\"  result=\"b2\"/>\n    <feGaussianBlur in=\"SourceGraphic\" stdDeviation=\"22\" result=\"b3\"/>\n    <feMerge>\n      <feMergeNode in=\"b3\"/>\n      <feMergeNode in=\"b2\"/>\n      <feMergeNode in=\"b1\"/>\n      <feMergeNode in=\"SourceGraphic\"/>\n    </feMerge>\n  </filter>\n  <filter id=\"bloom_strong\" x=\"-400%\" y=\"-400%\" width=\"900%\" height=\"900%\">\n    <feGaussianBlur in=\"SourceGraphic\" stdDeviation=\"4\"  result=\"b1\"/>\n    <feGaussianBlur in=\"SourceGraphic\" stdDeviation=\"14\" result=\"b2\"/>\n    <feGaussianBlur in=\"SourceGraphic\" stdDeviation=\"36\" result=\"b3\"/>\n    <feMerge>\n      <feMergeNode in=\"b3\"/>\n      <feMergeNode in=\"b2\"/>\n      <feMergeNode in=\"b1\"/>\n      <feMergeNode in=\"SourceGraphic\"/>\n    </feMerge>\n  </filter>\n  <filter id=\"chromatic\" x=\"-10%\" y=\"-10%\" width=\"120%\" height=\"120%\">\n    <feOffset in=\"SourceGraphic\" dx=\"-1.5\" dy=\"0\" result=\"r0\"/>\n    <feColorMatrix in=\"r0\" values=\"0 0 0 0 1.000  0 0 0 0 0.200  0 0 0 0 0.267  0 0 0 1 0\" result=\"r\"/>\n    <feOffset in=\"SourceGraphic\" dx=\"0\" dy=\"0\" result=\"g0\"/>\n    <feColorMatrix in=\"g0\" values=\"0 0 0 0 0.659  0 0 0 0 0.333  0 0 0 0 0.969  0 0 0 1 0\" result=\"g\"/>\n    <feOffset in=\"SourceGraphic\" dx=\"1.5\" dy=\"0\" result=\"b0\"/>\n    <feColorMatrix in=\"b0\" values=\"0 0 0 0 0.231  0 0 0 0 0.510  0 0 0 0 0.965  0 0 0 1 0\" result=\"b\"/>\n    <feBlend in=\"r\" in2=\"g\" mode=\"screen\" result=\"rg\"/>\n    <feBlend in=\"rg\" in2=\"b\" mode=\"screen\"/>\n  </filter>\n  <pattern id=\"dotgrid\" x=\"0\" y=\"0\" width=\"24\" height=\"24\" patternUnits=\"userSpaceOnUse\">\n    <circle cx=\"1\" cy=\"1\" r=\"0.6\" fill=\"#3a3a3a\"/>\n  </pattern>\n  <radialGradient id=\"halo\">\n    <stop offset=\"0%\" stop-color=\"#ffffff\" stop-opacity=\"0.55\"/>\n    <stop offset=\"60%\" stop-color=\"#ffffff\" stop-opacity=\"0.06\"/>\n    <stop offset=\"100%\" stop-color=\"#ffffff\" stop-opacity=\"0\"/>\n  </radialGradient>\n</defs>\n<rect x=\"0\" y=\"0\" width=\"1200\" height=\"600\" fill=\"#000000\"/>\n<rect id=\"bg\" x=\"0\" y=\"0\" width=\"1200\" height=\"600\" fill=\"url(#dotgrid)\" opacity=\"0.06\"/>\n<g id=\"ax_h\">\n<line x1=\"100.0\" y1=\"300.0\" x2=\"1100.0\" y2=\"300.0\" stroke=\"#6e6e6e\" stroke-width=\"0.4\" opacity=\"0.3\"/>\n</g>\n<g id=\"ax_v\">\n<line x1=\"600.0\" y1=\"50.0\" x2=\"600.0\" y2=\"550.0\" stroke=\"#6e6e6e\" stroke-width=\"0.4\" opacity=\"0.3\"/>\n</g>\n<g id=\"dial\">\n<circle cx=\"600.0\" cy=\"300.0\" r=\"40.0\" fill=\"none\" stroke=\"#6e6e6e\" stroke-width=\"0.5\" opacity=\"0.30\"/>\n<circle cx=\"600.0\" cy=\"300.0\" r=\"80.0\" fill=\"none\" stroke=\"#6e6e6e\" stroke-width=\"0.5\" opacity=\"0.30\"/>\n<circle cx=\"600.0\" cy=\"300.0\" r=\"120.0\" fill=\"none\" stroke=\"#6e6e6e\" stroke-width=\"0.5\" opacity=\"0.30\"/>\n<circle cx=\"600.0\" cy=\"300.0\" r=\"160.0\" fill=\"none\" stroke=\"#6e6e6e\" stroke-width=\"0.8\" opacity=\"0.55\"/>\n<line x1=\"600.0\" y1=\"146.0\" x2=\"600.0\" y2=\"136.0\" stroke=\"#e0e0e0\" stroke-width=\"0.9\" opacity=\"0.85\"/>\n<line x1=\"639.9\" y1=\"151.2\" x2=\"642.4\" y2=\"141.6\" stroke=\"#6e6e6e\" stroke-width=\"0.6\" opacity=\"0.55\"/>\n<line x1=\"677.0\" y1=\"166.6\" x2=\"682.0\" y2=\"158.0\" stroke=\"#6e6e6e\" stroke-width=\"0.6\" opacity=\"0.55\"/>\n<line x1=\"708.9\" y1=\"191.1\" x2=\"716.0\" y2=\"184.0\" stroke=\"#e0e0e0\" stroke-width=\"0.9\" opacity=\"0.85\"/>\n<line x1=\"733.4\" y1=\"223.0\" x2=\"742.0\" y2=\"218.0\" stroke=\"#6e6e6e\" stroke-width=\"0.6\" opacity=\"0.55\"/>\n<line x1=\"748.8\" y1=\"260.1\" x2=\"758.4\" y2=\"257.6\" stroke=\"#6e6e6e\" stroke-width=\"0.6\" opacity=\"0.55\"/>\n<line x1=\"754.0\" y1=\"300.0\" x2=\"764.0\" y2=\"300.0\" stroke=\"#e0e0e0\" stroke-width=\"0.9\" opacity=\"0.85\"/>\n<line x1=\"748.8\" y1=\"339.9\" x2=\"758.4\" y2=\"342.4\" stroke=\"#6e6e6e\" stroke-width=\"0.6\" opacity=\"0.55\"/>\n<line x1=\"733.4\" y1=\"377.0\" x2=\"742.0\" y2=\"382.0\" stroke=\"#6e6e6e\" stroke-width=\"0.6\" opacity=\"0.55\"/>\n<line x1=\"708.9\" y1=\"408.9\" x2=\"716.0\" y2=\"416.0\" stroke=\"#e0e0e0\" stroke-width=\"0.9\" opacity=\"0.85\"/>\n<line x1=\"677.0\" y1=\"433.4\" x2=\"682.0\" y2=\"442.0\" stroke=\"#6e6e6e\" stroke-width=\"0.6\" opacity=\"0.55\"/>\n<line x1=\"639.9\" y1=\"448.8\" x2=\"642.4\" y2=\"458.4\" stroke=\"#6e6e6e\" stroke-width=\"0.6\" opacity=\"0.55\"/>\n<line x1=\"600.0\" y1=\"454.0\" x2=\"600.0\" y2=\"464.0\" stroke=\"#e0e0e0\" stroke-width=\"0.9\" opacity=\"0.85\"/>\n<line x1=\"560.1\" y1=\"448.8\" x2=\"557.6\" y2=\"458.4\" stroke=\"#6e6e6e\" stroke-width=\"0.6\" opacity=\"0.55\"/>\n<line x1=\"523.0\" y1=\"433.4\" x2=\"518.0\" y2=\"442.0\" stroke=\"#6e6e6e\" stroke-width=\"0.6\" opacity=\"0.55\"/>\n<line x1=\"491.1\" y1=\"408.9\" x2=\"484.0\" y2=\"416.0\" stroke=\"#e0e0e0\" stroke-width=\"0.9\" opacity=\"0.85\"/>\n<line x1=\"466.6\" y1=\"377.0\" x2=\"458.0\" y2=\"382.0\" stroke=\"#6e6e6e\" stroke-width=\"0.6\" opacity=\"0.55\"/>\n<line x1=\"451.2\" y1=\"339.9\" x2=\"441.6\" y2=\"342.4\" stroke=\"#6e6e6e\" stroke-width=\"0.6\" opacity=\"0.55\"/>\n<line x1=\"446.0\" y1=\"300.0\" x2=\"436.0\" y2=\"300.0\" stroke=\"#e0e0e0\" stroke-width=\"0.9\" opacity=\"0.85\"/>\n<line x1=\"451.2\" y1=\"260.1\" x2=\"441.6\" y2=\"257.6\" stroke=\"#6e6e6e\" stroke-width=\"0.6\" opacity=\"0.55\"/>\n<line x1=\"466.6\" y1=\"223.0\" x2=\"458.0\" y2=\"218.0\" stroke=\"#6e6e6e\" stroke-width=\"0.6\" opacity=\"0.55\"/>\n<line x1=\"491.1\" y1=\"191.1\" x2=\"484.0\" y2=\"184.0\" stroke=\"#e0e0e0\" stroke-width=\"0.9\" opacity=\"0.85\"/>\n<line x1=\"523.0\" y1=\"166.6\" x2=\"518.0\" y2=\"158.0\" stroke=\"#6e6e6e\" stroke-width=\"0.6\" opacity=\"0.55\"/>\n<line x1=\"560.1\" y1=\"151.2\" x2=\"557.6\" y2=\"141.6\" stroke=\"#6e6e6e\" stroke-width=\"0.6\" opacity=\"0.55\"/>\n</g>\n<g id=\"motif\">\n<circle cx=\"600.0\" cy=\"300.0\" r=\"55.0\" fill=\"none\" stroke=\"#e0e0e0\" stroke-width=\"0.8\" opacity=\"1.00\" filter=\"url(#chromatic)\"/>\n<circle cx=\"600.0\" cy=\"300.0\" r=\"49.0\" fill=\"none\" stroke=\"#e0e0e0\" stroke-width=\"1\" stroke-dasharray=\"1 5\" opacity=\"0.50\"/>\n<circle cx=\"600.0\" cy=\"300.0\" r=\"89.0\" fill=\"none\" stroke=\"#e0e0e0\" stroke-width=\"0.8\" opacity=\"0.86\"/>\n<circle cx=\"600.0\" cy=\"300.0\" r=\"123.0\" fill=\"none\" stroke=\"#e0e0e0\" stroke-width=\"0.8\" opacity=\"0.72\"/>\n<circle cx=\"600.0\" cy=\"300.0\" r=\"117.0\" fill=\"none\" stroke=\"#e0e0e0\" stroke-width=\"1\" stroke-dasharray=\"1 5\" opacity=\"0.36\"/>\n<circle cx=\"600.0\" cy=\"300.0\" r=\"157.0\" fill=\"none\" stroke=\"#e0e0e0\" stroke-width=\"0.8\" opacity=\"0.59\"/>\n</g>\n<g id=\"focal\">\n<circle cx=\"600.0\" cy=\"300.0\" r=\"44.0\" fill=\"url(#halo)\"/>\n<circle cx=\"600.0\" cy=\"300.0\" r=\"7.0\" fill=\"#f4f1e8\" filter=\"url(#bloom_strong)\" opacity=\"0.85\"/>\n<circle cx=\"600.0\" cy=\"300.0\" r=\"7.0\" fill=\"#f4f1e8\" filter=\"url(#chromatic)\"/>\n</g>\n<g id=\"lbl\">\n<line x1=\"600.0\" y1=\"360.0\" x2=\"600.0\" y2=\"360.0\" stroke=\"#e0e0e0\" stroke-width=\"0.8\"/>\n<text x=\"600.0\" y=\"374.0\" font-family=\"JetBrains Mono, ui-monospace, Menlo, monospace\" font-size=\"11\" letter-spacing=\"2\" text-anchor=\"middle\" fill=\"#e0e0e0\" opacity=\"0.85\">AGENT</text>\n</g>\n<g id=\"cb_0\">\n<circle cx=\"600.0\" cy=\"140.0\" r=\"2.4\" fill=\"none\" stroke=\"#e0e0e0\" stroke-width=\"0.8\" opacity=\"0.95\"/>\n<circle cx=\"600.0\" cy=\"140.0\" r=\"1.0\" fill=\"#e0e0e0\" opacity=\"0.95\"/>\n<polyline points=\"600.0,140.0 600.0,140.0 100.0,140.0\" fill=\"none\" stroke=\"#6e6e6e\" stroke-width=\"0.8\" opacity=\"0.85\"/>\n<line x1=\"100.0\" y1=\"137.0\" x2=\"100.0\" y2=\"143.0\" stroke=\"#6e6e6e\" stroke-width=\"0.8\" opacity=\"0.85\"/>\n<text x=\"92.0\" y=\"137.0\" font-family=\"JetBrains Mono, ui-monospace, Menlo, monospace\" font-size=\"9\" letter-spacing=\"2\" text-anchor=\"end\" fill=\"#6e6e6e\" text-transform=\"uppercase\">CORE</text>\n<text x=\"92.0\" y=\"152.0\" font-family=\"JetBrains Mono, ui-monospace, Menlo, monospace\" font-size=\"13\" letter-spacing=\"0.5\" text-anchor=\"end\" fill=\"#e0e0e0\" font-weight=\"500\">agent</text>\n</g>\n<g id=\"cb_1\">\n<circle cx=\"1000.0\" cy=\"300.0\" r=\"2.4\" fill=\"none\" stroke=\"#e0e0e0\" stroke-width=\"0.8\" opacity=\"0.95\"/>\n<circle cx=\"1000.0\" cy=\"300.0\" r=\"1.0\" fill=\"#e0e0e0\" opacity=\"0.95\"/>\n<polyline points=\"1000.0,300.0 1000.0,200.0 100.0,200.0\" fill=\"none\" stroke=\"#6e6e6e\" stroke-width=\"0.8\" opacity=\"0.85\"/>\n<line x1=\"100.0\" y1=\"197.0\" x2=\"100.0\" y2=\"203.0\" stroke=\"#6e6e6e\" stroke-width=\"0.8\" opacity=\"0.85\"/>\n<text x=\"92.0\" y=\"197.0\" font-family=\"JetBrains Mono, ui-monospace, Menlo, monospace\" font-size=\"9\" letter-spacing=\"2\" text-anchor=\"end\" fill=\"#6e6e6e\" text-transform=\"uppercase\">RINGS</text>\n<text x=\"92.0\" y=\"212.0\" font-family=\"JetBrains Mono, ui-monospace, Menlo, monospace\" font-size=\"13\" letter-spacing=\"0.5\" text-anchor=\"end\" fill=\"#e0e0e0\" font-weight=\"500\">4</text>\n</g>\n<g id=\"cb_2\">\n<circle cx=\"600.0\" cy=\"460.0\" r=\"2.4\" fill=\"none\" stroke=\"#e0e0e0\" stroke-width=\"0.8\" opacity=\"0.95\"/>\n<circle cx=\"600.0\" cy=\"460.0\" r=\"1.0\" fill=\"#e0e0e0\" opacity=\"0.95\"/>\n<polyline points=\"600.0,460.0 600.0,420.0 100.0,420.0\" fill=\"none\" stroke=\"#6e6e6e\" stroke-width=\"0.8\" opacity=\"0.85\"/>\n<line x1=\"100.0\" y1=\"417.0\" x2=\"100.0\" y2=\"423.0\" stroke=\"#6e6e6e\" stroke-width=\"0.8\" opacity=\"0.85\"/>\n<text x=\"92.0\" y=\"417.0\" font-family=\"JetBrains Mono, ui-monospace, Menlo, monospace\" font-size=\"9\" letter-spacing=\"2\" text-anchor=\"end\" fill=\"#6e6e6e\" text-transform=\"uppercase\">MODEL</text>\n<text x=\"92.0\" y=\"432.0\" font-family=\"JetBrains Mono, ui-monospace, Menlo, monospace\" font-size=\"13\" letter-spacing=\"0.5\" text-anchor=\"end\" fill=\"#e0e0e0\" font-weight=\"500\">OS-native</text>\n</g>\n<g id=\"cb_3\">\n<circle cx=\"200.0\" cy=\"300.0\" r=\"2.4\" fill=\"none\" stroke=\"#e0e0e0\" stroke-width=\"0.8\" opacity=\"0.95\"/>\n<circle cx=\"200.0\" cy=\"300.0\" r=\"1.0\" fill=\"#e0e0e0\" opacity=\"0.95\"/>\n<polyline points=\"200.0,300.0 200.0,480.0 1100.0,480.0\" fill=\"none\" stroke=\"#6e6e6e\" stroke-width=\"0.8\" opacity=\"0.85\"/>\n<line x1=\"1100.0\" y1=\"477.0\" x2=\"1100.0\" y2=\"483.0\" stroke=\"#6e6e6e\" stroke-width=\"0.8\" opacity=\"0.85\"/>\n<text x=\"1108.0\" y=\"477.0\" font-family=\"JetBrains Mono, ui-monospace, Menlo, monospace\" font-size=\"9\" letter-spacing=\"2\" text-anchor=\"start\" fill=\"#6e6e6e\" text-transform=\"uppercase\">BET</text>\n<text x=\"1108.0\" y=\"492.0\" font-family=\"JetBrains Mono, ui-monospace, Menlo, monospace\" font-size=\"13\" letter-spacing=\"0.5\" text-anchor=\"start\" fill=\"#e0e0e0\" font-weight=\"500\">agent-first</text>\n</g>\n<g id=\"legend\">\n<line x1=\"900.0\" y1=\"450.0\" x2=\"1150.0\" y2=\"450.0\" stroke=\"#6e6e6e\" stroke-width=\"0.8\" opacity=\"0.7\"/>\n<text x=\"900.0\" y=\"464.0\" font-family=\"JetBrains Mono, ui-monospace, Menlo, monospace\" font-size=\"10\" letter-spacing=\"3\" fill=\"#e0e0e0\" text-transform=\"uppercase\" font-weight=\"500\">01 // AGENTS</text>\n<text x=\"900.0\" y=\"480.0\" font-family=\"JetBrains Mono, ui-monospace, Menlo, monospace\" font-size=\"10\" letter-spacing=\"1\" fill=\"#6e6e6e\">OS core // n=4</text>\n<text x=\"1150.0\" y=\"514.0\" font-family=\"JetBrains Mono, ui-monospace, Menlo, monospace\" font-size=\"9\" letter-spacing=\"2\" text-anchor=\"end\" fill=\"#6e6e6e\" text-transform=\"uppercase\">FIG. 01</text>\n</g>\n<text id=\"t_title\" x=\"100.0\" y=\"528.0\" font-family=\"JetBrains Mono, ui-monospace, Menlo, monospace\" font-size=\"28.6\" font-weight=\"500\" letter-spacing=\"1\" text-anchor=\"start\" fill=\"#e0e0e0\" opacity=\"1.0\">THE BET</text></svg>"
+          }
+        }
+      },
+      "l3": {
+        "title": "The Bet: Agent-Native OS",
+        "width": "wide",
+        "sections": [
+          {
+            "id": "t1-full",
+            "heading": "The Bet: Agent-Native OS",
+            "level": 1,
+            "md": "## The Bet: A Platform Built to Outlast Any Vendor\n\nOkuro is personal AI infrastructure, built as a durable foundation — not a single assistant, but a platform layer that any AI provider can run on top of. It combines two things: a memory that keeps growing over time, and a neutral layer that hands the right context to whichever AI provider is running at that moment.\n\nThat combination is the core bet. Instead of letting work, memory, and know-how become tied to one vendor's assistant — a path that risks getting locked in, with knowledge scattered across incompatible tools — okuro keeps that knowledge in a neutral layer that providers connect to. Context is prepared once and reused, so continuity does not depend on staying with one provider.\n\n### One place, one source of truth\n\nAt the center sits a single database file. It is the only lasting store for everything the system knows: profile, memory, artifacts, projects, roles, people, and the knowledge map connecting them. Rather than spreading these across separate files, provider-specific stores, or scattered documents, okuro keeps them in one governed place.\n\nThat choice is deliberate. Keeping everything together avoids the fragmentation that happens when knowledge is scattered across disconnected systems, and lowers the risk of not knowing where a fact actually lives. One place to check, govern, and trust.\n\nTogether, the neutral provider layer and the single database form the foundation everything else is built on: a platform designed to outlast any one vendor relationship."
+          },
+          {
+            "id": "t1-claims",
+            "heading": "Details",
+            "level": 2,
+            "md": "- Okuro is personal AI infrastructure built to last: a durable foundation that any AI provider can plug into, rather than a single assistant tied to one vendor. The system calls this design an \"agent-native operating system.\"\n- One file — the database at ~/.okuro/okuro.db — holds everything the system knows: profile, memory, artifacts, projects, roles, people, and the knowledge graph. It is the single source of truth."
+          }
+        ]
+      }
+    },
+    {
+      "id": "t2",
+      "title": "Hardware-Gated Editions",
+      "levels": {
+        "L0": {
+          "slide": {
+            "archetype": "disclosure-list",
+            "slots": {
+              "eyebrow": {
+                "text": "Hardware-Gated Editions",
+                "num": "02"
+              },
+              "title": [
+                {
+                  "text": "Tiers Based on "
+                },
+                {
+                  "text": "Hardware",
+                  "accent": true
+                }
+              ],
+              "rows": [
+                {
+                  "mark": "1",
+                  "title": "Tiers Based on Hardware"
+                }
+              ]
+            }
+          },
+          "visual": {
+            "kind": "bar",
+            "title": "okuro offers three tiers — air, advanced, and pro — where ea",
+            "bars": [
+              {
+                "label": "—",
+                "value": 0,
+                "display": "No on-device processing — cloud-connection access only · Hardware needed: none (0 GPU)"
+              },
+              {
+                "label": "—",
+                "value": 100,
+                "display": "Runs local models up to 16 GB of graphics memory · Hardware needed: up to 16 GB VRAM"
+              },
+              {
+                "label": "—",
+                "value": 100,
+                "display": "Runs the largest local models, no size limit · Hardware needed: more than 16 GB VRAM"
+              }
+            ],
+            "source": {
+              "claim": "c5",
+              "quote": "Cloud bridge only",
+              "artifactId": "66b7d945-e097-4b06-9720-f83bb2d5daaf",
+              "artifactTitle": "okuro — Complete Functional Reference"
+            }
+          }
+        },
+        "L2": {
+          "slide": {
+            "archetype": "disclosure-list",
+            "slots": {
+              "rows": [
+                {
+                  "mark": "1",
+                  "title": "A user's actual tier is whichever is lower: what they're entitled to, or what their hardware can support."
+                }
+              ],
+              "eyebrow": {
+                "text": "Hardware-Gated Editions",
+                "num": "02"
+              },
+              "title": [
+                {
+                  "text": "Tiers Based on "
+                },
+                {
+                  "text": "Hardware",
+                  "accent": true
+                }
+              ]
+            }
+          },
+          "provenance": [
+            {
+              "claim": "c6",
+              "quote": "effective = min(entitled_edition, hardware_edition)",
+              "artifactId": "66b7d945-e097-4b06-9720-f83bb2d5daaf",
+              "artifactTitle": "okuro — Complete Functional Reference"
+            },
+            {
+              "claim": "c23",
+              "quote": "One axis replaced four uncoordinated per-capability ladders (DP10).",
+              "artifactId": "66b7d945-e097-4b06-9720-f83bb2d5daaf",
+              "artifactTitle": "okuro — Complete Functional Reference"
+            }
+          ]
+        }
+      },
+      "l3": {
+        "title": "Hardware-Gated Editions",
+        "width": "wide",
+        "sections": [
+          {
+            "id": "t2-full",
+            "heading": "Hardware-Gated Editions",
+            "level": 1,
+            "md": "okuro's capabilities aren't one-size-fits-all. They're split into three tiers — air, advanced, and pro — and each tier is set by how much graphics memory (VRAM) a device has.\n\nThe air tier assumes no graphics processor at all and only offers a connection to cloud-based processing — nothing runs on the device itself. The advanced tier becomes available once a device has up to 16 GB of VRAM, allowing it to run models that fit within that limit. The pro tier requires more than 16 GB of VRAM and allows the largest models to run locally, with no size limit. In short: better hardware unlocks a higher tier.\n\nOwning the hardware isn't the whole story, though. What a customer is entitled to (based on what they've purchased) and what their device can actually handle are two separate things. okuro reconciles the two with one simple rule: a user's actual tier is whichever is lower — their entitlement or their hardware. So someone who has paid for pro but only owns advanced-level hardware is capped at advanced; someone with pro-level hardware but only an air-level plan is capped at air. This prevents both overselling (charging for capability the hardware can't deliver) and underuse (hardware capability going to waste because of plan limits).\n\nThis single, hardware-based tier system is itself a simplification. Previously, capability was managed through four separate, uncoordinated tracking systems, each with its own rules (tracked under decision point DP10). Replacing them with one unified system — based purely on VRAM — removes the complexity of managing four different systems and gives one consistent standard for both the business and customers.\n\nCloud-only access, no local processing.\n\nOne system now replaces four separate tracking systems (DP10)."
+          },
+          {
+            "id": "t2-claims",
+            "heading": "Details",
+            "level": 2,
+            "md": "- **—** — No on-device processing — cloud-connection access only · Hardware needed: none (0 GPU)\n- **—** — Runs local models up to 16 GB of graphics memory · Hardware needed: up to 16 GB VRAM\n- **—** — Runs the largest local models, no size limit · Hardware needed: more than 16 GB VRAM\n- A user's actual tier is whichever is lower: what they're entitled to, or what their hardware can support.\n- This single hardware-based tier system replaces four separate, uncoordinated tracking systems that existed before."
+          }
+        ]
+      }
+    },
+    {
+      "id": "t3",
+      "title": "Ready-Made Expert Bench",
+      "levels": {
+        "L0": {
+          "slide": {
+            "archetype": "framework-tiles",
+            "slots": {
+              "tiles": [
+                {
+                  "label": "Expert roles count",
+                  "value": "90 roles"
+                }
+              ],
+              "eyebrow": {
+                "text": "Ready-Made Expert Bench",
+                "num": "03"
+              },
+              "title": [
+                {
+                  "text": "A Ready-Made Bench of "
+                },
+                {
+                  "text": "Experts",
+                  "accent": true
+                }
+              ]
+            }
+          },
+          "provenance": [
+            {
+              "claim": "c8",
+              "quote": "90 curated expert roles",
+              "artifactId": "66b7d945-e097-4b06-9720-f83bb2d5daaf",
+              "artifactTitle": "okuro — Complete Functional Reference"
+            }
+          ],
+          "visual": {
+            "kind": "stat",
+            "title": "okuro comes with 90 ready-to-use expert roles, covering 11 d",
+            "stat": {
+              "value": "90 roles",
+              "label": "Expert roles count"
+            },
+            "source": {
+              "claim": "c8",
+              "quote": "90 curated expert roles",
+              "artifactId": "66b7d945-e097-4b06-9720-f83bb2d5daaf",
+              "artifactTitle": "okuro — Complete Functional Reference"
+            }
+          }
+        }
+      },
+      "l3": {
+        "title": "Ready-Made Expert Bench",
+        "width": "wide",
+        "sections": [
+          {
+            "id": "t3-full",
+            "heading": "Ready-Made Expert Bench",
+            "level": 1,
+            "md": "## A Ready-Made Bench of Experts\n\nokuro comes with 90 expert roles already built in, covering 11 domains — nothing to assemble or configure after purchase. This is where the underlying capability tiers (which depend on the hardware and system design) turn into something a team can put to work right away.\n\nThe headline figure is scale: 90 roles across 11 domains is broad enough that most common organizational functions already have a matching expert role, with no custom setup, new hires, or vendor-specific training required. Where a patchwork of separate tools forces an organization to piece together one solution per function — and risks getting locked into whichever vendor covers that function — a single bench spanning many domains removes that dependency from the start.\n\nThe practical benefit is speed: instead of a long process to define roles, train staff, or bring in specialists, teams can use the existing 90-role set immediately. In short: a ready-made bench of 90 expert roles means faster time-to-value, without added hiring or training cost.\n\nThis capability also connects to what follows: a bench this large only stays trustworthy with integrity checks (contradiction detection) to prevent 90 roles from drifting or conflicting, and with governance principles that keep cost and risk under control as usage grows from initial testing to full rollout."
+          },
+          {
+            "id": "t3-claims",
+            "heading": "Details",
+            "level": 2,
+            "md": "- **Expert roles count** — 90 roles"
+          }
+        ]
+      }
+    },
+    {
+      "id": "t4",
+      "title": "Knowledge Integrity Safeguards",
+      "levels": {
+        "L0": {
+          "slide": {
+            "archetype": "disclosure-list",
+            "slots": {
+              "eyebrow": {
+                "text": "Knowledge Integrity Safeguards",
+                "num": "04"
+              },
+              "title": [
+                {
+                  "text": "The system automatically flags cases where two facts about the same thing are both said to be true during the same time period — surfacing the clash instead of letting it pass "
+                },
+                {
+                  "text": "unnoticed",
+                  "accent": true
+                }
+              ],
+              "rows": [
+                {
+                  "mark": "1",
+                  "title": "The system automatically flags cases where two facts about the same thing are both said to be true during the same time "
+                }
+              ]
+            }
+          },
+          "provenance": [
+            {
+              "claim": "c29",
+              "quote": "Contradiction detection flags conflicting assertions over overlapping validity windows.",
+              "artifactId": "66b7d945-e097-4b06-9720-f83bb2d5daaf",
+              "artifactTitle": "okuro — Complete Functional Reference"
+            }
+          ],
+          "visual": {
+            "kind": "illustration",
+            "title": "Knowledge Integrity Safeguards",
+            "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" viewBox=\"0 0 1200 600\" width=\"1200\" height=\"600\">\n<defs>\n  <filter id=\"glow\" x=\"-200%\" y=\"-200%\" width=\"500%\" height=\"500%\">\n    <feGaussianBlur stdDeviation=\"6\" result=\"b\"/>\n    <feMerge><feMergeNode in=\"b\"/><feMergeNode in=\"SourceGraphic\"/></feMerge>\n  </filter>\n  <filter id=\"glow_soft\" x=\"-200%\" y=\"-200%\" width=\"500%\" height=\"500%\">\n    <feGaussianBlur stdDeviation=\"14\"/>\n  </filter>\n  <filter id=\"bloom\" x=\"-300%\" y=\"-300%\" width=\"700%\" height=\"700%\">\n    <feGaussianBlur in=\"SourceGraphic\" stdDeviation=\"3\"  result=\"b1\"/>\n    <feGaussianBlur in=\"SourceGraphic\" stdDeviation=\"9\"  result=\"b2\"/>\n    <feGaussianBlur in=\"SourceGraphic\" stdDeviation=\"22\" result=\"b3\"/>\n    <feMerge>\n      <feMergeNode in=\"b3\"/>\n      <feMergeNode in=\"b2\"/>\n      <feMergeNode in=\"b1\"/>\n      <feMergeNode in=\"SourceGraphic\"/>\n    </feMerge>\n  </filter>\n  <filter id=\"bloom_strong\" x=\"-400%\" y=\"-400%\" width=\"900%\" height=\"900%\">\n    <feGaussianBlur in=\"SourceGraphic\" stdDeviation=\"4\"  result=\"b1\"/>\n    <feGaussianBlur in=\"SourceGraphic\" stdDeviation=\"14\" result=\"b2\"/>\n    <feGaussianBlur in=\"SourceGraphic\" stdDeviation=\"36\" result=\"b3\"/>\n    <feMerge>\n      <feMergeNode in=\"b3\"/>\n      <feMergeNode in=\"b2\"/>\n      <feMergeNode in=\"b1\"/>\n      <feMergeNode in=\"SourceGraphic\"/>\n    </feMerge>\n  </filter>\n  <filter id=\"chromatic\" x=\"-10%\" y=\"-10%\" width=\"120%\" height=\"120%\">\n    <feOffset in=\"SourceGraphic\" dx=\"-1.5\" dy=\"0\" result=\"r0\"/>\n    <feColorMatrix in=\"r0\" values=\"0 0 0 0 1.000  0 0 0 0 0.200  0 0 0 0 0.267  0 0 0 1 0\" result=\"r\"/>\n    <feOffset in=\"SourceGraphic\" dx=\"0\" dy=\"0\" result=\"g0\"/>\n    <feColorMatrix in=\"g0\" values=\"0 0 0 0 0.133  0 0 0 0 0.773  0 0 0 0 0.369  0 0 0 1 0\" result=\"g\"/>\n    <feOffset in=\"SourceGraphic\" dx=\"1.5\" dy=\"0\" result=\"b0\"/>\n    <feColorMatrix in=\"b0\" values=\"0 0 0 0 0.231  0 0 0 0 0.510  0 0 0 0 0.965  0 0 0 1 0\" result=\"b\"/>\n    <feBlend in=\"r\" in2=\"g\" mode=\"screen\" result=\"rg\"/>\n    <feBlend in=\"rg\" in2=\"b\" mode=\"screen\"/>\n  </filter>\n  <pattern id=\"dotgrid\" x=\"0\" y=\"0\" width=\"24\" height=\"24\" patternUnits=\"userSpaceOnUse\">\n    <circle cx=\"1\" cy=\"1\" r=\"0.6\" fill=\"#3a3a3a\"/>\n  </pattern>\n  <radialGradient id=\"halo\">\n    <stop offset=\"0%\" stop-color=\"#ffffff\" stop-opacity=\"0.55\"/>\n    <stop offset=\"60%\" stop-color=\"#ffffff\" stop-opacity=\"0.06\"/>\n    <stop offset=\"100%\" stop-color=\"#ffffff\" stop-opacity=\"0\"/>\n  </radialGradient>\n</defs>\n<rect x=\"0\" y=\"0\" width=\"1200\" height=\"600\" fill=\"#000000\"/>\n<rect id=\"bg\" x=\"0\" y=\"0\" width=\"1200\" height=\"600\" fill=\"url(#dotgrid)\" opacity=\"0.06\"/>\n<g id=\"ax\">\n<line x1=\"150.0\" y1=\"300.0\" x2=\"1050.0\" y2=\"300.0\" stroke=\"#6e6e6e\" stroke-width=\"0.7\" opacity=\"0.7\"/>\n<line x1=\"150.0\" y1=\"296.0\" x2=\"150.0\" y2=\"304.0\" stroke=\"#6e6e6e\" stroke-width=\"0.7\" opacity=\"0.7\"/>\n<line x1=\"375.0\" y1=\"296.0\" x2=\"375.0\" y2=\"304.0\" stroke=\"#6e6e6e\" stroke-width=\"0.7\" opacity=\"0.7\"/>\n<line x1=\"600.0\" y1=\"296.0\" x2=\"600.0\" y2=\"304.0\" stroke=\"#6e6e6e\" stroke-width=\"0.7\" opacity=\"0.7\"/>\n<line x1=\"825.0\" y1=\"296.0\" x2=\"825.0\" y2=\"304.0\" stroke=\"#6e6e6e\" stroke-width=\"0.7\" opacity=\"0.7\"/>\n<line x1=\"1050.0\" y1=\"296.0\" x2=\"1050.0\" y2=\"304.0\" stroke=\"#6e6e6e\" stroke-width=\"0.7\" opacity=\"0.7\"/>\n</g>\n<g id=\"tk_0\">\n<line x1=\"150.0\" y1=\"289.0\" x2=\"150.0\" y2=\"311.0\" stroke=\"#e0e0e0\" stroke-width=\"0.8\"/>\n<text x=\"150.0\" y=\"325.0\" font-family=\"JetBrains Mono, ui-monospace, Menlo, monospace\" font-size=\"11\" letter-spacing=\"2\" text-anchor=\"middle\" fill=\"#e0e0e0\" opacity=\"0.85\">SOURCE</text>\n</g>\n<g id=\"node_0\">\n<circle cx=\"150.0\" cy=\"300.0\" r=\"18.0\" fill=\"url(#halo)\"/>\n<circle cx=\"150.0\" cy=\"300.0\" r=\"5.0\" fill=\"#f4f1e8\" filter=\"url(#bloom_strong)\" opacity=\"0.85\"/>\n<circle cx=\"150.0\" cy=\"300.0\" r=\"5.0\" fill=\"#f4f1e8\"/>\n</g>\n<g id=\"tk_1\">\n<line x1=\"375.0\" y1=\"289.0\" x2=\"375.0\" y2=\"311.0\" stroke=\"#e0e0e0\" stroke-width=\"0.8\"/>\n<text x=\"375.0\" y=\"325.0\" font-family=\"JetBrains Mono, ui-monospace, Menlo, monospace\" font-size=\"11\" letter-spacing=\"2\" text-anchor=\"middle\" fill=\"#e0e0e0\" opacity=\"0.85\">VALIDATE</text>\n</g>\n<g id=\"node_1\">\n<circle cx=\"375.0\" cy=\"300.0\" r=\"18.0\" fill=\"url(#halo)\"/>\n<circle cx=\"375.0\" cy=\"300.0\" r=\"5.0\" fill=\"#f4f1e8\" filter=\"url(#bloom_strong)\" opacity=\"0.85\"/>\n<circle cx=\"375.0\" cy=\"300.0\" r=\"5.0\" fill=\"#f4f1e8\"/>\n</g>\n<g id=\"tk_2\">\n<line x1=\"600.0\" y1=\"289.0\" x2=\"600.0\" y2=\"311.0\" stroke=\"#e0e0e0\" stroke-width=\"0.8\"/>\n<text x=\"600.0\" y=\"325.0\" font-family=\"JetBrains Mono, ui-monospace, Menlo, monospace\" font-size=\"11\" letter-spacing=\"2\" text-anchor=\"middle\" fill=\"#e0e0e0\" opacity=\"0.85\">SIGN</text>\n</g>\n<g id=\"node_2\">\n<circle cx=\"600.0\" cy=\"300.0\" r=\"18.0\" fill=\"url(#halo)\"/>\n<circle cx=\"600.0\" cy=\"300.0\" r=\"5.0\" fill=\"#f4f1e8\" filter=\"url(#bloom_strong)\" opacity=\"0.85\"/>\n<circle cx=\"600.0\" cy=\"300.0\" r=\"5.0\" fill=\"#f4f1e8\"/>\n</g>\n<g id=\"tk_3\">\n<line x1=\"825.0\" y1=\"289.0\" x2=\"825.0\" y2=\"311.0\" stroke=\"#e0e0e0\" stroke-width=\"0.8\"/>\n<text x=\"825.0\" y=\"325.0\" font-family=\"JetBrains Mono, ui-monospace, Menlo, monospace\" font-size=\"11\" letter-spacing=\"2\" text-anchor=\"middle\" fill=\"#e0e0e0\" opacity=\"0.85\">VERSION</text>\n</g>\n<g id=\"node_3\">\n<circle cx=\"825.0\" cy=\"300.0\" r=\"18.0\" fill=\"url(#halo)\"/>\n<circle cx=\"825.0\" cy=\"300.0\" r=\"5.0\" fill=\"#f4f1e8\" filter=\"url(#bloom_strong)\" opacity=\"0.85\"/>\n<circle cx=\"825.0\" cy=\"300.0\" r=\"5.0\" fill=\"#f4f1e8\"/>\n</g>\n<g id=\"tk_4\">\n<line x1=\"1050.0\" y1=\"289.0\" x2=\"1050.0\" y2=\"311.0\" stroke=\"#e0e0e0\" stroke-width=\"0.8\"/>\n<text x=\"1050.0\" y=\"325.0\" font-family=\"JetBrains Mono, ui-monospace, Menlo, monospace\" font-size=\"11\" letter-spacing=\"2\" text-anchor=\"middle\" fill=\"#e0e0e0\" opacity=\"0.85\">AUDIT</text>\n</g>\n<g id=\"node_4\">\n<circle cx=\"1050.0\" cy=\"300.0\" r=\"18.0\" fill=\"url(#halo)\"/>\n<circle cx=\"1050.0\" cy=\"300.0\" r=\"5.0\" fill=\"#f4f1e8\" filter=\"url(#bloom_strong)\" opacity=\"0.85\"/>\n<circle cx=\"1050.0\" cy=\"300.0\" r=\"5.0\" fill=\"#f4f1e8\" filter=\"url(#chromatic)\"/>\n</g>\n<g id=\"head\">\n<path d=\"M 1026.0 288.0 L 1050.0 300.0 L 1026.0 312.0 L 1034.4 300.0 Z\" fill=\"none\" stroke=\"#e0e0e0\" stroke-width=\"1.40\" opacity=\"1.00\" filter=\"url(#chromatic)\"/>\n</g>\n<g id=\"cb_0\">\n<circle cx=\"150.0\" cy=\"300.0\" r=\"2.4\" fill=\"none\" stroke=\"#e0e0e0\" stroke-width=\"0.8\" opacity=\"0.95\"/>\n<circle cx=\"150.0\" cy=\"300.0\" r=\"1.0\" fill=\"#e0e0e0\" opacity=\"0.95\"/>\n<polyline points=\"150.0,300.0 150.0,140.0 1100.0,140.0\" fill=\"none\" stroke=\"#6e6e6e\" stroke-width=\"0.8\" opacity=\"0.85\"/>\n<line x1=\"1100.0\" y1=\"137.0\" x2=\"1100.0\" y2=\"143.0\" stroke=\"#6e6e6e\" stroke-width=\"0.8\" opacity=\"0.85\"/>\n<text x=\"1108.0\" y=\"137.0\" font-family=\"JetBrains Mono, ui-monospace, Menlo, monospace\" font-size=\"9\" letter-spacing=\"2\" text-anchor=\"start\" fill=\"#6e6e6e\" text-transform=\"uppercase\">SOURCE</text>\n<text x=\"1108.0\" y=\"152.0\" font-family=\"JetBrains Mono, ui-monospace, Menlo, monospace\" font-size=\"13\" letter-spacing=\"0.5\" text-anchor=\"start\" fill=\"#e0e0e0\" font-weight=\"500\">signed</text>\n</g>\n<g id=\"cb_1\">\n<circle cx=\"375.0\" cy=\"300.0\" r=\"2.4\" fill=\"none\" stroke=\"#e0e0e0\" stroke-width=\"0.8\" opacity=\"0.95\"/>\n<circle cx=\"375.0\" cy=\"300.0\" r=\"1.0\" fill=\"#e0e0e0\" opacity=\"0.95\"/>\n<polyline points=\"375.0,300.0 375.0,200.0 1100.0,200.0\" fill=\"none\" stroke=\"#6e6e6e\" stroke-width=\"0.8\" opacity=\"0.85\"/>\n<line x1=\"1100.0\" y1=\"197.0\" x2=\"1100.0\" y2=\"203.0\" stroke=\"#6e6e6e\" stroke-width=\"0.8\" opacity=\"0.85\"/>\n<text x=\"1108.0\" y=\"197.0\" font-family=\"JetBrains Mono, ui-monospace, Menlo, monospace\" font-size=\"9\" letter-spacing=\"2\" text-anchor=\"start\" fill=\"#6e6e6e\" text-transform=\"uppercase\">HASH</text>\n<text x=\"1108.0\" y=\"212.0\" font-family=\"JetBrains Mono, ui-monospace, Menlo, monospace\" font-size=\"13\" letter-spacing=\"0.5\" text-anchor=\"start\" fill=\"#e0e0e0\" font-weight=\"500\">sha-256</text>\n</g>\n<g id=\"cb_2\">\n<circle cx=\"600.0\" cy=\"300.0\" r=\"2.4\" fill=\"none\" stroke=\"#e0e0e0\" stroke-width=\"0.8\" opacity=\"0.95\"/>\n<circle cx=\"600.0\" cy=\"300.0\" r=\"1.0\" fill=\"#e0e0e0\" opacity=\"0.95\"/>\n<polyline points=\"600.0,300.0 600.0,420.0 100.0,420.0\" fill=\"none\" stroke=\"#6e6e6e\" stroke-width=\"0.8\" opacity=\"0.85\"/>\n<line x1=\"100.0\" y1=\"417.0\" x2=\"100.0\" y2=\"423.0\" stroke=\"#6e6e6e\" stroke-width=\"0.8\" opacity=\"0.85\"/>\n<text x=\"92.0\" y=\"417.0\" font-family=\"JetBrains Mono, ui-monospace, Menlo, monospace\" font-size=\"9\" letter-spacing=\"2\" text-anchor=\"end\" fill=\"#6e6e6e\" text-transform=\"uppercase\">ACCESS</text>\n<text x=\"92.0\" y=\"432.0\" font-family=\"JetBrains Mono, ui-monospace, Menlo, monospace\" font-size=\"13\" letter-spacing=\"0.5\" text-anchor=\"end\" fill=\"#e0e0e0\" font-weight=\"500\">rbac</text>\n</g>\n<g id=\"legend\">\n<line x1=\"900.0\" y1=\"450.0\" x2=\"1150.0\" y2=\"450.0\" stroke=\"#6e6e6e\" stroke-width=\"0.8\" opacity=\"0.7\"/>\n<text x=\"900.0\" y=\"464.0\" font-family=\"JetBrains Mono, ui-monospace, Menlo, monospace\" font-size=\"10\" letter-spacing=\"3\" fill=\"#e0e0e0\" text-transform=\"uppercase\" font-weight=\"500\">09 // DATA</text>\n<text x=\"900.0\" y=\"480.0\" font-family=\"JetBrains Mono, ui-monospace, Menlo, monospace\" font-size=\"10\" letter-spacing=\"1\" fill=\"#6e6e6e\">5 safeguards</text>\n<text x=\"1150.0\" y=\"514.0\" font-family=\"JetBrains Mono, ui-monospace, Menlo, monospace\" font-size=\"9\" letter-spacing=\"2\" text-anchor=\"end\" fill=\"#6e6e6e\" text-transform=\"uppercase\">FIG. 01</text>\n</g>\n<text id=\"t_title\" x=\"100.0\" y=\"528.0\" font-family=\"JetBrains Mono, ui-monospace, Menlo, monospace\" font-size=\"22.0\" font-weight=\"500\" letter-spacing=\"1\" text-anchor=\"start\" fill=\"#e0e0e0\" opacity=\"1.0\">CHAIN OF CUSTODY</text></svg>"
+          }
+        }
+      },
+      "l3": {
+        "title": "Knowledge Integrity Safeguards",
+        "width": "wide",
+        "sections": [
+          {
+            "id": "t4-full",
+            "heading": "Knowledge Integrity Safeguards",
+            "level": 1,
+            "md": "## Keeping the Knowledge Base Trustworthy\n\nOver time, information gets added to the knowledge base from many sources, at different moments. Without a check for consistency, contradictory facts can end up sitting side by side unnoticed — quietly undermining the reliability of anything built on top of that information.\n\nThis safeguard addresses that risk directly: it flags cases where two facts about the same thing are both marked as true during the same period of time, rather than letting both stand unchallenged.\n\nThis isn't a one-time review — it runs continuously, comparing the time period each fact is said to apply against others touching the same subject. A flag is only raised when the same time period AND a genuine contradiction are both present. This keeps the check precise: facts that were simply true at different times are normal updates, not errors, and are not flagged.\n\nThe business value is protecting decision quality. Anyone — a person or an automated process — pulling a fact from the knowledge base risks acting on a contradiction if it goes unnoticed. Catching it early, the moment it appears, is far better than discovering it later, after it may already have shaped a decision.\n\nWithin the wider system, this sits at the oversight layer — one of the checks that keeps a growing body of knowledge trustworthy as it scales, working alongside the core capabilities once they're in place.\n\nIn short: when two facts about the same thing are both true during an overlapping period, the system flags the contradiction automatically."
+          },
+          {
+            "id": "t4-claims",
+            "heading": "Details",
+            "level": 2,
+            "md": "- The system automatically flags cases where two facts about the same thing are both said to be true during the same time period — surfacing the clash instead of letting it pass unnoticed."
+          }
+        ]
+      }
+    },
+    {
+      "id": "t5",
+      "title": "Governance Doctrine",
+      "levels": {
+        "L0": {
+          "slide": {
+            "archetype": "disclosure-list",
+            "slots": {
+              "eyebrow": {
+                "text": "Governance Doctrine",
+                "num": "05"
+              },
+              "title": [
+                {
+                  "text": "Okuro runs under eight governance rules designed to keep it trustworthy, lean, and low-risk: the code itself — not notes or memory — is treated as the single source of truth; the team defaults to building in-house and choosing free/open tools over paid vendor products; fixes are built as reusable solutions rather than one-off patches; scope is kept deliberately lean, with no unnecessary features; complexity is allowed under the hood as long as what people actually interact with stays simple; the system only speaks up when it has something worth saying, and otherwise stays quiet; network services are private to the local network by default, not exposed externally; and passwords/credentials come from a secure vault rather than being stored in plain text files or "
+                },
+                {
+                  "text": "hardcoded",
+                  "accent": true
+                }
+              ],
+              "rows": [
+                {
+                  "mark": "1",
+                  "title": "Okuro runs under eight governance rules designed to keep it trustworthy, lean, and low-risk: the code itself — not notes"
+                }
+              ]
+            }
+          },
+          "provenance": [
+            {
+              "claim": "c34",
+              "quote": "code-as-truth (memory is archival) · build > buy, OSS > paid · systematic-not-specific · no-bloat",
+              "artifactId": "66b7d945-e097-4b06-9720-f83bb2d5daaf",
+              "artifactTitle": "okuro — Complete Functional Reference"
+            }
+          ],
+          "visual": {
+            "kind": "illustration",
+            "title": "Governance Doctrine",
+            "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" viewBox=\"0 0 1200 600\" width=\"1200\" height=\"600\">\n<defs>\n  <filter id=\"glow\" x=\"-200%\" y=\"-200%\" width=\"500%\" height=\"500%\">\n    <feGaussianBlur stdDeviation=\"6\" result=\"b\"/>\n    <feMerge><feMergeNode in=\"b\"/><feMergeNode in=\"SourceGraphic\"/></feMerge>\n  </filter>\n  <filter id=\"glow_soft\" x=\"-200%\" y=\"-200%\" width=\"500%\" height=\"500%\">\n    <feGaussianBlur stdDeviation=\"14\"/>\n  </filter>\n  <filter id=\"bloom\" x=\"-300%\" y=\"-300%\" width=\"700%\" height=\"700%\">\n    <feGaussianBlur in=\"SourceGraphic\" stdDeviation=\"3\"  result=\"b1\"/>\n    <feGaussianBlur in=\"SourceGraphic\" stdDeviation=\"9\"  result=\"b2\"/>\n    <feGaussianBlur in=\"SourceGraphic\" stdDeviation=\"22\" result=\"b3\"/>\n    <feMerge>\n      <feMergeNode in=\"b3\"/>\n      <feMergeNode in=\"b2\"/>\n      <feMergeNode in=\"b1\"/>\n      <feMergeNode in=\"SourceGraphic\"/>\n    </feMerge>\n  </filter>\n  <filter id=\"bloom_strong\" x=\"-400%\" y=\"-400%\" width=\"900%\" height=\"900%\">\n    <feGaussianBlur in=\"SourceGraphic\" stdDeviation=\"4\"  result=\"b1\"/>\n    <feGaussianBlur in=\"SourceGraphic\" stdDeviation=\"14\" result=\"b2\"/>\n    <feGaussianBlur in=\"SourceGraphic\" stdDeviation=\"36\" result=\"b3\"/>\n    <feMerge>\n      <feMergeNode in=\"b3\"/>\n      <feMergeNode in=\"b2\"/>\n      <feMergeNode in=\"b1\"/>\n      <feMergeNode in=\"SourceGraphic\"/>\n    </feMerge>\n  </filter>\n  <filter id=\"chromatic\" x=\"-10%\" y=\"-10%\" width=\"120%\" height=\"120%\">\n    <feOffset in=\"SourceGraphic\" dx=\"-1.5\" dy=\"0\" result=\"r0\"/>\n    <feColorMatrix in=\"r0\" values=\"0 0 0 0 1.000  0 0 0 0 0.200  0 0 0 0 0.267  0 0 0 1 0\" result=\"r\"/>\n    <feOffset in=\"SourceGraphic\" dx=\"0\" dy=\"0\" result=\"g0\"/>\n    <feColorMatrix in=\"g0\" values=\"0 0 0 0 0.659  0 0 0 0 0.333  0 0 0 0 0.969  0 0 0 1 0\" result=\"g\"/>\n    <feOffset in=\"SourceGraphic\" dx=\"1.5\" dy=\"0\" result=\"b0\"/>\n    <feColorMatrix in=\"b0\" values=\"0 0 0 0 0.231  0 0 0 0 0.510  0 0 0 0 0.965  0 0 0 1 0\" result=\"b\"/>\n    <feBlend in=\"r\" in2=\"g\" mode=\"screen\" result=\"rg\"/>\n    <feBlend in=\"rg\" in2=\"b\" mode=\"screen\"/>\n  </filter>\n  <pattern id=\"dotgrid\" x=\"0\" y=\"0\" width=\"24\" height=\"24\" patternUnits=\"userSpaceOnUse\">\n    <circle cx=\"1\" cy=\"1\" r=\"0.6\" fill=\"#3a3a3a\"/>\n  </pattern>\n  <radialGradient id=\"halo\">\n    <stop offset=\"0%\" stop-color=\"#ffffff\" stop-opacity=\"0.55\"/>\n    <stop offset=\"60%\" stop-color=\"#ffffff\" stop-opacity=\"0.06\"/>\n    <stop offset=\"100%\" stop-color=\"#ffffff\" stop-opacity=\"0\"/>\n  </radialGradient>\n</defs>\n<rect x=\"0\" y=\"0\" width=\"1200\" height=\"600\" fill=\"#000000\"/>\n<rect id=\"bg\" x=\"0\" y=\"0\" width=\"1200\" height=\"600\" fill=\"url(#dotgrid)\" opacity=\"0.06\"/>\n<g id=\"ax_h\">\n<line x1=\"100.0\" y1=\"300.0\" x2=\"1100.0\" y2=\"300.0\" stroke=\"#6e6e6e\" stroke-width=\"0.4\" opacity=\"0.3\"/>\n</g>\n<g id=\"ax_v\">\n<line x1=\"600.0\" y1=\"50.0\" x2=\"600.0\" y2=\"550.0\" stroke=\"#6e6e6e\" stroke-width=\"0.4\" opacity=\"0.3\"/>\n</g>\n<g id=\"motif\">\n<circle cx=\"600.0\" cy=\"300.0\" r=\"55.0\" fill=\"none\" stroke=\"#e0e0e0\" stroke-width=\"0.8\" opacity=\"1.00\" filter=\"url(#chromatic)\"/>\n<circle cx=\"600.0\" cy=\"300.0\" r=\"49.0\" fill=\"none\" stroke=\"#e0e0e0\" stroke-width=\"1\" stroke-dasharray=\"1 5\" opacity=\"0.50\"/>\n<circle cx=\"600.0\" cy=\"300.0\" r=\"89.0\" fill=\"none\" stroke=\"#e0e0e0\" stroke-width=\"0.8\" opacity=\"0.86\"/>\n<circle cx=\"600.0\" cy=\"300.0\" r=\"123.0\" fill=\"none\" stroke=\"#e0e0e0\" stroke-width=\"0.8\" opacity=\"0.72\"/>\n<circle cx=\"600.0\" cy=\"300.0\" r=\"117.0\" fill=\"none\" stroke=\"#e0e0e0\" stroke-width=\"1\" stroke-dasharray=\"1 5\" opacity=\"0.36\"/>\n<circle cx=\"600.0\" cy=\"300.0\" r=\"157.0\" fill=\"none\" stroke=\"#e0e0e0\" stroke-width=\"0.8\" opacity=\"0.59\"/>\n</g>\n<g id=\"focal\">\n<circle cx=\"600.0\" cy=\"300.0\" r=\"44.0\" fill=\"url(#halo)\"/>\n<circle cx=\"600.0\" cy=\"300.0\" r=\"7.0\" fill=\"#f4f1e8\" filter=\"url(#bloom_strong)\" opacity=\"0.85\"/>\n<circle cx=\"600.0\" cy=\"300.0\" r=\"7.0\" fill=\"#f4f1e8\" filter=\"url(#chromatic)\"/>\n</g>\n<g id=\"lbl\">\n<line x1=\"600.0\" y1=\"360.0\" x2=\"600.0\" y2=\"360.0\" stroke=\"#e0e0e0\" stroke-width=\"0.8\"/>\n<text x=\"600.0\" y=\"374.0\" font-family=\"JetBrains Mono, ui-monospace, Menlo, monospace\" font-size=\"11\" letter-spacing=\"2\" text-anchor=\"middle\" fill=\"#e0e0e0\" opacity=\"0.85\">MANDATE</text>\n</g>\n<text id=\"t_title\" x=\"100.0\" y=\"528.0\" font-family=\"JetBrains Mono, ui-monospace, Menlo, monospace\" font-size=\"28.6\" font-weight=\"500\" letter-spacing=\"1\" text-anchor=\"start\" fill=\"#e0e0e0\" opacity=\"1.0\">THE DOCTRINE</text></svg>"
+          }
+        }
+      },
+      "l3": {
+        "title": "Governance Doctrine",
+        "width": "wide",
+        "sections": [
+          {
+            "id": "t5-full",
+            "heading": "Governance Doctrine",
+            "level": 1,
+            "md": "Okuro is governed by eight plain-English operating rules that shape how the system is built, expanded, and run day to day. These rules aren't paperwork — they actively control cost and risk as the system grows.\n\n**Code is the single source of truth.** What the code actually does is the only authoritative record — any notes or memory logs are just historical reference, never treated as fact. This stops confusion between what the system really does and what people assume it does.\n\n**Build in-house, prefer free/open tools.** The default choice is to build capabilities internally and use open-source tools ahead of paid vendor products, which limits licensing costs and reduces dependence on any single outside supplier.\n\n**Reusable fixes, not one-offs.** Problems are solved with general-purpose solutions rather than quick patches built for a single case — this avoids a pile-up of narrow, one-time fixes over time.\n\n**Keep it lean.** New features and add-ons are only introduced when clearly justified, keeping the system free of unnecessary bulk.\n\n**Complexity hidden, simplicity visible.** The inner workings can be intricate where needed, but whatever people or other systems interact with must stay simple — the complexity is absorbed internally, never pushed outward.\n\n**Speak up or stay silent.** The system either offers something genuinely useful or says nothing at all — no low-value, noisy alerts.\n\n**Private by default.** Services are only reachable within the local network unless there's a deliberate decision to open them further — this closes off unnecessary exposure to outside access.\n\n**Credentials from a secure vault.** Passwords and access credentials are pulled from a protected vault rather than stored in plain text files or written directly into code — removing a common source of data leaks.\n\nTaken together, these eight rules directly control both cost (favoring build/open-source, staying lean) and risk (private-by-default networking, vault-based credentials, code as the single source of truth), giving the organization a defensible governance position as it scales.\n\nSummary: code is the single source of truth (memory is reference-only) · build in-house / prefer open-source over paid · reusable fixes over one-offs · keep it lean."
+          },
+          {
+            "id": "t5-claims",
+            "heading": "Details",
+            "level": 2,
+            "md": "- Okuro runs under eight governance rules designed to keep it trustworthy, lean, and low-risk: the code itself — not notes or memory — is treated as the single source of truth; the team defaults to building in-house and choosing free/open tools over paid vendor products; fixes are built as reusable solutions rather than one-off patches; scope is kept deliberately lean, with no unnecessary features; complexity is allowed under the hood as long as what people actually interact with stays simple; the system only speaks up when it has something worth saying, and otherwise stays quiet; network services are private to the local network by default, not exposed externally; and passwords/credentials come from a secure vault rather than being stored in plain text files or hardcoded."
+          }
+        ]
+      }
+    },
+    {
+      "id": "t6",
+      "title": "Lab-to-Product Growth Path",
+      "levels": {
+        "L0": {
+          "slide": {
+            "archetype": "disclosure-list",
+            "slots": {
+              "eyebrow": {
+                "text": "Lab-to-Product Growth Path",
+                "num": "06"
+              },
+              "title": [
+                {
+                  "text": "From Research Lab to Company-Wide "
+                },
+                {
+                  "text": "Product",
+                  "accent": true
+                }
+              ],
+              "rows": [
+                {
+                  "mark": "1",
+                  "title": "From Research Lab to Company-Wide Product"
+                }
+              ]
+            }
+          },
+          "visual": {
+            "kind": "stat",
+            "title": "okuro and Meridian are two stages of the same system, not two",
+            "stat": {
+              "value": "2",
+              "label": "nodes",
+              "sub": "okuro"
+            },
+            "source": {
+              "claim": "c24",
+              "quote": "okuro is the lab; Meridian is okuro productionized at org scale.",
+              "artifactId": "66b7d945-e097-4b06-9720-f83bb2d5daaf",
+              "artifactTitle": "okuro — Complete Functional Reference"
+            }
+          }
+        }
+      },
+      "l3": {
+        "title": "Lab-to-Product Growth Path",
+        "width": "wide",
+        "sections": [
+          {
+            "id": "t6-full",
+            "heading": "Lab-to-Product Growth Path",
+            "level": 1,
+            "md": "## From Research Lab to Company-Wide Product\n\nokuro and Meridian are two stages of one system, not two separate products. okuro is the research lab: the place where the system's capability levels, its bench of 90 roles, and its safeguards against contradictory information are built, tested, and proven under real use. Meridian is that same system made ready for full organizational use — the same design, the same gated capability model, and the same integrity safeguards, carried forward and scaled up for the whole organization.\n\nThe path runs one way, from okuro to Meridian, and builds cumulatively: nothing built for Meridian starts from scratch. Every governance principle, every hardware-based capability limit, and every rule proven in okuro becomes part of the blueprint Meridian inherits at full scale. This is the closing point of the story: the problems raised earlier — scattered knowledge, the risk of being locked into one vendor — and the safeguards built to address them (staged capability levels, checks against contradictory information, and clear rules on cost and risk) are not just lab-only fixes. They are the specification for the finished, organization-wide product.\n\nIn short: okuro proves the system works. Meridian is what happens when that proof is delivered at full organizational scale rather than in the lab.\n\nokuro is the lab; Meridian is okuro delivered at organizational scale."
+          },
+          {
+            "id": "t6-claims",
+            "heading": "Details",
+            "level": 2,
+            "md": "- **okuro** _( )_\n- **Meridian**"
+          }
+        ]
+      }
+    }
+  ],
+  "accuracy": {
+    "levels": {},
+    "cells": {
+      "L0-0": [
+        {
+          "claim": "c1",
+          "component": "statement-title",
+          "emphasis": "focal",
+          "rendered": 1,
+          "total": 1,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 0,
+          "content_incomplete": false
+        }
+      ],
+      "L0-1": [
+        {
+          "claim": "__title__",
+          "component": "statement-title",
+          "emphasis": "focal",
+          "rendered": 1,
+          "total": 1,
+          "in_l4": false,
+          "synthesized": true,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 0,
+          "content_incomplete": false
+        }
+      ],
+      "L2-1": [
+        {
+          "claim": "__title__",
+          "component": "statement-title",
+          "emphasis": "focal",
+          "rendered": 1,
+          "total": 1,
+          "in_l4": false,
+          "synthesized": true,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 0,
+          "content_incomplete": false
+        },
+        {
+          "claim": "c6",
+          "component": "lede",
+          "emphasis": "supporting",
+          "rendered": 1,
+          "total": 1,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 0,
+          "content_incomplete": false
+        },
+        {
+          "claim": "c23",
+          "component": "callout",
+          "emphasis": "aside",
+          "rendered": 1,
+          "total": 1,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 0,
+          "content_incomplete": false
+        }
+      ],
+      "L0-2": [
+        {
+          "claim": "__title__",
+          "component": "statement-title",
+          "emphasis": "focal",
+          "rendered": 1,
+          "total": 1,
+          "in_l4": false,
+          "synthesized": true,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 0,
+          "content_incomplete": false
+        },
+        {
+          "claim": "c8",
+          "component": "verdict-callout",
+          "emphasis": "primary",
+          "rendered": 1,
+          "total": 1,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 1,
+          "content_incomplete": false
+        }
+      ],
+      "L0-3": [
+        {
+          "claim": "c29",
+          "component": "statement-title",
+          "emphasis": "focal",
+          "rendered": 1,
+          "total": 1,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 0,
+          "content_incomplete": false
+        }
+      ],
+      "L0-4": [
+        {
+          "claim": "c34",
+          "component": "statement-title",
+          "emphasis": "focal",
+          "rendered": 1,
+          "total": 1,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 0,
+          "content_incomplete": false
+        }
+      ],
+      "L0-5": [
+        {
+          "claim": "__title__",
+          "component": "statement-title",
+          "emphasis": "focal",
+          "rendered": 1,
+          "total": 1,
+          "in_l4": false,
+          "synthesized": true,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 0,
+          "content_incomplete": false
+        }
+      ]
+    },
+    "silent_deficits": [],
+    "count_mismatches": [],
+    "synthesized": [
+      "__title__",
+      "__title__",
+      "__title__"
+    ],
+    "fallback": [],
+    "content_gaps": []
+  },
+  "tagline": "problem (fragmented knowledge, lock-in risk) -> system design (capability tiers, gated by hardware) -> capability delivered (90-role bench) -> integrity controls (contradiction detection) -> governance principles (doctrine limiting cost/risk) -> growth path (lab to Meridian at scale)",
+  "brandLogo": {
+    "corner": "tl",
+    "dark": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 109 44\" role=\"img\" aria-label=\"okuro logo\"><rect x=\"6\" y=\"13\" width=\"18\" height=\"18\" rx=\"2\" fill=\"#f4f4f5\"/><text x=\"34\" y=\"29\" font-family=\"ui-monospace,SFMono-Regular,Menlo,monospace\" font-size=\"21\" font-weight=\"700\" letter-spacing=\"0.5\" fill=\"#f4f4f5\">okuro</text></svg>",
+    "light": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 109 44\" role=\"img\" aria-label=\"okuro logo\"><rect x=\"6\" y=\"13\" width=\"18\" height=\"18\" rx=\"2\" fill=\"#0a0a0a\"/><text x=\"34\" y=\"29\" font-family=\"ui-monospace,SFMono-Regular,Menlo,monospace\" font-size=\"21\" font-weight=\"700\" letter-spacing=\"0.5\" fill=\"#0a0a0a\">okuro</text></svg>"
+  }
+}

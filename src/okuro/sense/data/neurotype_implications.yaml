@@ -1,0 +1,26 @@
+# Neurotype implications — auto-populated into cognitive_style.implications
+# when a user selects their neurotype during onboarding.
+# Users can edit/remove these after selection.
+#
+# Source: clinical literature + lived experience patterns.
+# These are communication adaptations, not diagnoses.
+
+adhd:
+  - context-switches often between projects — needs instant re-orientation
+  - needs short, focused communication blocks
+  - options with pros/cons work better than open questions
+  - fights for attention — once you have it, be precise
+  - loves novelty, hates repetition
+
+autistic:
+  - literal precision — concise AND unambiguous
+  - monotropic attention — finish current topic before switching, interruptions are expensive
+  - pattern consistency — use the same format and terminology every time
+  - ambiguity is a stressor — eliminate proactively, do not wait to be asked
+  - infodump respect — when user provides detailed context, engage with the full content
+
+dyslexic:
+  - prefer clear visual hierarchy and short paragraphs
+  - avoid dense text blocks — use headers, bullets, whitespace
+  - code examples over written descriptions where possible
+  - key terms in bold for scanning

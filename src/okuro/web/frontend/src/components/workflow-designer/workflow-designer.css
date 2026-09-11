@@ -1,0 +1,471 @@
+/* Workflow designer — the DRAWN-workflow surface.
+   Shell, tokens and chrome come from flow-designer.css: the root element carries
+   BOTH `fd-root` and `wf-root`, so --fd-* and every .fd-* layout/control rule
+   apply unchanged and this file only adds what a workflow node needs (phase,
+   role, fan-out, validity) and the plan panel. Nothing here touches an .fd-*
+   selector — /flow renders byte-identically with or without this stylesheet. */
+
+/* ---- subtask node ---- */
+.wf-nd {
+  min-width: 236px;
+  max-width: 288px;
+  background: var(--fd-elevated);
+  border: 1px solid var(--fd-line);
+  border-left: 3px solid var(--fd-accent);
+  border-radius: var(--fd-radius);
+  padding: 9px 11px;
+  color: var(--fd-fg);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.wf-nd.selected {
+  border-color: var(--fd-sel);
+  box-shadow: 0 0 0 1px var(--fd-sel);
+}
+/* A node the compiler would REFUSE. Deliberately loud: the whole point of the
+   drawn surface is that authoring mistakes are visible before Compile. */
+.wf-nd.invalid {
+  border-left-color: var(--color-error);
+  border-color: var(--color-error);
+}
+.wf-nd.invalid.selected {
+  box-shadow: 0 0 0 1px var(--color-error);
+}
+
+.wf-nd-hd {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 5px;
+}
+.wf-phase {
+  font-family: var(--fd-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #06060a;
+  background: var(--fd-accent);
+  border-radius: var(--radius-sm);
+  padding: 1px 5px;
+  flex: none;
+}
+.wf-nd.invalid .wf-phase {
+  background: var(--color-error);
+  color: #f5f5f7;
+}
+.wf-role {
+  font-family: var(--fd-mono);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--fd-fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wf-role-missing {
+  color: var(--color-error);
+  font-style: italic;
+  font-weight: 400;
+}
+.wf-warn {
+  margin-left: auto;
+  flex: none;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--color-error);
+  color: #f5f5f7;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 15px;
+  text-align: center;
+}
+
+.wf-nd-title {
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+.wf-nd-prompt {
+  color: var(--fd-mut);
+  font-size: 11px;
+  /* Two lines, then ellipsis — the node is a label, the inspector is the text. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.wf-fanout {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  color: var(--fd-accent);
+  border: 1px dashed var(--fd-accent);
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+}
+.wf-fanout-mark {
+  font-size: 12px;
+  line-height: 1;
+}
+
+.wf-nd-ft {
+  margin-top: 7px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.wf-chip {
+  font-family: var(--fd-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.4px;
+  color: var(--fd-mut);
+  background: var(--fd-input);
+  border: 1px solid var(--fd-line-2);
+  border-radius: var(--radius-sm);
+  padding: 1px 5px;
+}
+.wf-risk-high {
+  color: var(--color-error);
+  border-color: var(--color-error);
+}
+.wf-risk-low {
+  color: var(--fd-subtle);
+}
+
+.wf-port {
+  width: 9px;
+  height: 9px;
+  background: var(--fd-elevated);
+  border: 1.5px solid var(--fd-accent);
+}
+/* An END of the stack: nothing connects here yet. Faded rather than removed —
+   a hidden handle is not a drop target, so the author would have nothing to
+   drag onto to extend the workflow. It brightens on hover for exactly that. */
+.wf-port-idle {
+  background: var(--fd-bg);
+  border-color: var(--fd-line);
+  opacity: 0.55;
+}
+.wf-nd:hover .wf-port-idle,
+.wf-note:hover .wf-port-idle {
+  opacity: 1;
+  border-color: var(--fd-accent);
+}
+
+/* ---- decoration node ---- */
+.wf-note {
+  max-width: 240px;
+  background: transparent;
+  border: 1px dashed var(--fd-line);
+  border-radius: var(--fd-radius);
+  padding: 7px 10px;
+  color: var(--fd-mut);
+  font-size: 11px;
+}
+.wf-note.selected {
+  border-color: var(--fd-sel);
+  border-style: solid;
+}
+.wf-note-body {
+  white-space: pre-wrap;
+}
+
+/* ---- inspector fields ---- */
+.wf-field {
+  margin-bottom: 10px;
+}
+.wf-label {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--fd-mut);
+  margin-bottom: 4px;
+  font-weight: 700;
+}
+.wf-input,
+.wf-select,
+.wf-textarea {
+  width: 100%;
+  background: var(--fd-elevated);
+  border: 1px solid var(--fd-line);
+  color: var(--fd-fg);
+  border-radius: var(--fd-radius);
+  padding: 6px 8px;
+  font-size: 12px;
+  font-family: inherit;
+}
+.wf-input:focus,
+.wf-select:focus,
+.wf-textarea:focus {
+  outline: none;
+  border-color: var(--fd-accent);
+}
+.wf-input.invalid,
+.wf-select.invalid {
+  border-color: var(--color-error);
+}
+.wf-textarea {
+  min-height: 92px;
+  resize: vertical;
+  font-family: var(--fd-mono);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+.wf-hint {
+  font-size: 10.5px;
+  color: var(--fd-subtle);
+  line-height: 1.5;
+  margin-top: 3px;
+}
+/* Inline qualifier inside a label — same subdued treatment, no block spacing. */
+.wf-hint-inline {
+  color: var(--fd-subtle);
+  font-weight: 400;
+}
+.wf-row {
+  display: flex;
+  gap: 7px;
+}
+.wf-row > * {
+  flex: 1;
+  min-width: 0;
+}
+
+/* toggle row: label left, switch right — used by fan-out and serialize */
+.wf-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: space-between;
+  margin-bottom: 5px;
+}
+.wf-toggle .wf-label {
+  margin-bottom: 0;
+}
+
+/* acceptance-criteria list editor */
+.wf-list-row {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 5px;
+  align-items: flex-start;
+}
+.wf-list-row .wf-input {
+  flex: 1;
+}
+.wf-list-del {
+  flex: none;
+  width: 26px;
+  height: 28px;
+  background: var(--fd-elevated);
+  border: 1px solid var(--fd-line);
+  border-radius: var(--fd-radius);
+  color: var(--fd-mut);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+}
+.wf-list-del:hover {
+  border-color: var(--color-error);
+  color: var(--color-error);
+}
+.wf-list-empty {
+  font-size: 11px;
+  color: var(--fd-subtle);
+  font-style: italic;
+  margin-bottom: 5px;
+}
+
+/* per-node issue list in the inspector */
+.wf-issues {
+  border: 1px solid var(--color-error);
+  border-radius: var(--fd-radius);
+  padding: 7px 9px;
+  margin-bottom: 10px;
+  font-size: 11px;
+  color: var(--color-error);
+  line-height: 1.5;
+}
+.wf-issues ul {
+  margin: 0;
+  padding-left: 15px;
+}
+
+/* ---- compile / plan panel ---- */
+.wf-plan {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  z-index: 12;
+  width: min(420px, calc(100% - 24px));
+  max-height: 56%;
+  overflow-y: auto;
+  background: var(--fd-panel);
+  border: 1px solid var(--fd-line);
+  border-radius: var(--fd-radius-lg);
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.35);
+  padding: 11px 13px 13px;
+  font-size: 12px;
+}
+.wf-plan.error {
+  border-color: var(--color-error);
+}
+.wf-plan-hd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.wf-plan-ttl {
+  font-size: 11px;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--fd-fg);
+}
+.wf-plan-count {
+  font-family: var(--fd-mono);
+  font-size: 10px;
+  color: var(--fd-mut);
+}
+.wf-plan-close {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--fd-mut);
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+}
+.wf-plan-close:hover {
+  color: var(--fd-fg);
+}
+.wf-plan-err {
+  color: var(--color-error);
+  font-family: var(--fd-mono);
+  font-size: 11px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.wf-plan-phase {
+  border-top: 1px solid var(--fd-line);
+  padding-top: 7px;
+  margin-top: 7px;
+}
+.wf-plan-phase:first-of-type {
+  border-top: none;
+  margin-top: 0;
+}
+.wf-plan-phase-hd {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  margin-bottom: 4px;
+}
+.wf-plan-phase-name {
+  font-weight: 600;
+}
+.wf-plan-st {
+  display: flex;
+  gap: 7px;
+  align-items: baseline;
+  padding: 2px 0;
+  color: var(--fd-mut);
+  font-size: 11px;
+}
+.wf-plan-st-id {
+  font-family: var(--fd-mono);
+  color: var(--fd-accent);
+  flex: none;
+}
+.wf-plan-st-role {
+  font-family: var(--fd-mono);
+  color: var(--fd-fg);
+  flex: none;
+}
+.wf-plan-st-desc {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- phase rail: which phases exist, and how many nodes are in each ---- */
+.wf-rail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 10px;
+}
+.wf-rail-item {
+  font-family: var(--fd-mono);
+  font-size: 10px;
+  color: var(--fd-mut);
+  background: var(--fd-elevated);
+  border: 1px solid var(--fd-line);
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+}
+.wf-rail-item.active {
+  border-color: var(--fd-accent);
+  color: var(--fd-accent);
+}
+
+/* ---- gallery ----
+   Its own class, NOT .fd-gallery. The tokens come from the shared block in
+   flow-designer.css; the LAYOUT is ours, because this gallery stacks a header
+   above a card grid while the flow gallery is a flex row with a folder rail.
+   Reusing .fd-gallery for the tokens alone also imported `display: flex`, which
+   made the header and the grid siblings in a row and stretched every card to the
+   row's full height. */
+.wf-gallery {
+  display: block;
+  background: var(--fd-bg);
+  color: var(--fd-fg);
+}
+.wf-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(216px, 1fr));
+  gap: 12px;
+}
+.wf-card {
+  text-align: left;
+  background: var(--fd-elevated);
+  border: 1px solid var(--fd-line);
+  border-radius: var(--fd-radius-lg);
+  padding: 13px 14px;
+  cursor: pointer;
+  color: var(--fd-fg);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-height: 104px;
+}
+.wf-card:hover {
+  border-color: var(--fd-accent);
+}
+.wf-card-name {
+  font-weight: 600;
+  font-size: 13px;
+}
+.wf-card-desc {
+  font-size: 11px;
+  color: var(--fd-mut);
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.wf-card-meta {
+  margin-top: auto;
+  font-family: var(--fd-mono);
+  font-size: 10px;
+  color: var(--fd-subtle);
+  display: flex;
+  gap: 9px;
+}

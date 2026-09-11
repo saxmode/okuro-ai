@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en" data-theme="okuro">
+<head>
+<meta charset="utf-8">
+<title>prism · board kit — specimen gallery</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../board/tokens.css">
+<link rel="stylesheet" href="../board/theme.css">
+<link rel="stylesheet" href="../board/components.css">
+<link rel="stylesheet" href="../board/zoom-stage.css">
+<link rel="stylesheet" href="gallery.css">
+<script src="../board/zoom-stage.js" defer></script>
+<script src="../board/reveal.js" defer></script>
+<script src="gallery.js" defer></script>
+</head>
+<body>
+<div class="gallery-wrap">
+  <div class="gallery-head">
+    <div>
+      <h1>prism · board kit</h1>
+      <div class="sub">specimen gallery · family "board" · brand <span data-brand-label></span></div>
+    </div>
+    <div class="grow"></div>
+    <span class="viewport-readout"></span>
+    <div class="brand-switch" role="group" aria-label="brand">
+      <button data-brand="okuro">okuro · dark</button>
+    </div>
+    <div class="gallery-links">
+      <a href="index.html" class="active">Overview</a>
+      <a href="design-language.html">Design language</a>
+      <a href="components.html">Components</a>
+      <a href="components-ext.html">Ports + high-card</a>
+      <a href="archetypes.html">Archetypes</a>
+      <a href="reflow.html">L3 reflow</a>
+      <a href="explorer.html">Selection map</a>
+    </div>
+  </div>
+
+  <div class="spec-section">
+    <h2>What this is</h2>
+    <p class="spec-note">The board kit as shipped code: structural tokens + hand-authored components + 12 archetype slide templates on a fixed 1600×900 canvas. Three stored brands (resolved by A1 from okuro's brand store) prove the structural/brand split — switch brand top-right; the same components re-theme with zero markup change.</p>
+    <div class="callout info" style="max-width:900px">
+      <div class="callout-label">The three brands</div>
+      <p><strong>okuro</strong> — the internal brand: <strong>dark, monospace body by design</strong> (JetBrains Mono is the brand, not a bug), green accent. A user's own brands appear here once registered; okuro ships none but its own.</p>
+    </div>
+    <div class="card-grid" style="grid-template-columns:repeat(3,1fr)">
+      <a class="story-card" href="design-language.html"><div class="chap-num">01</div><div class="chap-title">Design language</div><div class="chap-desc">The one uniformity standard every component meets — spacing, radius, type ramp, chips, accent scarcity, measure caps, a11y.</div><div class="chap-links"><span class="chap-go">Open →</span></div></a>
+      <a class="story-card" href="components.html"><div class="chap-num">02</div><div class="chap-title">Components</div><div class="chap-desc">Every shared + bespoke module with realistic data, plus the token ramps and type scale.</div><div class="chap-links"><span class="chap-go">Open →</span></div></a>
+      <a class="story-card" href="components-ext.html"><div class="chap-num">03</div><div class="chap-title">Ports + high-card</div><div class="chap-desc">W1 v2 ports (provenance, evidence, chart, flow-embed, matrix…) + new high-cardinality (dense-table, two-col, tag-wall) at min/typical/max.</div><div class="chap-links"><span class="chap-go">Open →</span></div></a>
+      <a class="story-card" href="archetypes.html"><div class="chap-num">04</div><div class="chap-title">Archetypes</div><div class="chap-desc">All 12 slide templates in ZoomStage (zoom fit/1:1/±) and a 2D thumbnail matrix.</div><div class="chap-links"><span class="chap-go">Open →</span></div></a>
+      <a class="story-card" href="reflow.html"><div class="chap-num">05</div><div class="chap-title">L3 reflow</div><div class="chap-desc">Doc-view that reflows (not scales): width tiers to ultra 2560, 2-col + sticky TOC.</div><div class="chap-links"><span class="chap-go">Open →</span></div></a>
+      <a class="story-card" href="../board/component-manifest.json"><div class="chap-num">06</div><div class="chap-title">Component contract</div><div class="chap-desc">The machine-readable typed manifest (37 components) + height-model.json the W2 solver consumes.</div><div class="chap-links"><span class="chap-go">JSON →</span></div></a>
+      <a class="story-card" href="explorer.html"><div class="chap-num">07</div><div class="chap-title">Selection map</div><div class="chap-desc">Which component wins each of the 11 claim-shapes — every component ranked by its fit score, split at the 0.50 candidate threshold the solver uses.</div><div class="chap-links"><span class="chap-go">Open →</span></div></a>
+    </div>
+  </div>
+
+  <div class="spec-section">
+    <h2>Responsiveness model</h2>
+    <p class="spec-note">Slides never reflow — the 1600×900 canvas is transform-scaled to fit any viewport, keeping text vector-crisp and letterboxing in the resolved background. Only the L3 doc-view reflows. Thumbnails are the same slide, scale-transformed (one render path). Resize the window to watch the readout and stages track.</p>
+  </div>
+
+  <footer class="site-footer">
+    <span class="accent">prism board kit</span>
+    <span class="footer-meta"><span>A2 · kit + specimen gallery</span><span>1600×900 canvas</span><span>zero LLM styling</span></span>
+  </footer>
+</div>
+</body>
+</html>

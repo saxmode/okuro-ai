@@ -1,0 +1,46 @@
+# <!-- AGENT_HEADER
+# role: config
+# purpose: Consumer registry entry — Cursor IDE (pure MCP consumer).
+# index: tool_id | short_name | provider_id | capabilities
+# AGENT_HEADER_END -->
+#
+# Pure MCP consumer: okuro registers itself into Cursor's config but never
+# invokes Cursor as an inference backend, so this lives in registry/consumers/
+# (unscanned by list_tools) rather than tools/clis/. Read only by
+# okuro.canon.consumers — wired to nothing else this phase.
+tool_id: cursor
+name: "Cursor"
+type: cli_tool
+category: consumer
+version: "latest"
+
+description: >
+  Cursor IDE's agent. okuro registers its MCP server into ~/.cursor/mcp.json;
+  Cursor is not one of okuro's inference backends.
+
+binary: cursor
+provider_id: cursor
+short_name: cursor
+
+capabilities:
+  kind: cli
+  mcp:
+    path: ".cursor/mcp.json"
+    format: json
+    root_key: mcpServers
+    remote_field: url
+    transports: [stdio, sse, http]
+    preferred_transport: http
+  instructions:
+    path: ".cursor/rules/okuro.mdc"
+  hooks:
+    supported: true                  # real, GA (schema not okuro-portable)
+  probe: cli
+
+metadata:
+  author: okuro
+  created: "2026-07-17"
+  tags: [mcp-consumer, ide, cursor]
+
+enabled: true
+recommended: false

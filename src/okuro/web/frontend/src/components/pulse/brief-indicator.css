@@ -1,0 +1,101 @@
+/* -----------------------------------------------------------------------------
+ * Brief indicator — the "okuro would like to say something" dot under the pulse
+ * orb. Two states on one element, so size and colour cross-fade rather than
+ * swap: quiet (near-white, 8px) vs active (accent, 14px, glowing). The glow
+ * mirrors the people-graph__me-glow technique — a box-shadow ring driven
+ * entirely by design tokens (--color-accent / --color-accent-subtle).
+ *
+ * Size and colour alone do NOT carry the signal here: the orb behind the dot
+ * renders in the same accent blue, so a bigger blue dot camouflages against it.
+ * The ping ring is what separates them — a hard geometric expansion reads as
+ * deliberate against the blob's soft organic undulation. Motion is the signal;
+ * colour is only the confirmation.
+ * -------------------------------------------------------------------------- */
+
+@keyframes brief-indicator-glow {
+  0%, 100% {
+    box-shadow:
+      0 0 0 1px var(--color-accent, #22c55e),
+      0 0 6px 1px var(--color-accent-subtle, rgba(34, 197, 94, 0.25));
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px var(--color-accent, #22c55e),
+      0 0 14px 4px var(--color-accent-subtle, rgba(34, 197, 94, 0.45));
+  }
+}
+
+/* Ping — one ring out of the dot, then a beat of rest. The hold from 60% to
+ * 100% is the rest: a relentless ping nags, a resting one reads as a heartbeat.
+ * Scales to 2.5x (14px -> ~35px), well clear of the wordmark below.
+ *
+ * Tuned against a measured render, not by eye. Two traps, both hit on the way:
+ * an ease-out ping is optically dead — it front-loads the expansion so the ring
+ * is under 30% opacity before it has visibly moved; and a 1px ring at partial
+ * opacity on this dark surface is invisible regardless of timing. Hence linear
+ * (steady travel = deliberate, and it suits reduced-animation better than a
+ * snap), opacity held flat to 20% before any fade, and a 2px stroke. */
+@keyframes brief-indicator-ping {
+  0%, 20% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  60%, 100% {
+    transform: scale(2.5);
+    opacity: 0;
+  }
+}
+
+.brief-indicator__dot {
+  position: relative;
+  width: 8px;
+  height: 8px;
+  background: var(--color-fg-primary, #e0e0e0);
+  transition:
+    width 300ms ease,
+    height 300ms ease,
+    background-color 300ms ease,
+    box-shadow 300ms ease;
+}
+
+/* Nothing to say — the dot is a landmark, not a control. */
+.brief-indicator__dot:disabled {
+  cursor: default;
+}
+
+.brief-indicator__dot[data-active="true"] {
+  width: 14px;
+  height: 14px;
+  background: var(--color-accent, #22c55e);
+  animation: brief-indicator-glow 2.4s ease-in-out infinite;
+}
+
+/* The ping asks for attention, so it runs ONLY while okuro is still waiting to
+ * be heard. Once playback starts the dot is a stop button, not a summons — and
+ * the orb is already at full tilt behind it, so a ring there is pure noise. */
+.brief-indicator__dot[data-active="true"]:not([data-speaking="true"])::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  border: 2px solid var(--color-accent, #22c55e);
+  animation: brief-indicator-ping 2.4s linear infinite;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brief-indicator__dot[data-active="true"] {
+    animation: none;
+    box-shadow:
+      0 0 0 1px var(--color-accent, #22c55e),
+      0 0 10px 2px var(--color-accent-subtle, rgba(34, 197, 94, 0.35));
+  }
+
+  /* Hold the ring at rest as a static halo — the signal survives, the motion
+     does not. */
+  .brief-indicator__dot[data-active="true"]:not([data-speaking="true"])::after {
+    animation: none;
+    transform: scale(1.9);
+    opacity: 0.4;
+  }
+}

@@ -1,0 +1,121 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   prism · board kit · zoom-stage.css   (plan 1 — responsiveness, first-class)
+   Fixed 1600×900 logical canvas + transform-scale zoom-to-fit. Slides NEVER
+   reflow (text stays vector-crisp under CSS transform); only L3 doc-view
+   reflows. Thumbnails are the SAME slide, scale-transformed (single render
+   path). Letterbox fills the resolved --bg-base.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── ZoomStage: wrapper that measures available space and letterboxes ── */
+.zoom-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-base);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* the scaled element — JS sets transform: scale(...) on it */
+.zoom-canvas {
+  width: var(--canvas-w);
+  height: var(--canvas-h);
+  flex: 0 0 auto;
+  transform-origin: center center;
+  transform: scale(var(--zoom, 1));
+  /* keep sub-pixel text crisp while scaled */
+  backface-visibility: hidden;
+}
+/* a stage that owns its own height (gallery embeds set an explicit box) */
+.zoom-stage.autobox { aspect-ratio: 16 / 9; height: auto; }
+
+/* zoom mode helpers (JS toggles data-zoom-mode on the stage) */
+.zoom-stage[data-zoom-mode="100"] { align-items: flex-start; justify-content: flex-start; overflow: auto; }
+.zoom-stage[data-zoom-mode="100"] .zoom-canvas { transform: none; }
+
+/* optional on-canvas zoom control (presenter) */
+.zoom-controls {
+  position: absolute; bottom: 14px; right: 14px; z-index: 60;
+  display: flex; gap: 4px; align-items: center;
+  background: var(--bg-overlay); border: 1px solid var(--border);
+  border-radius: var(--radius-card); padding: 4px 6px;
+  font-family: var(--font-mono); font-size: 12px; color: var(--fg-secondary);
+}
+.zoom-controls button {
+  background: transparent; border: 1px solid transparent; color: var(--fg-secondary);
+  font-family: var(--font-mono); font-size: 12px; cursor: pointer;
+  padding: 2px 8px; border-radius: var(--radius-chip); line-height: 1.4;
+}
+.zoom-controls button:hover { color: var(--accent); border-color: var(--border); }
+.zoom-controls button.active { color: var(--accent); background: var(--accent-soft); }
+.zoom-controls .zoom-readout { min-width: 46px; text-align: center; color: var(--fg-tertiary); }
+
+/* ══════════════  DOC-MODE WIDTH TIERS (plan 1 — non-slide pages) ══════════════ */
+.doc-view { width: 100%; margin: 0 auto; padding: 48px var(--gutter) 96px; }
+.doc-view[data-width="reading"] { max-width: var(--reading-w); }
+.doc-view[data-width="wide"]    { max-width: var(--wide-w); }
+.doc-view[data-width="full"]    { max-width: var(--slide-w); }
+.doc-view[data-width="ultra"]   { max-width: var(--ultra-w); }
+
+/* ══════════════  L3 DOC-VIEW — REFLOWS (container queries, never scales) ══════════════ */
+.l3-doc { container-type: inline-size; width: 100%; }
+.l3-doc .l3-shell { display: grid; grid-template-columns: 1fr; gap: 40px; }
+.l3-doc .l3-toc { display: none; }
+.l3-doc .l3-main { min-width: 0; }
+.l3-doc .l3-main .prose p,
+.l3-doc .l3-main .prose li { max-width: 72ch; }   /* measure cap */
+
+/* ≥1100px: sticky TOC appears */
+@container (min-width: 1100px) {
+  .l3-doc .l3-shell { grid-template-columns: 260px 1fr; gap: 56px; }
+  .l3-doc .l3-toc { display: block; position: sticky; top: 80px; align-self: start; max-height: calc(100vh - 100px); overflow-y: auto; }
+}
+/* ultra ≥2000px: two-column body + sticky TOC (plan 1) */
+@container (min-width: 2000px) {
+  .l3-doc .l3-shell { grid-template-columns: 280px 1fr; }
+  .l3-doc .l3-main .prose { column-count: 2; column-gap: 56px; }
+  .l3-doc .l3-main .prose > h1,
+  .l3-doc .l3-main .prose > h2 { column-span: all; }
+}
+
+/* ══════════════  THUMBNAILS — same slide, scale-transformed (single path) ══════════════ */
+.thumb-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--thumb-cols, 4), 1fr);
+  gap: 20px;
+}
+/* one cell: a fixed-ratio box that clips a scaled 1600×900 canvas */
+.thumb {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  background: var(--bg-base);
+  cursor: pointer;
+  transition: border-color var(--motion-fast), transform var(--motion-fast);
+}
+.thumb:hover { border-color: var(--accent); transform: translateY(-2px); }
+.thumb .zoom-canvas {
+  position: absolute; top: 0; left: 0;
+  transform-origin: top left;
+  /* --thumb-scale set inline per cell width; JS keeps it in sync */
+  transform: scale(var(--thumb-scale, 0.1));
+}
+.thumb .thumb-cap {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
+  padding: 6px 10px; font-size: 11px; font-family: var(--font-mono);
+  color: var(--fg-secondary); background: var(--bg-overlay);
+  border-top: 1px solid var(--border);
+  display: flex; justify-content: space-between; gap: 8px;
+}
+
+/* 2D deck matrix (topics × depth) — cells are thumbnails (plan 1) */
+.deck-matrix { display: grid; gap: 16px; align-items: start; }
+.deck-matrix .matrix-rowlabel,
+.deck-matrix .matrix-collabel {
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--fg-tertiary); font-weight: 600;
+  align-self: center;
+}

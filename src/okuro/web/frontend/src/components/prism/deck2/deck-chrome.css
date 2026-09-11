@@ -1,0 +1,346 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   okuro·prism deck v2 — VIEWER CHROME (not kit components). Styles the
+   runtime's own navigation surfaces (top bar, breadcrumb, mode buttons, A/B
+   control, grid overlay), built ENTIRELY from the kit's resolved tokens
+   (var(--*) defined on :host by theme.css) so chrome tracks the brand. This
+   never restyles a kit slide component — those own their CSS in the board kit.
+   Injected into the deck shadow root AFTER the kit stylesheet.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.deck-root {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-base);
+  color: var(--fg-body);
+  font-family: var(--font-body);
+  overflow: hidden;
+}
+
+.deck-topbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-elev);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--fg-secondary);
+  flex: 0 0 auto;
+}
+.deck-title { color: var(--fg-primary); font-weight: 600; letter-spacing: 0.3px; }
+.deck-breadcrumb { display: flex; align-items: center; gap: 8px; color: var(--fg-secondary); }
+.deck-crumb { cursor: pointer; }
+.deck-crumb:hover { color: var(--accent); }
+.deck-crumb-sep { color: var(--fg-muted); }
+.deck-crumb.current { color: var(--accent); }
+.deck-spacer { flex: 1 1 auto; }
+
+.deck-btns { display: flex; gap: 6px; align-items: center; }
+.deck-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--fg-secondary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 3px 9px;
+  border-radius: var(--radius-chip, 6px);
+  line-height: 1.5;
+}
+.deck-btn:hover { color: var(--accent); border-color: var(--border-strong); }
+.deck-btn.active { color: var(--accent); background: var(--accent-soft); border-color: var(--accent); }
+.deck-btn kbd {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--fg-muted);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0 3px;
+  margin-left: 5px;
+}
+
+.deck-body { flex: 1 1 auto; min-height: 0; position: relative; display: flex; }
+.deck-stage-wrap { flex: 1 1 auto; min-height: 0; min-width: 0; position: relative; }
+.deck-docwrap { flex: 1 1 auto; min-height: 0; overflow: auto; }
+.deck-index-wrap { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 32px 40px 64px; }
+.deck-index-title { font-family: var(--font-mono); font-size: 13px; color: var(--fg-tertiary); text-transform: uppercase; letter-spacing: 1.5px; margin: 0 0 20px; }
+
+/* A/B swap control — edit mode, top-left of the focused stage */
+.deck-ab {
+  position: absolute;
+  top: 14px; left: 14px; z-index: 60;
+  display: flex; gap: 4px; align-items: center;
+  background: var(--bg-overlay);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card, 8px);
+  padding: 4px 6px;
+  font-family: var(--font-mono); font-size: 12px; color: var(--fg-secondary);
+}
+.deck-ab-label { color: var(--fg-tertiary); padding: 0 4px; }
+.deck-ab button {
+  background: transparent; border: 1px solid transparent; color: var(--fg-secondary);
+  font-family: var(--font-mono); font-size: 12px; cursor: pointer;
+  padding: 2px 8px; border-radius: var(--radius-chip, 6px); line-height: 1.4;
+}
+.deck-ab button:hover { color: var(--accent); border-color: var(--border); }
+.deck-ab button.active { color: var(--accent-ink, #000); background: var(--accent); }
+
+/* presenter grid overview overlay */
+.deck-grid-overlay {
+  position: absolute; inset: 0; z-index: 50;
+  background: var(--bg-base);
+  overflow: auto;
+  padding: 28px 36px 56px;
+}
+.deck-grid-head { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; }
+.deck-grid-head h2 { margin: 0; font-size: var(--fs-h3, 20px); color: var(--fg-primary); }
+
+.deck-empty {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  color: var(--fg-muted); font-family: var(--font-mono); font-size: 14px;
+}
+
+/* ── always-visible position counter (1-indexed topic X/N · L k/4) ── */
+.deck-counter {
+  font-family: var(--font-mono); font-size: 12px; color: var(--fg-primary);
+  background: var(--accent-soft); border: 1px solid var(--border);
+  border-radius: var(--radius-chip, 6px); padding: 2px 9px; white-space: nowrap;
+}
+
+/* ── deck controls: brand select + danger ── */
+.deck-brandsel {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--font-mono); font-size: 11px; color: var(--fg-tertiary);
+}
+.deck-brandsel select {
+  background: transparent; color: var(--fg-secondary);
+  border: 1px solid var(--border); border-radius: var(--radius-chip, 6px);
+  font-family: var(--font-mono); font-size: 12px; padding: 2px 4px; cursor: pointer;
+}
+.deck-btn-danger:hover { color: var(--warn, #e5484d); border-color: var(--warn, #e5484d); }
+
+/* ── axis-true transitions (translateY = topic ↑/↓ · translateX = depth →/←) ── */
+.deck-transition { height: 100%; width: 100%; }
+.deck-transition[data-anim="x"] { animation: deckSlideX 320ms cubic-bezier(0.2, 0.7, 0.2, 1); }
+.deck-transition[data-anim="y"] { animation: deckSlideY 320ms cubic-bezier(0.2, 0.7, 0.2, 1); }
+@keyframes deckSlideX {
+  from { transform: translateX(4%); opacity: 0.35; }
+  to   { transform: translateX(0);  opacity: 1; }
+}
+@keyframes deckSlideY {
+  from { transform: translateY(4%); opacity: 0.35; }
+  to   { transform: translateY(0);  opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .deck-transition[data-anim] { animation: none !important; transform: none !important; opacity: 1 !important; }
+}
+
+/* ── persistent orientation mini-map (topics ↓ · depth →) ── */
+.deck-minimap {
+  position: absolute; left: 14px; bottom: 14px; z-index: 40;
+  background: var(--bg-overlay, rgba(0,0,0,0.55)); border: 1px solid var(--border);
+  border-radius: var(--radius-card, 8px); padding: 8px 10px;
+  backdrop-filter: blur(4px);
+}
+.deck-minimap .mm-grid { display: grid; gap: 4px; align-items: center; }
+.mm-corner { width: 14px; height: 10px; }
+.mm-collabel, .mm-rowlabel {
+  font-family: var(--font-mono); font-size: 8px; color: var(--fg-muted);
+  text-align: center; line-height: 1;
+}
+.mm-rowlabel { text-align: right; padding-right: 2px; }
+.mm-dot {
+  width: 12px; height: 12px; padding: 0; cursor: pointer;
+  border: 1px solid var(--border-strong, var(--border)); border-radius: 3px;
+  background: var(--bg-elev); transition: transform 120ms, background 120ms;
+}
+.mm-dot:hover:not(:disabled) { background: var(--accent-soft); }
+.mm-dot.empty { opacity: 0.2; cursor: default; border-style: dashed; }
+.mm-dot.active { background: var(--accent); border-color: var(--accent); transform: scale(1.18); }
+
+/* ── hero key legend (teaches the model on entry) ── */
+.deck-hero-legend {
+  position: absolute; left: 0; right: 0; bottom: 40px; z-index: 30;
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  pointer-events: none;
+}
+.deck-hero-legend .hl-keys {
+  font-family: var(--font-mono); font-size: 13px; color: var(--fg-secondary);
+  background: var(--bg-overlay, rgba(0,0,0,0.5)); border: 1px solid var(--border);
+  border-radius: 999px; padding: 6px 16px; letter-spacing: 0.4px;
+}
+.deck-hero-legend .hl-keys kbd {
+  font-family: var(--font-mono); font-size: 11px; color: var(--accent);
+  border: 1px solid var(--border); border-radius: 3px; padding: 0 3px;
+}
+.deck-hero-legend .hl-begin {
+  pointer-events: auto; cursor: pointer;
+  background: var(--accent); color: var(--accent-ink, #000);
+  border: none; border-radius: 999px; padding: 8px 20px;
+  font-family: var(--font-mono); font-size: 13px; font-weight: 600;
+}
+
+/* ── accuracy strip (deficit / synth / fallback / count / gap) ── */
+.deck-accuracy {
+  position: absolute; left: 14px; bottom: 14px; z-index: 45;
+  display: flex; flex-wrap: wrap; gap: 6px; max-width: 60%;
+}
+.deck-minimap ~ .deck-accuracy, .deck-accuracy { bottom: 14px; }
+.acc-chip {
+  font-family: var(--font-mono); font-size: 11px; line-height: 1.5;
+  border: 1px solid var(--border); border-radius: var(--radius-chip, 6px);
+  padding: 2px 8px; background: var(--bg-elev); color: var(--fg-secondary);
+}
+button.acc-chip { cursor: pointer; }
+.acc-deficit { color: var(--gold, #d9a441); border-color: var(--gold, #d9a441); background: transparent; }
+.acc-deficit:hover { background: var(--accent-soft); }
+.acc-synth { color: var(--warn, #e5484d); border-color: var(--warn, #e5484d); }
+.acc-fallback { color: var(--fg-tertiary); }
+.acc-count { color: var(--warn, #e5484d); }
+.acc-gap { color: var(--gold, #d9a441); }
+
+/* When both the minimap and the accuracy strip are present, dock the accuracy
+   strip to the RIGHT of the minimap so neither is occluded. */
+.deck-body:has(.deck-minimap) .deck-accuracy { left: 176px; bottom: 16px; }
+
+/* ── drill-down peek ── */
+.deck-peek {
+  position: absolute; right: 18px; bottom: 18px; z-index: 55; width: 340px;
+  max-width: 42%; background: var(--bg-elev); border: 1px solid var(--border-strong, var(--border));
+  border-radius: var(--radius-card, 10px); overflow: hidden; box-shadow: 0 8px 30px rgba(0,0,0,0.35);
+}
+.deck-peek-head {
+  display: flex; align-items: center; gap: 8px; padding: 6px 10px;
+  border-bottom: 1px solid var(--border); font-family: var(--font-mono); font-size: 12px;
+}
+.deck-peek-title { color: var(--fg-tertiary); flex: 1; }
+.deck-peek-open, .deck-peek-close {
+  background: transparent; border: 1px solid var(--border); color: var(--fg-secondary);
+  cursor: pointer; border-radius: var(--radius-chip, 6px); padding: 1px 8px; font-family: var(--font-mono); font-size: 11px;
+}
+.deck-peek-open:hover, .deck-peek-close:hover { color: var(--accent); border-color: var(--accent); }
+.deck-peek-body { height: 200px; position: relative; }
+.deck-peek-body .zoom-stage { height: 100%; }
+
+/* ── keyboard help overlay ── */
+.deck-help {
+  position: absolute; inset: 0; z-index: 70; display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.55);
+}
+.deck-help-card {
+  background: var(--bg-elev); border: 1px solid var(--border-strong, var(--border));
+  border-radius: var(--radius-card, 12px); padding: 22px 28px; max-width: 460px;
+  color: var(--fg-body); font-family: var(--font-body);
+}
+.deck-help-card h3 { margin: 0 0 12px; color: var(--fg-primary); font-size: 16px; }
+.deck-help-card ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; font-size: 13px; color: var(--fg-secondary); }
+.deck-help-card kbd {
+  font-family: var(--font-mono); font-size: 11px; color: var(--accent);
+  border: 1px solid var(--border); border-radius: 3px; padding: 0 4px; margin-right: 2px;
+}
+
+/* ═══ PRISM v4 W5 Phase D — lens tabs · L1 visual · provenance · brand logo ═══ */
+
+/* multi-perspective lens tabs (one deck, three-persona framing) */
+.deck-lenstabs {
+  display: flex; align-items: center; gap: 6px; flex: 0 0 auto;
+  padding: 7px 18px; border-bottom: 1px solid var(--border); background: var(--bg-elev);
+}
+.deck-lenstab {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: transparent; border: 1px solid var(--border); color: var(--fg-secondary);
+  font-family: var(--font-mono); font-size: 12px; cursor: pointer;
+  padding: 3px 11px; border-radius: 999px; line-height: 1.5;
+}
+.deck-lenstab:hover { color: var(--accent); border-color: var(--border-strong, var(--border)); }
+.deck-lenstab.active { color: var(--accent-ink, #000); background: var(--accent); border-color: var(--accent); }
+.deck-lenstab .lt-mark { width: 8px; height: 8px; border-radius: 2px; background: var(--fg-tertiary); }
+.deck-lenstab .lt-mark.a { background: var(--accent); }
+.deck-lenstab .lt-mark.b { background: var(--gold, #d9a441); }
+.deck-lenstab .lt-mark.c { background: var(--info, #5b8def); }
+.deck-lenstab.active .lt-mark { background: var(--accent-ink, #000); }
+
+/* L1 REAL visual — a data chart / count-stat / illustration on the hook */
+.deck-visual {
+  position: absolute; top: 54px; right: 18px; z-index: 35;
+  width: 34%; max-width: 460px; min-width: 240px;
+  background: var(--bg-overlay, rgba(0,0,0,0.5)); border: 1px solid var(--border);
+  border-radius: var(--radius-card, 10px); padding: 16px 18px;
+  backdrop-filter: blur(4px);
+}
+.deck-visual .dv-cap {
+  font-family: var(--font-mono); font-size: 11px; color: var(--fg-tertiary);
+  text-transform: uppercase; letter-spacing: 1px; margin: 0 0 12px;
+}
+.deck-visual-stat { text-align: left; }
+.deck-visual-stat .dv-stat-num {
+  font-family: var(--font-mono); font-size: 56px; font-weight: 700; line-height: 1;
+  color: var(--accent); letter-spacing: -1px;
+}
+.deck-visual-stat .dv-stat-lbl { font-family: var(--font-mono); font-size: 13px; color: var(--fg-primary); margin-top: 6px; }
+.deck-visual-stat .dv-stat-sub { font-size: 12px; color: var(--fg-tertiary); margin-top: 4px; }
+.dv-bars { display: grid; gap: 8px; }
+.dv-bar-row { display: grid; grid-template-columns: 34% 1fr auto; align-items: center; gap: 8px; }
+.dv-bar-label { font-size: 12px; color: var(--fg-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dv-bar-track { height: 10px; background: var(--bg-elev); border-radius: 5px; overflow: hidden; }
+.dv-bar-fill { display: block; height: 100%; background: var(--accent); border-radius: 5px; }
+.dv-bar-row.s-caution .dv-bar-fill { background: var(--gold, #d9a441); }
+.dv-bar-row.s-danger .dv-bar-fill { background: var(--warn, #e5484d); }
+.dv-bar-val { font-family: var(--font-mono); font-size: 11px; color: var(--fg-primary); white-space: nowrap; }
+.deck-visual-illus .dv-illus { display: flex; justify-content: center; }
+.deck-visual-illus .dv-illus svg { max-width: 100%; height: auto; }
+
+/* provenance affordance — source spans on ref-carrying cells */
+.deck-prov { position: absolute; top: 14px; right: 18px; z-index: 58; }
+.deck-prov-btn {
+  background: var(--bg-overlay, rgba(0,0,0,0.5)); border: 1px solid var(--border);
+  color: var(--fg-secondary); font-family: var(--font-mono); font-size: 11px;
+  cursor: pointer; padding: 3px 10px; border-radius: 999px; letter-spacing: 0.3px;
+}
+.deck-prov-btn:hover, .deck-prov-btn[aria-expanded="true"] { color: var(--accent); border-color: var(--accent); }
+.deck-prov-pop {
+  position: absolute; top: 30px; right: 0; width: 380px; max-width: 78vw;
+  background: var(--bg-elev); border: 1px solid var(--border-strong, var(--border));
+  border-radius: var(--radius-card, 10px); box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+  padding: 10px 12px;
+}
+.deck-prov-head {
+  display: flex; align-items: center; justify-content: space-between;
+  font-family: var(--font-mono); font-size: 11px; color: var(--fg-tertiary);
+  text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;
+}
+.deck-prov-x { background: transparent; border: none; color: var(--fg-tertiary); cursor: pointer; font-size: 12px; }
+.deck-prov-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; max-height: 260px; overflow: auto; }
+.deck-prov-quote {
+  margin: 0; font-size: 13px; line-height: 1.5; color: var(--fg-body);
+  border-left: 2px solid var(--accent); padding-left: 10px;
+}
+.deck-prov-src {
+  display: inline-block; margin-top: 4px; font-family: var(--font-mono); font-size: 11px;
+  color: var(--accent); text-decoration: none;
+}
+.deck-prov-src:hover { text-decoration: underline; }
+
+/* luminance-aware brand logo (corner overlay, flips ink by canvas luminance) */
+.deck-logo { position: absolute; z-index: 42; pointer-events: none; opacity: 0.92; }
+.deck-logo svg { height: 26px; width: auto; display: block; }
+.deck-logo-tl { top: 14px; left: 16px; }
+.deck-logo-tr { top: 14px; right: 16px; }
+.deck-logo-bl { bottom: 14px; left: 16px; }
+.deck-logo-br { bottom: 14px; right: 16px; }
+
+/* ── transient hint / sticky terminal toast ── */
+.deck-hint {
+  position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 65;
+  display: flex; align-items: center; gap: 10px;
+  background: var(--bg-overlay, rgba(0,0,0,0.72)); color: var(--fg-primary);
+  border: 1px solid var(--border); border-radius: 999px; padding: 7px 16px;
+  font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.3px;
+  animation: deckHintIn 160ms ease-out;
+}
+.deck-hint.sticky { border-color: var(--accent); }
+.deck-hint .hint-dismiss { background: transparent; border: none; color: var(--fg-tertiary); cursor: pointer; font-size: 12px; }
+@keyframes deckHintIn { from { opacity: 0; transform: translate(-50%, 6px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@media (prefers-reduced-motion: reduce) { .deck-hint { animation: none; } }

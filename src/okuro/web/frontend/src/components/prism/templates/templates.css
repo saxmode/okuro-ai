@@ -1,0 +1,78 @@
+/* okuro·prism SLIDE TEMPLATES — designed grid layouts (the gold-standard engine).
+   All colour/type/spacing come from CSS vars set per-brand by brandStyle(); a
+   template never hardcodes a colour. Modelled on the hand-authored reference decks:
+   real column tracks, size-as-hierarchy, micro-viz, wide canvas. */
+
+.tpl {
+  --ms: 8px;
+  --gutter: 64px;
+  --slide-w: 1480px;
+  background: var(--tpl-bg);
+  color: var(--tpl-body);
+  font-family: var(--tpl-font-body);
+  font-size: 17px;
+  line-height: 1.65;
+  letter-spacing: 0.005em;
+  min-height: 100%;
+}
+.tpl-inner { max-width: var(--slide-w); margin: 0 auto; padding: 64px var(--gutter) 80px; }
+
+.tpl .eyebrow { font-size: 11px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--tpl-accent); font-weight: 700; }
+.tpl .tabs { display: flex; gap: 18px; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 36px; }
+.tpl .tabs .on { color: var(--tpl-accent); font-weight: 700; }
+.tpl .tabs .off { color: var(--tpl-muted); }
+.tpl .title { font-size: 46px; line-height: 1.06; letter-spacing: -0.02em; color: var(--tpl-primary); font-weight: 700; max-width: 22ch; margin-top: 10px; }
+.tpl .title .hl { color: var(--tpl-accent); }
+.tpl .mono { font-family: var(--tpl-font-mono); }
+
+/* COVER — one idea, biggest type */
+.tpl-cover .inner { min-height: 62vh; display: flex; flex-direction: column; justify-content: center; gap: 26px; }
+.tpl-cover .big { font-size: 68px; line-height: 1.03; letter-spacing: -0.03em; color: var(--tpl-primary); font-weight: 700; max-width: 18ch; }
+.tpl-cover.section .follow { font-size: 13px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--tpl-tertiary); }
+
+/* METRIC-DUEL — A vs B, size-as-hierarchy + micro-bars */
+.tpl .duel { display: grid; grid-template-columns: 1fr 1.4fr; gap: 52px; align-items: center; margin-top: 34px; }
+.tpl .duel .claim { font-size: 27px; line-height: 1.28; letter-spacing: -0.01em; color: var(--tpl-primary); font-weight: 600; }
+.tpl .duel .metrics { display: grid; gap: 22px; }
+.tpl .mrow { display: grid; grid-template-columns: 160px 1fr; gap: 22px; align-items: center; }
+.tpl .mrow .k { font-size: 12px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--tpl-tertiary); }
+.tpl .mbars { display: grid; gap: 9px; }
+.tpl .mbar { display: grid; grid-template-columns: 92px 1fr auto; gap: 14px; align-items: center; font-family: var(--tpl-font-mono); font-size: 13px; }
+.tpl .mbar .who { color: var(--tpl-secondary); }
+.tpl .mbar .track { height: 15px; background: var(--tpl-subtle); border-radius: 3px; overflow: hidden; }
+.tpl .mbar .fill { height: 100%; border-radius: 3px; }
+.tpl .mbar.win .fill { background: var(--tpl-accent); }
+.tpl .mbar.win .who, .tpl .mbar.win .val { color: var(--tpl-accent); font-weight: 700; }
+.tpl .mbar.lose .fill { background: var(--tpl-border-strong); }
+.tpl .mbar.lose .val { color: var(--tpl-tertiary); }
+.tpl .mbar .val { text-align: right; min-width: 74px; }
+
+/* CARD-GRID — repeat(N,1fr) peer cards */
+.tpl .setlabel { margin-top: 52px; font-size: 12px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--tpl-tertiary); border-top: 1px solid var(--tpl-border); padding-top: 22px; }
+.tpl .cards { display: grid; gap: 16px; margin-top: 20px; }
+.tpl .cards.c2 { grid-template-columns: repeat(2, 1fr); }
+.tpl .cards.c3 { grid-template-columns: repeat(3, 1fr); }
+.tpl .cards.c4 { grid-template-columns: repeat(4, 1fr); }
+.tpl .card { background: var(--tpl-card); border: 1px solid var(--tpl-border); border-radius: 10px; padding: 20px 18px; display: flex; flex-direction: column; gap: 10px; min-height: 148px; }
+.tpl .card .tag { align-self: flex-start; font-size: 10px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--tpl-accent); background: var(--tpl-accent-soft); border: 1px solid var(--tpl-accent-dim); border-radius: 4px; padding: 3px 8px; }
+.tpl .card .name { font-family: var(--tpl-font-mono); font-size: 15px; font-weight: 700; color: var(--tpl-primary); }
+.tpl .card .desc { font-size: 13px; color: var(--tpl-secondary); line-height: 1.5; }
+
+/* HERO-STAT — one dominant number + support */
+.tpl .herostat { display: grid; grid-template-columns: auto 1fr; gap: 56px; align-items: center; margin-top: 40px; }
+.tpl .herostat .big { font-size: 108px; line-height: 0.95; letter-spacing: -0.03em; font-weight: 700; color: var(--tpl-accent); font-family: var(--tpl-font-mono); }
+.tpl .herostat .lab { font-size: 15px; letter-spacing: 1px; text-transform: uppercase; color: var(--tpl-tertiary); margin-top: 12px; }
+.tpl .herostat .claim { font-size: 24px; line-height: 1.35; color: var(--tpl-primary); font-weight: 600; }
+.tpl .herostat .support { display: flex; gap: 40px; margin-top: 22px; }
+.tpl .herostat .support .v { font-family: var(--tpl-font-mono); font-size: 26px; font-weight: 700; color: var(--tpl-primary); }
+.tpl .herostat .support .l { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--tpl-tertiary); }
+
+/* HERO-BLOCK — a designed stage for any rich module (graph/table/steps/…) */
+.tpl .lede { max-width: 64ch; margin-top: 16px; font-size: 19px; line-height: 1.5; color: var(--tpl-secondary); }
+.tpl .stage { margin-top: 30px; background: var(--tpl-card); border: 1px solid var(--tpl-border); border-radius: 12px; padding: 24px 26px; }
+.tpl .lensrow { margin-top: 26px; }
+.tpl .lensrow .setlabel { margin-top: 0; }
+
+/* DOC-VIEW — full prose document inside the deck */
+.tpl-doc .body { max-width: 68ch; margin-top: 28px; color: var(--tpl-body); font-size: 17px; line-height: 1.75; }
+.tpl-doc .body p { margin-bottom: 18px; }

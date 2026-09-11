@@ -1,0 +1,94 @@
+# <!-- AGENT_HEADER
+# role: config
+# purpose: okuro module
+# index:
+#   tool_id
+#   name
+#   type
+#   version
+#   description
+#   package
+#   config
+#   modules
+#   target_support
+#   requires
+#   metadata
+#   enabled
+# AGENT_HEADER_END -->
+tool_id: okuro
+name: "Okuro Unified MCP Server"
+type: mcp_server
+version: "1.0.0"
+
+description: "Unified agent infrastructure: bootstrap, memory, codebase navigation, secrets, roles, system state, LLM bridge, tool registry"
+
+package:
+  name: okuro
+  runtime: python
+  install: "pip install okuro"
+
+config:
+  command: python
+  args: ["-m", "okuro.mcp.server"]
+  transport: stdio
+
+# NOTE: no `modules:` block here on purpose.
+# It used to hand-list okuro's own MCP tools and drifted to 7 modules /
+# 71 tools while the live registry served 21 / 274. No code ever read it —
+# it was documentation that lied. The live catalogue is the `mcp_catalog`
+# tool, generated from okuro.mcp._registry at call time.
+
+target_support:
+  claude: full
+  gemini: full
+  cursor: full
+  codex: full
+  vscode: full
+
+# Per-provider tool naming conventions, observed via the integration probe
+# in tests/providers/test_golden.py and the manual probe captured 2026-04-26.
+# These are ADVISORY — templates use a discovery-friendly directive ("find
+# the bootstrap tool from the okuro server in your tool list") rather than
+# hardcoding any of these strings, so this table can drift from reality
+# without breaking instructions. It exists to document the observed surface
+# and to feed the "common forms" hint in providers/template.py.
+provider_conventions:
+  claude:
+    pattern: "mcp__{server}__{tool}"
+    example: "mcp__okuro__bootstrap"
+    observed: "2026-04-26"
+  gemini:
+    pattern: "mcp_{server}_{tool}"
+    example: "mcp_okuro_bootstrap"
+    observed: "2026-04-26"
+    notes: "Single underscore; gemini mcp list intermittently hangs."
+  codex:
+    pattern: "{tool}"
+    example: "bootstrap"
+    observed: "2026-04-26"
+    notes: "Bare tool name — Codex 0.125 strips the server prefix entirely from the agent-facing surface. Wire-level path is okuro/bootstrap; agent self-report is unreliable, trust mcp logs."
+  cursor:
+    pattern: unknown
+    notes: "IDE only — not headless-probed. ~/.cursor/mcp.json registration confirmed."
+  antigravity:
+    pattern: unknown
+    notes: "Chromium-extension-managed; outside okuro's automated reach."
+
+requires:
+  system:
+    - python>=3.10
+
+metadata:
+  author: okuro
+  created: "2026-04-12"
+  tags:
+    - bootstrap
+    - memory
+    - navigation
+    - secrets
+    - roles
+    - system
+    - bridge
+    - core
+
+enabled: true

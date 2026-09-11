@@ -1,0 +1,123 @@
+/* Floating, draggable notes formatting toolbar — the notes analogue of
+   okuro-flow's edit bar (fd-tb), but dockable to all four edges. Positioned
+   absolutely inside the WYSIWYG editor wrapper (which must be position:relative).
+   Grip-drag snaps to the nearest edge on drop; the dock persists to
+   localStorage. Scoped `nft-` so it never collides with flow's `fd-tb`. */
+.nft {
+  position: absolute;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px;
+  /* Hug the tools (one row/col, no shrink-to-fit collapse) capped at the
+     viewport minus 80px on each side; only wrap past that cap. */
+  width: max-content;
+  max-width: calc(100vw - 160px);
+  max-height: calc(100vh - 160px);
+  box-sizing: border-box;
+  background: var(--color-surface-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg, 3rem);
+  box-shadow: var(--shadow-lg, 0 8px 28px rgba(0, 0, 0, 0.35));
+  user-select: none;
+  -webkit-user-select: none;
+}
+/* Top/bottom docks hug their tools, centered; the .nft max-width cap governs
+   when they wrap. */
+.nft-top {
+  left: 50%;
+  top: 12px;
+  transform: translateX(-50%);
+  flex-flow: row wrap;
+}
+.nft-bottom {
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  flex-flow: row wrap;
+}
+.nft-left {
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  flex-flow: column wrap;
+  align-content: center;
+}
+.nft-right {
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  flex-flow: column wrap;
+  align-content: center;
+}
+.nft-dragging {
+  /* Orientation follows the previewed dock class (row for top/bottom, column
+     for left/right) so the bar turns vertical near a side edge mid-drag. */
+  cursor: grabbing;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
+}
+.nft-grip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  min-height: 34px;
+  border: 0;
+  background: transparent;
+  color: var(--color-fg-muted);
+  cursor: grab;
+  border-radius: var(--radius-md, 2rem);
+  touch-action: none; /* pointer-drag owns the gesture, not page scroll */
+}
+.nft-left .nft-grip,
+.nft-right .nft-grip {
+  width: 34px;
+  min-height: 22px;
+}
+.nft-grip:active {
+  cursor: grabbing;
+}
+.nft-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  background: transparent;
+  color: var(--color-fg-primary);
+  border-radius: var(--radius-md, 2rem);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.nft-btn:hover {
+  background: var(--color-accent-subtle);
+}
+.nft-btn:focus-visible,
+.nft-grip:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+.nft-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+  pointer-events: none;
+}
+.nft-sep {
+  flex: none;
+  background: var(--color-border);
+  align-self: stretch;
+}
+.nft-top .nft-sep,
+.nft-bottom .nft-sep,
+.nft-dragging .nft-sep {
+  width: 1px;
+  margin: 3px 2px;
+}
+.nft-left .nft-sep,
+.nft-right .nft-sep {
+  height: 1px;
+  margin: 2px 3px;
+}

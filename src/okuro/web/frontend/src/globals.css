@@ -1,0 +1,828 @@
+@import "tailwindcss";
+
+/* THE OVERLAY MOTION VOCABULARY, restored 2026-09-07.
+ *
+ * `animate-in`, `animate-out`, `fade-in-0`, `zoom-in-95` and
+ * `slide-in-from-{top,bottom,left,right}-2` are written across dialog, sheet,
+ * dropdown-menu, context-menu, select and tooltip — 68 class tokens in six
+ * files — and they emitted ZERO bytes. Measured 2026-09-06 in all eight built
+ * stylesheets, and confirmed in the browser: an open tooltip carrying
+ * `animate-in` reported `getAnimations() == 0` while three other animations ran
+ * beside it, so the instrument could see animations and there were none.
+ *
+ * The plugin that used to supply them was `tailwindcss-animate`, which is a v3
+ * JavaScript plugin and has no place in a v4 CSS-first build. `tw-animate-css`
+ * is its v4 successor and ships the same class names, which is why none of the
+ * six components needed editing. The owner, 2026-09-07: it was lost, not dropped.
+ *
+ * IT MUST FOLLOW the `tailwindcss` import: these are utilities, and the
+ * cascade layers Tailwind establishes above are what they slot into. */
+@import "tw-animate-css";
+
+/*
+ * Okuro design token bridge.
+ *
+ * CSS custom properties come from the design engine's generated sheet (and,
+ * until the re-theme completes, from /tokens.css served by FastAPI). This block
+ * maps those runtime tokens into Tailwind utilities so components can use
+ * `bg-surface`, `text-primary`, `border-default`, etc.
+ *
+ * `@theme inline` IS LOAD-BEARING, and it is the whole okuro-side change P5a
+ * needed. Measured in Chromium 151:
+ *
+ *   plain @theme   -> `:root { --color-surface: var(--color-background-base) }`
+ *                     substitutes ONCE, at :root. A descendant that redefines
+ *                     --color-background-base changes nothing; `bg-surface`
+ *                     keeps the root's colour. Every per-ground block in the
+ *                     engine sheet would be invisible to 1,682 shadcn-semantic
+ *                     call sites, silently, painting the wrong colour.
+ *   @theme inline  -> `bg-surface` compiles to
+ *                     `background-color: var(--color-background-base, #0a0a0a)`,
+ *                     read at the USE SITE, so it resolves against whatever the
+ *                     element inherited. Late-binds at every depth tested (1-4).
+ *
+ * THE FALLBACKS ARE THE SHIPPED KIT, not a second design system. They used to be
+ * architecture-noir's, and that made this file a rival source of truth: measured
+ * 2026-09-07, 25 of them disagreed with what okuro-ds emits for the same name —
+ * `--type-display-weight` said 700 against the engine's 800, `--radius-sm` said
+ * 4px against 8px, three of the four status hues were a retired profile's. A
+ * fallback only fires when the sheet is missing, so every one of those was a
+ * wrong answer nobody could see. They are now GENERATED from okuro-ds and gated
+ * by `test_drift.py`, which fails if one drifts again.
+ *
+ * ONLY THE NAMES THE ENGINE GIVES ONE VALUE. A colour is decided per GROUND —
+ * 54 names carry a different value in each of the sheet's ground rules — so
+ * there is no single truth for a `:root` fallback to mirror, and those keep a
+ * hand-picked no-sheet default on purpose.
+ *
+ * WHAT INLINE COSTS, and how it is paid. Inline theme values are NOT emitted as
+ * custom properties at :root, so a name that exists ONLY here stops resolving
+ * for direct `var()` reads. Measured across 448 files: 22 such names are read
+ * directly by ~50 of them (--color-surface, --color-fg-muted, --color-border,
+ * --font-mono, ...). The design engine's adapter emits all 22 as resolved
+ * literals in every rule that publishes a ground, so they resolve -- and
+ * per-ground instead of frozen at the root. See design_engine/adapter.py.
+ */
+
+@theme inline {
+  /* Surfaces */
+  --color-surface: var(--color-background-base, #0a0a0a);
+  --color-surface-elevated: var(--color-background-elevated, #1a1a1a);
+  --color-surface-subtle: var(--color-background-subtle, #141414);
+  --color-surface-overlay: var(--color-background-overlay, rgba(26, 26, 26, 0.95));
+  --color-scrim: var(--color-background-scrim, rgba(0, 0, 0, 0.6));
+
+  /* Text — okuro namespace. Canonical names match the YAML schema
+     (`foreground.primary`, `foreground.secondary`, ...). Short aliases
+     and legacy aliases kept so existing callers don't break. */
+  --color-fg-primary: var(--color-foreground-primary, #e0e0e0);
+  --color-fg-secondary: var(--color-foreground-secondary, #b0b0b0);
+  --color-fg-tertiary: var(--color-foreground-tertiary, #909090);
+  --color-fg-disabled: var(--color-foreground-disabled, #6e6e6e);
+  --color-fg-inverse: var(--color-foreground-inverse, #0a0a0a);
+  /* Short aliases (introduced during the shadcn-collision rename) */
+  --color-fg: var(--color-foreground-primary, #e0e0e0);
+  --color-fg-muted: var(--color-foreground-secondary, #b0b0b0);
+  --color-fg-subtle: var(--color-foreground-tertiary, #909090);
+  --color-fg-faint: var(--color-foreground-disabled, #6e6e6e);
+  /* Unprefixed legacy aliases (no shadcn collision) */
+  --color-tertiary: var(--color-foreground-tertiary, #909090);
+  --color-disabled: var(--color-foreground-disabled, #6e6e6e);
+  --color-inverse: var(--color-foreground-inverse, #0a0a0a);
+
+  /* Accent */
+  --color-accent: var(--color-accent, #22c55e);
+  --color-accent-hover: var(--color-accent-hover, #16a34a);
+  --color-accent-subtle: var(--color-accent-subtle, rgba(34, 197, 94, 0.12));
+
+  /* Borders */
+  --color-border: var(--color-borders-default, #2a2a2a);
+  --color-border-subtle: var(--color-borders-subtle, #1f1f1f);
+  --color-border-hover: var(--color-borders-hover, #3a3a3a);
+
+  /* Status */
+  --color-success: var(--color-status-success, #11d425);
+  --color-warning: var(--color-status-warning, #c52998);
+  --color-error: var(--color-status-error, #f92f77);
+  --color-info: var(--color-status-info, #2998fd);
+
+  /* Status tints — the fill behind a status border/label. Derived in
+     design/tokens.py at STATUS_SUBTLE_MIX (25%) by compositing each
+     profile's status hue over that profile's own surface, per mode.
+     These rows were missing for their whole life: without a
+     --color-*-subtle key Tailwind emits NO rule at all for
+     bg-info-subtle/30 & co, so ~37 call sites (including the shared
+     TONE_BG map in lib/color-class.ts) rendered transparent and only
+     borders and text carried the tone.
+
+     OPAQUE, unlike accent-subtle's rgba, because 35 of those 37 call
+     sites apply their own /30../60 modifier. A translucent token would
+     attenuate twice — /60 would mean 60% of 12% — which is how these
+     stayed invisible even once they were first defined. The modifier is
+     the only transparency; the token is a colour to take a share OF.
+     Fallbacks are the architecture-noir tints, like every other row. */
+  --color-success-subtle: var(--color-status-success-subtle, #1a331c);
+  --color-warning-subtle: var(--color-status-warning-subtle, #473111);
+  --color-error-subtle: var(--color-status-error-subtle, #431c1c);
+  --color-info-subtle: var(--color-status-info-subtle, #123545);
+
+  /* Categorical (chart) ramp — brand-fed via /tokens.css (design_system.chart),
+     with defaults here so `text-chart-1`/`bg-chart-1` utilities always resolve.
+     One shared set for every category-encoded visual (charts, legends). */
+  --color-chart-1: var(--chart-1, #22c55e);
+  --color-chart-2: var(--chart-2, #29b6f6);
+  --color-chart-3: var(--chart-3, #ffa726);
+  --color-chart-4: var(--chart-4, #a855f7);
+  --color-chart-5: var(--chart-5, #ec4899);
+  --color-chart-6: var(--chart-6, #4caf50);
+
+  /* Typography — use token font or fallback */
+  --font-mono: var(--font-family-base, "JetBrains Mono", ui-monospace, 'SF Mono', 'Cascadia Code', 'Roboto Mono', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace);
+
+  /* Type scale extension. Use `text-display` for page h1s, `text-xs`
+     as the default label size. Reserve 2xs / 3xs for status chips and
+     hotkey badges only — they're intentionally smaller than labels.
+     Fallbacks are ×2 per the root compensation below. */
+  --text-3xs: var(--font-size-3xs, 1.125rem);
+  --text-2xs: var(--font-size-2xs, 1.25rem);
+  --text-display: var(--font-size-display, 3.5rem);
+
+  /* ── THE ROOT COMPENSATION ──────────────────────────────────────────────
+     The root is 50 %, not 100 % (see `html` below). Register rule 10:
+     `rendered px = user-font-size × 0.5 × factor`, so at the browser default
+     1rem is 8px, not 16px — and every rem-denominated value authored against a
+     16px root would render at HALF its size.
+
+         old root 16px : a value of v rem rendered  v × 16 px
+         new root  8px : the same v rem renders     v ×  8 px      (halved)
+         compensation  : re-emit it as 2v rem  ->   2v × 8 = 16v px  (identical)
+
+     So every rem scale below is exactly ×2 its old value. This is not a fudge
+     factor: 2v is what the engine's own factor already is, because a factor IS
+     the rem under this root. The adapter emitting 2rem where the app had 1rem
+     and the engine emitting 2rem for its 16px cell are the same number arrived
+     at from both ends, which is the check that the compensation is right rather
+     than merely consistent.
+
+     MEASURED SCOPE — these three families and nothing else. Parsed out of the
+     real compiled bundle: 27 rem-valued custom properties survive into it, all
+     of them `--text-*`, `--container-*` or `--radius-*`. Everything else the app
+     spends is px (7,319 spacing occurrences via `--spacing`, 332 arbitrary
+     `[Npx]` values) and px is px at any root. The full families are compensated
+     rather than only the 27 members in use today, so a `rounded-2xl` written
+     next week is not half-sized.
+
+     What is NOT covered here, and is a one-time source sweep rather than a
+     generator concern: the raw `rem` literals in the app's own files (39
+     arbitrary `[Nrem]` utilities, 35 in hand-written CSS). Their rule is the
+     same — double the number.
+     ────────────────────────────────────────────────────────────────────────── */
+  /* BOUND, NOT BAKED, for every rung the engine has a name for. A bare literal
+     here is compiled INTO every `text-*` utility, so the engine's per-rung
+     `--font-size-*` could never reach it — measured 2026-08-19: `.text-sm`
+     compiled to `font-size:1.75rem` while `.text-2xs` compiled to
+     `font-size:var(--font-size-2xs,1.25rem)`, and that difference alone is why
+     only 23 % of the kit's type sites followed the rung. Same shape as lines
+     116-118 above, and today's number stays as the fallback, so the default rung
+     renders byte-identically.
+
+     `--text-xs` IS NOW BOUND, and the ruling it was waiting for is the owner's own:
+     bind the utility to whichever authored cell already matches, rather than add
+     a size category. It matched exactly — `text-xs` renders 12px at the default
+     rung and `AUTHORED_TEXT_PX["L"]["N7"]` IS 12 — so `FONT_SIZE_STEPS` gained
+     `xs -> N7` and this row became a read like its neighbours. 24 sites in 15
+     files, the most-used size in the kit, moved onto the rung by one line each
+     side, and the default rung still renders byte-identically because the cell
+     and the old literal are the same number.
+     3xl-9xl stay literal: they have no engine name and 0 sites in the kit. */
+  --text-xs: var(--font-size-xs, 1.5rem);
+  --text-sm: var(--font-size-sm, 1.75rem);
+  --text-base: var(--font-size-base, 2rem);
+  --text-lg: var(--font-size-lg, 2.25rem);
+  --text-xl: var(--font-size-xl, 2.5rem);
+  --text-2xl: var(--font-size-2xl, 3rem);
+  --text-3xl: 3.75rem;
+  --text-4xl: 4.5rem;
+  --text-5xl: 6rem;
+  --text-6xl: 7.5rem;
+  --text-7xl: 9rem;
+  --text-8xl: 12rem;
+  --text-9xl: 16rem;
+
+  /* THE PAIRED LINE-HEIGHTS, and they have to be restated here.
+     `text-sm` compiles to `font-size: var(--text-sm); line-height:
+     var(--tw-leading, var(--text-sm--line-height))`. Redeclaring `--text-sm` in
+     an INLINE block drops Tailwind's paired default for it -- measured in the
+     compiled bundle: the size was there and `--text-sm--line-height` had
+     vanished, so every `text-*` utility silently fell to `line-height: normal`.
+     A whole app's vertical rhythm, changed by a name nobody wrote.
+
+     Verbatim from tailwindcss/theme.css and NOT doubled: these are unitless
+     ratios of the font size, so no root can move them. */
+  --text-xs--line-height: calc(1 / 0.75);
+  --text-sm--line-height: calc(1.25 / 0.875);
+  --text-base--line-height: calc(1.5 / 1);
+  --text-lg--line-height: calc(1.75 / 1.125);
+  --text-xl--line-height: calc(1.75 / 1.25);
+  --text-2xl--line-height: calc(2 / 1.5);
+  --text-3xl--line-height: calc(2.25 / 1.875);
+  --text-4xl--line-height: calc(2.5 / 2.25);
+  --text-5xl--line-height: 1;
+  --text-6xl--line-height: 1;
+  --text-7xl--line-height: 1;
+  --text-8xl--line-height: 1;
+  --text-9xl--line-height: 1;
+
+  /* Tailwind's remaining radius names, NOW RUNTIME-BACKED like sm/md/lg.
+
+     They were literals -- Tailwind's own numbers, doubled for the 50 % root --
+     and three of okuro's most visible primitives read them: `card.tsx` is
+     `rounded-xl`, `dialog.tsx` and `sheet.tsx` are `rounded-xs`. So a Card wore
+     Tailwind's corner while the Button inside it wore the brand's, and authoring
+     the radius ladder could not move it. The design engine's adapter now emits
+     all five, clamped onto the ladder it actually has (S for xs, L for
+     everything above L -- MAX is the pill sentinel, not "very large"); see
+     `design_engine/adapter.py`.
+
+     The literals stay as FALLBACKS, doubled like every other rem here, so with
+     no engine sheet present the app still renders Tailwind's defaults rather
+     than nothing. */
+  --radius-xs: var(--radius-xs, 1rem);
+  --radius-xl: var(--radius-xl, 3rem);
+  --radius-2xl: var(--radius-2xl, 3rem);
+  --radius-3xl: var(--radius-3xl, 3rem);
+  --radius-4xl: var(--radius-4xl, 3rem);
+
+  /* WEIGHT — bound to the faces the brand's family really ships.
+     His ruling, 2026-09-07: "bind only real faces".
+
+     The engine publishes a rung ONLY when the family ships a face inside that
+     rung's window, so these five var() reads are a question the brand may
+     decline: a family with one face binds one rung and the other four keep the
+     framework literal beside them. Measured — Unifont binds `normal` alone,
+     JetBrains Mono binds all five.
+
+     WHY THE FALLBACKS ARE LOAD-BEARING HERE and not just a no-sheet safety net:
+     they are the answer for every rung the brand cannot spell. `semibold` used
+     to be published unconditionally, and on a single-weight family it emitted
+     400 while `medium` fell to this 500 — semibold rendering LIGHTER than
+     medium across 63 sites. A rung bound to the wrong face is worse than one
+     that was never bound. */
+  --font-weight-light: var(--font-weight-light, 300);
+  --font-weight-normal: var(--font-weight-normal, 400);
+  --font-weight-medium: var(--font-weight-medium, 500);
+  --font-weight-semibold: var(--font-weight-semibold, 600);
+  --font-weight-bold: var(--font-weight-bold, 700);
+
+  /* Elevation scale — backed by --shadow-* from the design profile.
+     Used sparingly (cards, menus, modals) per palette constraints. */
+  --shadow-xs: var(--shadow-xs, 0 1px 2px 0 rgba(0,0,0,.3));
+  --shadow-sm: var(--shadow-sm, 0 1px 3px 0 rgba(0,0,0,.4), 0 1px 2px -1px rgba(0,0,0,.3));
+  --shadow-md: var(--shadow-md, 0 4px 6px -1px rgba(0,0,0,.5), 0 2px 4px -2px rgba(0,0,0,.4));
+  --shadow-lg: var(--shadow-lg, 0 10px 15px -3px rgba(0,0,0,.6), 0 4px 6px -4px rgba(0,0,0,.5));
+  --shadow-xl: var(--shadow-xl, 0 20px 25px -5px rgba(0,0,0,.7), 0 8px 10px -6px rgba(0,0,0,.6));
+
+  /* Layout — radii */
+  --radius-sm: var(--radius-sm, 1rem);
+  --radius-md: var(--radius-md, 2rem);
+  --radius-lg: var(--radius-lg, 3rem);
+
+  /* THE BARE `rounded`, which is the --radius-xs precedent left unfinished.
+     Every sized name above was claimed; the unsuffixed one was not, so
+     `.rounded` compiled to a hard `border-radius:.25rem` with no var() and 13
+     sites rendered 2px beside neighbours at 1px. The engine has always emitted
+     `--radius` at :root -- shadcn's base radius, following the medium rung. */
+  --radius: var(--radius, 2rem);
+
+  /* Motion defaults — override Tailwind v4's baseline transition timing
+     so every transition-* utility (transition-colors, transition-opacity,
+     transition-transform, transition-all, ...) inherits the profile's
+     motion tokens instead of Tailwind's 150ms ease. YAML change to
+     layout.motion.fast / layout.motion.easing cascades globally. */
+  /* Canonical 5-speed motion scale (design-stack standard; 3 = medium).
+     Brand/profile tokens may override --motion-fast/medium/slow, which anchor
+     onto this scale (fast=1, medium=3, slow=5). */
+  --motion-1: 150ms;
+  --motion-2: 350ms;
+  --motion-3: 650ms;
+  --motion-4: 850ms;
+  --motion-5: 1200ms;
+
+  /* BASE INTERACTIONS ARE NOT MOTION, so this number is NOT a brand's to author.
+     A hover, a focus ring, a press: the user is the animator, and the only job
+     of the transition is to stop the change from being a jump-cut. Every
+     authored speed above is a MOTION speed — an entrance, an exit, a fade, a
+     growth beat — and the default of the scale is `medium`, 650ms, which on a
+     hover reads as a component that has not finished agreeing to be hovered.
+     One constant, deliberately outside the brand vocabulary: a kit cannot make
+     its own buttons feel slow, because the speed of a pointer is not a brand
+     property. Read only through --default-transition-duration and
+     .transition-fast below, so nothing has to opt in. */
+  --interaction-duration: 120ms;
+
+  --default-transition-duration: var(--interaction-duration);
+  --default-transition-timing-function: var(--motion-easing, cubic-bezier(0.75, -0.1, 0.4, 1.0));
+
+  /* Spacing scale — Tailwind v4 dynamic utilities (p-N, gap-N, m-N,
+     space-y-N, w-N, h-N, etc.) compile to calc(var(--spacing) * N).
+     Binding --spacing to the profile's xs step (grid unit, currently 4px
+     via architecture-noir.yaml layout.spacing.xs) makes every raw
+     numeric spacing utility profile-driven without any migration. A
+     YAML change to spacing.xs cascades through the entire numeric
+     scale on next /api/tokens.css refresh.
+
+     Named spacing tokens (--spacing-lg etc.) are deliberately NOT
+     exposed here, because Tailwind v4 reuses the same `lg` key for
+     size utilities (max-w-lg, w-lg, h-lg) and would clamp those to
+     the spacing value instead of the container value. Named spacing
+     is still served at :root by /api/tokens.css and consumed by the
+     hand-rolled utilities below (pad-card, space-section).
+
+     The fallback is x2 like every other rem here. `--spacing-xs` itself needs no
+     compensation and gets none: the adapter emits it as 0.5rem, which is the
+     same 4px it has always been, and it now follows the reader's font size.
+     That is why all 7,319 px-denominated spacing occurrences stay put. */
+  --spacing: var(--spacing-xs, 0.5rem);
+
+  /* Container scale — Tailwind v4 uses these for max-w-*.
+     Values match Tailwind v3 defaults so `max-w-lg`, `max-w-3xl`
+     etc. behave as documented. Without these, v4 falls back to
+     --spacing-* (24px for lg) which silently clamps content.
+     Every value is the v3 default x2, per the root compensation above, so each
+     max-w-* renders exactly the width it renders today. */
+  --container-3xs: 32rem;
+  --container-2xs: 36rem;
+  --container-xs: 40rem;
+  --container-sm: 48rem;
+  --container-md: 56rem;
+  --container-lg: 64rem;
+  --container-xl: 72rem;
+  --container-2xl: 84rem;
+  --container-3xl: 96rem;
+  --container-4xl: 112rem;
+  --container-5xl: 128rem;
+  --container-6xl: 144rem;
+  --container-7xl: 160rem;
+
+  /* shadcn/ui semantic slots. okuro's own text scale lives under
+     `fg-*` so these names can carry their native shadcn meaning
+     (primary = brand, secondary = subtle bg) without collision. */
+  --color-background: var(--color-background-base, #0a0a0a);
+  --color-foreground: var(--color-foreground-primary, #e0e0e0);
+  --color-card: var(--color-background-elevated, #1a1a1a);
+  --color-card-foreground: var(--color-foreground-primary, #e0e0e0);
+  --color-popover: var(--color-background-elevated, #1a1a1a);
+  --color-popover-foreground: var(--color-foreground-primary, #e0e0e0);
+  --color-muted: var(--color-background-subtle, #141414);
+  --color-muted-foreground: var(--color-foreground-tertiary, #909090);
+  --color-destructive: var(--color-status-error, #f92f77);
+  /* THE SIGNAL'S OWN COMPUTED INK, never the neutral body ink.
+     This row read `--color-foreground-primary`, so `text-destructive-foreground`
+     resolved to the page's text colour and a destructive button rendered BLACK
+     on the error red. The engine computes the ink for every signal by the one
+     threshold (register rule 2); `--color-status-error-foreground` is the name
+     the adapter emits it under. Same defect class as `--color-accent-foreground`
+     below: a semantic foreground bound to a neutral stand-in makes a correctly
+     computed value unreadable, and nothing in the app can tell. */
+  --color-destructive-foreground: var(--color-status-error-foreground, #ffffff);
+  --color-primary: var(--color-accent, #22c55e);
+  /* The ink on the branded figure, same as `--color-accent-foreground` below and
+     for the same reason: `--color-foreground-inverse` is the ink of the NEUTRAL
+     highlight, which agrees with the brand's ink only while the brand's
+     adaptation and the ground's neutral happen to sit on the same side of the
+     threshold. `--color-accent-foreground` is the engine's answer for this. */
+  --color-primary-foreground: var(--color-accent-foreground, #0a0a0a);
+  /* THE THIRD AND FOURTH ROW OF THE SAME DEFECT the two comments above and
+     below describe, unswept until it was measured: a semantic name bound to a
+     NEUTRAL STAND-IN while the adapter publishes the real answer under the
+     shadcn name, and nothing in the app can tell. The adapter emits
+     `--secondary` = alternate-normal/005 and `--secondary-foreground` = the
+     ground's foreground (adapter.py:414-415); this row read
+     `--color-background-subtle` / `--color-foreground-secondary` instead, so the
+     secondary button rendered #f7f7f7 on #4f4f4f — grey ink on grey — while the
+     engine's own #f2f2f2 on #030303 sat computed and unread. */
+  --color-secondary: var(--secondary, #141414);
+  --color-secondary-foreground: var(--secondary-foreground, #b0b0b0);
+  /* The ink ON the branded figure. It was bound to `--color-foreground-inverse`
+     — the ink of the NEUTRAL highlight — which is the right colour on a light
+     ground only by coincidence and the wrong one as soon as the brand's
+     adaptation and the ground's neutral disagree. The adapter emits the engine's
+     `highlight_branded_foreground` under this name. */
+  --color-accent-foreground: var(--color-accent-foreground, #0a0a0a);
+  /* THE FOCUS COLOUR, and the same defect once more. Register rule 9 makes focus
+     ALTERNATE-NORMAL/100 — the foreground — and `adapter.py:445` computes it as
+     `--ring`. This row pointed at the accent, so every ring painted the brand
+     red at half strength: on the brand-red default button, red on red. */
+  --color-ring: var(--ring, #22c55e);
+  --color-input: var(--color-borders-default, #2a2a2a);
+}
+
+/*
+ * shadcn/ui CSS variable bridge — THE ADAPTER OWNS THESE NOW.
+ *
+ * This block used to declare all 20 of shadcn's names as `:root` indirections
+ * (`--background: var(--color-background-base)`). That shape is what makes a
+ * subtree impossible to re-theme, and it is not a style preference: a custom
+ * property's var() is substituted where it is DECLARED, so `:root` substitutes
+ * once and every descendant inherits the already-substituted value. Measured in
+ * Chromium 151 — redefining `--color-background-base` under a node changed
+ * nothing at all, while redefining the theme var under the same node worked.
+ *
+ * So the design engine's adapter declares all 20 as resolved literals, in every
+ * rule that publishes a ground: `:root`, every boundary, every portal. Not
+ * frozen, and correct at unbounded depth. See design_engine/adapter.py.
+ *
+ * WHAT SURVIVES HERE, AND WHY EXACTLY THESE TWO. Sixteen of the twenty were only
+ * ever read through Tailwind utilities, which under `@theme inline` above resolve
+ * at the use site and never needed this block. Measured across 448 files, exactly
+ * two of the twenty are read through a direct `var()` in app code that this
+ * change does not touch: `--accent` (2 files) and `--border` (1). They stay as a
+ * SHIM so the app keeps rendering before the engine sheet is linked, and the
+ * adapter's own declaration -- later in source order, same specificity, and
+ * present at boundaries where this one is not -- supersedes it wherever the sheet
+ * is loaded. When those three files move to the canonical names, this block goes.
+ */
+:root {
+  --accent: var(--color-accent-subtle, rgba(34, 197, 94, 0.12));
+  --border: var(--color-borders-default, #2a2a2a);
+}
+
+/*
+ * A FIGURE WHOSE AFFORDANCE IS ITS BORDER CARRIES NO ELEVATION — register rule
+ * 9. The outline IS the affordance, so the same element must not also cast a
+ * shadow. That is the class; the input family is one member of it and the
+ * `outline` button variant is another.
+ *
+ * WHY THEY HAD ONE, and why the fix is not in the primitives. Every field in the
+ * vendored kit — and `button`'s outline variant — carries the `shadow-xs`
+ * utility, which shadcn wrote against its own hairline default
+ * `0 1px 2px 0 #0000004d`. The design engine fills `--shadow-xs` with the
+ * system's LIGHT elevation intensity — measured on a white ground,
+ * `0px 4px 16px rgba(0,0,0,0.2)` — so the same class name now asks for a real
+ * drop shadow. Correct for the surfaces that MEAN elevation (card, dialog,
+ * popover, menu, sheet, toast); wrong for anything whose edge is its meaning.
+ *
+ * THE OUTLINE BUTTON IS IN THE CLASS, and a first pass wrongly left it out on
+ * the reasoning that "a button is a filled figure, its affordance is its fill".
+ * True of `default`, `secondary` and `destructive`, which carry no shadow-xs at
+ * all. The `outline` variant is the one that has no fill to be an affordance —
+ * it is a bordered figure wearing a button's shape, and it was the only element
+ * left casting a shadow on the live COMPONENTS scene, eleven times over.
+ *
+ * IT ZEROES ONLY THE ELEVATION LAYER. Tailwind composes
+ * `box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow),
+ *  var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow)`
+ * and `shadow-*` writes the last one; `ring-*` writes `--tw-ring-shadow`.
+ * Setting `box-shadow: none` here would take the FOCUS RING with it, which is
+ * the one thing the register says such a figure must keep. Unlayered, so it wins
+ * over Tailwind's `utilities` layer without an `!important` and without
+ * specificity games.
+ */
+input,
+textarea,
+select,
+[data-slot="input"],
+[data-slot="textarea"],
+[data-slot="select-trigger"],
+[data-slot="switch"],
+[data-variant="outline"] {
+  --tw-shadow: 0 0 #0000;
+}
+
+/* ---------------------------------------------------------------------------
+ * NESTED CORNERS — inner = max(0, outer − distance), by publish-and-inherit.
+ *
+ * `RadiusSettings.inner()` (design_engine/schema.py) is the register's rule for
+ * a rounded element inside a rounded container, and until this block existed it
+ * had ZERO callers: every component picked a corner independently of its parent,
+ * so a 2px pill sat in an 8px group and the group's corner cut through it.
+ *
+ * IT WORKS THE WAY `--ground` WORKS, and for the same reason. A container cannot
+ * be interrogated by its child — `border-radius` and `padding` are not readable
+ * back out of an ancestor — so the container PUBLISHES and the child INHERITS.
+ * Two numbers, because the formula needs both: `--ds-corner` (the container's own
+ * corner) and `--ds-corner-gap` (the distance it puts between its edge and the
+ * child: its padding, plus its border if it has one). Custom properties inherit,
+ * so the child finds its nearest publishing ancestor at any depth and never
+ * names it.
+ *
+ * The engine sheet publishes the pair from `.ds-radius-*` / `.ds-padding*`
+ * (emit.py). The `rounded-*` rules below do the same for the Tailwind/shadcn
+ * side, which is what okuro's own primitives actually wear. `rounded-full` and
+ * `rounded-none` publish nothing on purpose: those are SHAPE sentinels, not
+ * corner numbers, and a pill has no radius for a child to subtract from.
+ *
+ * `max(0px, …)` is the schema's clamp, in CSS — a distance larger than the
+ * corner squares it, it does not invert it. One rule, two languages.
+ * ------------------------------------------------------------------------ */
+.rounded-xs { --ds-corner: var(--radius-xs); }
+.rounded-sm { --ds-corner: var(--radius-sm); }
+.rounded-md { --ds-corner: var(--radius-md); }
+.rounded-lg { --ds-corner: var(--radius-lg); }
+.rounded-xl { --ds-corner: var(--radius-xl); }
+.rounded-2xl { --ds-corner: var(--radius-2xl); }
+.rounded-3xl { --ds-corner: var(--radius-3xl); }
+.rounded-4xl { --ds-corner: var(--radius-4xl); }
+
+/* The consumer, in both vocabularies. `.ds-radius-inner` is the engine's name,
+   `.rounded-inner` the Tailwind-side one; the computation is identical, and the
+   Tailwind form falls back to `--radius-md` so an unnested element still wears a
+   sane corner instead of a square one. */
+.ds-radius-inner {
+  border-radius: max(0px, calc(var(--ds-corner, 0px) - var(--ds-corner-gap, 0px)));
+}
+.rounded-inner {
+  border-radius: max(
+    0px,
+    calc(var(--ds-corner, var(--radius-md)) - var(--ds-corner-gap, 0px))
+  );
+}
+
+/* ── BORDER WIDTH, the last property a brand authored and could not reach ────
+ *
+ * A brand AUTHORS four border weights (`BorderSettings.weight_factors`, his
+ * instruction: "every brand needs to be able to define their border weights")
+ * and the engine computes them. Until the adapter published
+ * `--border-width-{hair,thin,medium,thick}` they existed only inside the engine
+ * sheet's own ground rules, so Tailwind's `border` stayed a hard `1px` at every
+ * brand. Measured 2026-09-06 across 13 routes: 743 of 743 rendered borders
+ * pinned — the only property in the app at 100 %.
+ *
+ * WHY PLAIN CSS AND NOT `@theme`. Tailwind v4 has no border-width theme
+ * namespace to bind, so there is no `@theme` row that could do this. That is
+ * the same shape as the `.rounded-*` block above, which sets a custom property
+ * for the same reason, and it is the honest form of the adaptor rule: a
+ * bridge's plain CSS may declare what the framework gives it no other way to
+ * reach.
+ *
+ * BYTE-IDENTICAL TODAY, and that is the point. On the system base the authored
+ * factors are 1 / 2 / 4 / 8 px, so every rule below renders exactly what
+ * Tailwind's literal did. What changes is that a brand authoring different
+ * weights now moves them. The fallbacks keep the old literals for a document
+ * served without the engine sheet.
+ *
+ * `border-0` is NOT here: zero is zero, not a weight a brand authors. */
+.border { border-width: var(--border-width-hair, 1px); }
+.border-2 { border-width: var(--border-width-thin, 2px); }
+.border-t { border-top-width: var(--border-width-hair, 1px); }
+.border-b { border-bottom-width: var(--border-width-hair, 1px); }
+.border-l { border-left-width: var(--border-width-hair, 1px); }
+.border-r { border-right-width: var(--border-width-hair, 1px); }
+.border-x { border-inline-width: var(--border-width-hair, 1px); }
+.border-y { border-block-width: var(--border-width-hair, 1px); }
+
+/* Higher-order rhythm utilities — token-driven, coarse-grained on purpose.
+ * Use these when laying out wizard steps, settings panels, and content
+ * pages where vertical rhythm matters more than pixel precision. For
+ * dense UI (dashboard panels, table rows) prefer the `gap-N` Tailwind
+ * scale. Currently used heavily in onboarding; pages can adopt as they
+ * are revisited. A future Style Dictionary pass will expand into a
+ * full token-driven `p-md`/`gap-lg` scale. */
+.space-section > * + * { margin-top: var(--spacing-xl); }
+.space-content > * + * { margin-top: var(--spacing-lg); }
+.space-elements > * + * { margin-top: var(--spacing-md); }
+.space-tight > * + * { margin-top: var(--spacing-sm); }
+
+/* Filled-in rhythm tiers for the geometric scale gap between 16/24/40/64. */
+.space-group > * + * { margin-top: var(--spacing-lg-plus); }
+.space-region > * + * { margin-top: var(--spacing-xl-plus); }
+.space-page > * + * { margin-top: var(--spacing-xxl); }
+
+.pad-card { padding: var(--spacing-lg); }
+.pad-card-dense { padding: var(--spacing-md); }
+.pad-card-spacious { padding: var(--spacing-lg-plus); }
+.pad-section { padding: var(--spacing-xl) var(--spacing-lg); }
+.pad-page { padding: var(--spacing-xl); }
+
+/* Page shell utilities — main content max-width + page gutters.
+ * Apply to the <main> element: `class="page-shell"`. Replaces the
+ * ad-hoc `p-6 max-w-7xl` patterns scattered across pages. */
+.page-shell {
+  max-width: var(--max-width, 1280px);
+  margin-left: auto;
+  margin-right: auto;
+  /* padding-top = 5rem (80px) so the gap between the top nav-bar and the
+     page h1 is clearly larger than the page's own h1 → subtabs rhythm
+     (space-y-8 = 32 px by default). Earlier xxl (64 px) was still reading
+     as cramped next to that 32 px internal gap. 80 px puts the ratio at
+     2.5× which reads cleanly as 'new section starts here'. Horizontal
+     stays at xl (40 px) — matches nav-bar px-10 so page titles align
+     vertically with the leftmost tab label. */
+  padding: 10rem var(--spacing-xl) var(--spacing-xxl);
+}
+
+/* Mobile (<768px): the desktop 5rem top / 40px side gutters waste a phone
+ * viewport. Tighten to a comfortable touch-friendly inset. Matches the
+ * useIsMobile / Tailwind `md` breakpoint so the shell swap and the page
+ * gutters change together. */
+@media (max-width: 767px) {
+  .page-shell {
+    padding: 3rem var(--spacing-md) var(--spacing-xl);
+  }
+}
+
+/* Prose column — applied to free-text blocks (task descriptions, role
+ * markdown, settings copy) so line length stays ~72ch regardless of
+ * viewport width. */
+.prose-width {
+  max-width: var(--prose-max);
+}
+
+/* Typographic roles — composite type styles curated per design profile via
+ * visual.typography.roles (/tokens.css emits --type-<role>-*). Apply as
+ * `class="type-title"` etc. Fallbacks here ARE the default scale, so roles
+ * render sanely for profiles that don't define them. font-family inherits the
+ * active --font-family-base so a brand's font applies to every role. */
+.type-display {
+  font-size: var(--type-display-size, 5rem);
+  font-weight: var(--type-display-weight, 800);
+  line-height: var(--type-display-line, 1.15);
+  letter-spacing: var(--type-display-tracking, -0.01em);
+  text-transform: var(--type-display-transform, uppercase);
+}
+.type-title {
+  font-size: var(--type-title-size, 3.5rem);
+  font-weight: var(--type-title-weight, 800);
+  line-height: var(--type-title-line, 1.2);
+  letter-spacing: var(--type-title-tracking, -0.01em);
+  text-transform: var(--type-title-transform, uppercase);
+}
+.type-subtitle {
+  font-size: var(--type-subtitle-size, 2.5rem);
+  font-weight: var(--type-subtitle-weight, 800);
+  line-height: var(--type-subtitle-line, 1.3);
+  letter-spacing: var(--type-subtitle-tracking, 0);
+  text-transform: var(--type-subtitle-transform, none);
+}
+.type-lead {
+  font-size: var(--type-lead-size, 2.25rem);
+  font-weight: var(--type-lead-weight, 700);
+  line-height: var(--type-lead-line, 1.55);
+  letter-spacing: var(--type-lead-tracking, 0);
+  text-transform: var(--type-lead-transform, none);
+}
+.type-body {
+  font-size: var(--type-body-size, 2rem);
+  font-weight: var(--type-body-weight, 400);
+  line-height: var(--type-body-line, 1.6);
+  letter-spacing: var(--type-body-tracking, 0);
+  text-transform: var(--type-body-transform, none);
+}
+.type-small {
+  font-size: var(--type-small-size, 1.75rem);
+  font-weight: var(--type-small-weight, 400);
+  line-height: var(--type-small-line, 1.5);
+  letter-spacing: var(--type-small-tracking, 0);
+  text-transform: var(--type-small-transform, none);
+}
+.type-label {
+  font-size: var(--type-label-size, 1.5rem);
+  font-weight: var(--type-label-weight, 700);
+  line-height: var(--type-label-line, 1.4);
+  letter-spacing: var(--type-label-tracking, 0);
+  text-transform: var(--type-label-transform, none);
+}
+
+/* Form-field width tiers — replaces w-full on inputs that don't need
+ * the full column. Use: <Input className="w-field-xs" /> etc. */
+.w-field-xs { width: var(--field-xs); }
+.w-field-sm { width: var(--field-sm); }
+.w-field-md { width: var(--field-md); }
+.w-field-lg { width: var(--field-lg); }
+
+/* Row height tiers for list / table rows.
+ * `row-default` matches Linear / Stripe norm (44px). Use `row-dense`
+ * for compact dashboards, `row-spacious` for settings forms. */
+.h-row-dense { min-height: var(--row-dense); }
+.h-row-default { min-height: var(--row-default); }
+.h-row-spacious { min-height: var(--row-spacious); }
+
+/* Motion tokens — applied via utilities so every interaction shares
+ * the same timing/easing. Prefer these over raw `transition-colors`.
+ *
+ * `.transition-fast` is THE INTERACTION utility — its consumers are hover,
+ * focus and press on chips, tabs and buttons — so it reads the interaction
+ * constant, not an authored speed. `.transition-medium` / `.transition-slow` /
+ * `.transition-1`…`5` stay brand-authored: those are for actual motion. */
+.transition-fast {
+  transition-duration: var(--interaction-duration);
+  transition-timing-function: var(--motion-easing);
+}
+.transition-medium {
+  transition-duration: var(--motion-medium);
+  transition-timing-function: var(--motion-easing);
+}
+.transition-slow {
+  transition-duration: var(--motion-slow);
+  transition-timing-function: var(--motion-easing);
+}
+/* Numbered scale utilities — 1=150ms 2=350ms 3=650ms(medium) 4=850ms 5=1200ms */
+.transition-1 { transition-duration: var(--motion-1); transition-timing-function: var(--motion-easing); }
+.transition-2 { transition-duration: var(--motion-2); transition-timing-function: var(--motion-easing); }
+.transition-3 { transition-duration: var(--motion-3); transition-timing-function: var(--motion-easing); }
+.transition-4 { transition-duration: var(--motion-4); transition-timing-function: var(--motion-easing); }
+.transition-5 { transition-duration: var(--motion-5); transition-timing-function: var(--motion-easing); }
+
+/* Base styles */
+html {
+  color-scheme: dark;
+  /* Always reserve gutter for the scrollbar so showing/hiding it doesn't
+     shift the entire page horizontally when content grows past the fold. */
+  scrollbar-gutter: stable;
+
+  /* THE ROOT: 50 %, a percentage and never a fixed px — register rule 10,
+     "for not overwriting user preferences". `rendered px = user-font-size ×
+     0.5 × factor`, so at the browser default 1rem is 8px, which is the system
+     base, which is why an emitted rem IS the factor.
+     It lives here as well as in the engine sheet on purpose: the compensated
+     rem scales above are only correct against this root, and one file owning
+     both halves of that identity is one file where they cannot separate. */
+  font-size: 50%;
+}
+
+body {
+  /* The canonical names, not shadcn's bridge: these two reads were the app's
+     only use of `var(--background)` / `var(--foreground)`, and pointing them at
+     the vocabulary the engine actually publishes is what let the bridge block
+     above shrink to two shims. */
+  background-color: var(--color-background-base, #0a0a0a);
+  color: var(--color-foreground-primary, #e0e0e0);
+  /* THE OTHER HALF OF THE 50 % ROOT, and it is not optional. `html` is now 8px,
+     and `font-size` inherits — so every element that carries no `text-*` utility
+     would render at 8px instead of the reader's own size. 2rem restates that size
+     in the compensated unit: 2 × 8 = 16 at the browser default, 2 × 9 = 18 for a
+     reader who asked for 18. Found by the before/after pixel gate, which is what
+     that gate is for.
+
+     AND IT READS THE ENGINE, because the literal made the rung deaf. The engine
+     emits `body { font-size: <the brand's default rung> }` (emit.py:973), but
+     this bundle loads after `engine.css` at equal specificity, so a hardcoded
+     `2rem` here won every time — measured in the browser with his own kit on XL:
+     `engine.css` said 2.25rem, this rule said 2rem, and the page rendered 16px.
+     The fallback keeps today's value for any document served without the sheet. */
+  font-size: var(--font-size-base, 2rem);
+  font-family: var(--font-mono);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  margin: 0;
+  /* pywebview's GTK / WebKit backend defaults text selection to OFF on
+     embedded views — Chromium-in-browser would let users select, but
+     inside the desktop window the default `user-select: auto` collapses
+     to "none" via inherited webkit defaults. Forcing `text` here makes
+     every page selectable; explicit components opt out via .select-none
+     (Tailwind utility) as before. */
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Skip-to-content link — visually hidden until focused */
+.skip-link {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 100;
+  padding: 1rem 2rem;
+  background: var(--color-accent);
+  color: var(--color-foreground-inverse);
+  font-family: var(--font-mono);
+  font-size: 1.5rem;
+  font-weight: 600;
+  text-decoration: none;
+  transform: translateY(-200%);
+  transition: transform 0.15s;
+}
+.skip-link:focus {
+  transform: translateY(0);
+  outline: 2px solid var(--color-foreground-primary);
+  outline-offset: 2px;
+}
+
+/* Global reduced-motion guard — any animation/transition that slips past
+ * the tailwind `motion-safe:` prefix gets collapsed here. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Scrollbar styling (architecture-noir: minimal) */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-borders-default, #2a2a2a);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-borders-hover, #3a3a3a);
+}

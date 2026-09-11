@@ -1,0 +1,22 @@
+<!-- archetype: binary-choice (kit-spec 3b · index slide 7). Slots: eyebrow, title, pathA(warn), pathB(recommended), callout -->
+<section class="slide" data-archetype="binary-choice">
+  <div class="slide-inner">
+    <div class="slide-eyebrow" data-slot="eyebrow"><span class="slide-num">07</span> Fork in the road</div>
+    <h1 class="slide-title" data-slot="title">Ship narrow or ship <span class="accent">whole</span></h1>
+    <div class="card-grid" data-slot="paths" style="grid-template-columns:repeat(2,1fr)">
+      <div class="card" style="border-left:4px solid var(--warn)">
+        <div class="card-eyebrow" style="color:var(--warn-text)">Path A · defer</div>
+        <h3>One provider, one model</h3>
+        <p>Fast to demo, but locks the roadmap to a single vendor's pricing and cadence.</p>
+        <div class="card-footer">Risk: lock-in, brittle</div>
+      </div>
+      <div class="card" style="border-left:4px solid var(--accent)">
+        <div class="card-eyebrow">Path B · recommend</div>
+        <h3>Provider-agnostic core</h3>
+        <p>Route by capability, not name. Swap any model as data, never as a rewrite.</p>
+        <div class="card-footer">Payoff: durable, no lock-in</div>
+      </div>
+    </div>
+    <div class="callout info" data-slot="callout"><div class="callout-label">Recommendation</div><p>Take Path B — the abstraction cost is paid once; the flexibility compounds forever.</p></div>
+  </div>
+</section>

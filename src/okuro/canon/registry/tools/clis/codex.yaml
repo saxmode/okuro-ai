@@ -1,0 +1,76 @@
+# <!-- AGENT_HEADER
+# role: config
+# purpose: Canon entry — OpenAI Codex CLI install / auth / detection.
+# index: tool_id | name | type | install | authenticate | detect
+# AGENT_HEADER_END -->
+tool_id: codex
+name: "Codex"
+type: cli_tool
+category: inference_cli
+version: "latest"
+
+description: >
+  OpenAI's coding agent CLI. Alternative inference backend for okuro's
+  bridge_invoke — useful when you're on a ChatGPT Plus/Pro/Team plan.
+
+binary: codex
+provider_id: codex
+
+install:
+  linux:
+    prerequisites:
+      - name: node
+        min_version: "18"
+        detect: "node --version"
+        install_hint: "Ubuntu: `sudo apt install nodejs npm`  |  Fedora: `sudo dnf install nodejs`"
+    command: "npm install -g @openai/codex"
+    post_install_check: "codex --version"
+  darwin:
+    prerequisites: []
+    command: "brew install --cask codex"
+    post_install_check: "codex --version"
+    alt_command: "npm install -g @openai/codex"
+
+authenticate:
+  command: "codex"
+  instructions: >
+    Launching `codex` for the first time prompts "Sign in with ChatGPT".
+    Accept, complete the browser flow, then `/exit` — auth persists for
+    future sessions.
+
+detect:
+  which: "codex"
+  auth_probe:
+    command: ["codex", "--version"]
+    timeout_seconds: 10
+    success_exit_code: 0
+    # `codex --version` succeeds even without auth; true auth-check requires
+    # a live request. okuro treats "installed" + "can spawn" as good enough
+    # for the onboarding gate; bridge_invoke will surface auth failures later.
+
+docs_url: "https://developers.openai.com/codex/quickstart"
+
+metadata:
+  author: okuro
+  created: "2026-04-20"
+  tags: [inference, cli, openai]
+
+enabled: true
+recommended: false
+
+# --- Consumer registry (P2 Phase A) — additive read-model; wired to nothing yet.
+short_name: codex
+capabilities:
+  kind: cli
+  mcp:
+    path: ".codex/config.toml"
+    format: toml
+    root_key: mcp_servers            # TOML [mcp_servers.NAME]
+    remote_field: url
+    transports: [stdio, http]        # no sse
+    preferred_transport: http
+  instructions:
+    path: ".codex/AGENTS.md"
+  hooks:
+    supported: true
+  probe: cli
