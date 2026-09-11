@@ -1,0 +1,918 @@
+{
+  "id": "w5-phaseb-northwind-alex-rewrite",
+  "title": "Contextual Intelligence — board brief (rewritten for Alex)",
+  "brand": "northwind",
+  "hero": {
+    "slide": {
+      "archetype": "hero",
+      "slots": {
+        "eyebrow": {
+          "text": "briefing",
+          "num": "01"
+        },
+        "title": [
+          {
+            "text": "Contextual Intelligence — board brief (rewritten for "
+          },
+          {
+            "text": "Alex)",
+            "accent": true
+          }
+        ],
+        "lede": "In plain terms: voice commands are table stakes; context is the moat.",
+        "personas": [
+          {
+            "mark": "a",
+            "name": "Alex Reiter",
+            "lens": "CEO · Northwind · board"
+          }
+        ]
+      }
+    }
+  },
+  "topics": [
+    {
+      "id": "contextual-intelligence",
+      "title": "Contextual Intelligence",
+      "levels": {
+        "L0": {
+          "slide": {
+            "archetype": "card-set",
+            "slots": {
+              "cards": [
+                {
+                  "name": "In plain terms, proactive context",
+                  "desc": "In plain terms, acts before you ask"
+                },
+                {
+                  "name": "In plain terms, cross-device memory",
+                  "desc": "In plain terms, one context across rooms"
+                },
+                {
+                  "name": "In plain terms, intent inference",
+                  "desc": "In plain terms, reads the situation, not just words"
+                },
+                {
+                  "name": "In plain terms, ambient sensing",
+                  "desc": "In plain terms, presence, light, sound, motion"
+                },
+                {
+                  "name": "In plain terms, routine learning",
+                  "desc": "In plain terms, adapts to the household rhythm"
+                }
+              ],
+              "eyebrow": {
+                "text": "Contextual Intelligence",
+                "num": "01"
+              },
+              "title": [
+                {
+                  "text": "In plain terms, context is the "
+                },
+                {
+                  "text": "moat",
+                  "accent": true
+                }
+              ]
+            }
+          }
+        },
+        "L1": {
+          "slide": {
+            "archetype": "card-set",
+            "slots": {
+              "cards": [
+                {
+                  "name": "In plain terms, proactive context",
+                  "desc": "In plain terms, acts before you ask"
+                },
+                {
+                  "name": "In plain terms, cross-device memory",
+                  "desc": "In plain terms, one context across rooms"
+                },
+                {
+                  "name": "In plain terms, intent inference",
+                  "desc": "In plain terms, reads the situation, not just words"
+                },
+                {
+                  "name": "In plain terms, ambient sensing",
+                  "desc": "In plain terms, presence, light, sound, motion"
+                },
+                {
+                  "name": "In plain terms, routine learning",
+                  "desc": "In plain terms, adapts to the household rhythm"
+                },
+                {
+                  "name": "In plain terms, multi-user model",
+                  "desc": "In plain terms, knows who is who"
+                }
+              ],
+              "stats": [
+                {
+                  "num": "In plain terms, sub-10 ms",
+                  "lbl": "In plain terms, latency"
+                }
+              ],
+              "eyebrow": {
+                "text": "Contextual Intelligence",
+                "num": "01"
+              },
+              "title": [
+                {
+                  "text": "In plain terms, context is the "
+                },
+                {
+                  "text": "moat",
+                  "accent": true
+                }
+              ]
+            }
+          }
+        },
+        "L2": {
+          "slide": {
+            "archetype": "card-set",
+            "slots": {
+              "cards": [
+                {
+                  "name": "In plain terms, proactive context",
+                  "desc": "In plain terms, acts before you ask"
+                },
+                {
+                  "name": "In plain terms, cross-device memory",
+                  "desc": "In plain terms, one context across rooms"
+                },
+                {
+                  "name": "In plain terms, intent inference",
+                  "desc": "In plain terms, reads the situation, not just words"
+                },
+                {
+                  "name": "In plain terms, ambient sensing",
+                  "desc": "In plain terms, presence, light, sound, motion"
+                },
+                {
+                  "name": "In plain terms, routine learning",
+                  "desc": "In plain terms, adapts to the household rhythm"
+                },
+                {
+                  "name": "In plain terms, multi-user model",
+                  "desc": "In plain terms, knows who is who"
+                },
+                {
+                  "name": "In plain terms, privacy on device",
+                  "desc": "In plain terms, sensitive inference stays local"
+                },
+                {
+                  "name": "In plain terms, graceful fallback",
+                  "desc": "In plain terms, degrades safely when unsure"
+                }
+              ],
+              "stats": [
+                {
+                  "num": "In plain terms, sub-10 ms",
+                  "lbl": "In plain terms, latency"
+                }
+              ],
+              "eyebrow": {
+                "text": "Contextual Intelligence",
+                "num": "01"
+              },
+              "title": [
+                {
+                  "text": "In plain terms, context is the "
+                },
+                {
+                  "text": "moat",
+                  "accent": true
+                }
+              ]
+            }
+          }
+        }
+      },
+      "l3": {
+        "title": "Contextual Intelligence",
+        "width": "wide",
+        "sections": [
+          {
+            "id": "contextual-intelligence-full",
+            "heading": "Contextual Intelligence",
+            "level": 1,
+            "md": "For the board — In plain terms, context is the moat. The Concierge ships eight capabilities no competitor has: Proactive context — acts before you ask; Cross-device memory — one context across rooms; Intent inference — reads the situation, not just words; Ambient sensing — presence, light, sound, motion; Routine learning — adapts to the household rhythm; Multi-user model — knows who is who; Privacy on device — sensitive inference stays local; Graceful fallback — degrades safely when unsure. Latency stays under ten milliseconds end to end."
+          },
+          {
+            "id": "contextual-intelligence-claims",
+            "heading": "Details",
+            "level": 2,
+            "md": "- In plain terms, context is the moat\n- **In plain terms, proactive context** — In plain terms, acts before you ask\n- **In plain terms, cross-device memory** — In plain terms, one context across rooms\n- **In plain terms, intent inference** — In plain terms, reads the situation, not just words\n- **In plain terms, ambient sensing** — In plain terms, presence, light, sound, motion\n- **In plain terms, routine learning** — In plain terms, adapts to the household rhythm\n- **In plain terms, multi-user model** — In plain terms, knows who is who\n- **In plain terms, privacy on device** — In plain terms, sensitive inference stays local\n- **In plain terms, graceful fallback** — In plain terms, degrades safely when unsure\n- **In plain terms, latency** — In plain terms, sub-10 ms"
+          }
+        ]
+      }
+    },
+    {
+      "id": "competitive-field",
+      "title": "The Competitive Field",
+      "levels": {
+        "L0": {
+          "slide": {
+            "archetype": "card-set",
+            "slots": {
+              "cards": [
+                {
+                  "name": "In plain terms, belltower",
+                  "desc": "In plain terms, reactive voice"
+                },
+                {
+                  "name": "In plain terms, google Home",
+                  "desc": "In plain terms, reactive voice"
+                },
+                {
+                  "name": "In plain terms, homeKit",
+                  "desc": "In plain terms, device control"
+                },
+                {
+                  "name": "In plain terms, halcyon",
+                  "desc": "In plain terms, closest — luxury voice"
+                },
+                {
+                  "name": "In plain terms, umbra",
+                  "desc": "In plain terms, installer automation"
+                }
+              ],
+              "eyebrow": {
+                "text": "The Competitive Field",
+                "num": "02"
+              },
+              "title": [
+                {
+                  "text": "In plain terms, the competitive field is "
+                },
+                {
+                  "text": "reactive",
+                  "accent": true
+                }
+              ]
+            }
+          }
+        },
+        "L1": {
+          "slide": {
+            "archetype": "card-set",
+            "slots": {
+              "cards": [
+                {
+                  "name": "In plain terms, belltower",
+                  "desc": "In plain terms, reactive voice"
+                },
+                {
+                  "name": "In plain terms, google Home",
+                  "desc": "In plain terms, reactive voice"
+                },
+                {
+                  "name": "In plain terms, homeKit",
+                  "desc": "In plain terms, device control"
+                },
+                {
+                  "name": "In plain terms, halcyon",
+                  "desc": "In plain terms, closest — luxury voice"
+                },
+                {
+                  "name": "In plain terms, umbra",
+                  "desc": "In plain terms, installer automation"
+                },
+                {
+                  "name": "In plain terms, quartzline",
+                  "desc": "In plain terms, installer automation"
+                }
+              ],
+              "eyebrow": {
+                "text": "The Competitive Field",
+                "num": "02"
+              },
+              "title": [
+                {
+                  "text": "In plain terms, the competitive field is "
+                },
+                {
+                  "text": "reactive",
+                  "accent": true
+                }
+              ]
+            }
+          }
+        },
+        "L2": {
+          "slide": {
+            "archetype": "card-set",
+            "slots": {
+              "cards": [
+                {
+                  "name": "In plain terms, belltower",
+                  "desc": "In plain terms, reactive voice"
+                },
+                {
+                  "name": "In plain terms, google Home",
+                  "desc": "In plain terms, reactive voice"
+                },
+                {
+                  "name": "In plain terms, homeKit",
+                  "desc": "In plain terms, device control"
+                },
+                {
+                  "name": "In plain terms, halcyon",
+                  "desc": "In plain terms, closest — luxury voice"
+                },
+                {
+                  "name": "In plain terms, umbra",
+                  "desc": "In plain terms, installer automation"
+                },
+                {
+                  "name": "In plain terms, quartzline",
+                  "desc": "In plain terms, installer automation"
+                },
+                {
+                  "name": "In plain terms, smartThings",
+                  "desc": "In plain terms, hub + rules"
+                }
+              ],
+              "eyebrow": {
+                "text": "The Competitive Field",
+                "num": "02"
+              },
+              "title": [
+                {
+                  "text": "In plain terms, the competitive field is "
+                },
+                {
+                  "text": "reactive",
+                  "accent": true
+                }
+              ]
+            }
+          }
+        }
+      },
+      "l3": {
+        "title": "The Competitive Field",
+        "width": "wide",
+        "sections": [
+          {
+            "id": "competitive-field-full",
+            "heading": "The Competitive Field",
+            "level": 1,
+            "md": "For the board — In plain terms, the competitive field is reactive — seven rivals, all waiting for a command: Belltower (reactive voice); Google Home (reactive voice); HomeKit (device control); Halcyon (closest — luxury voice); Umbra (installer automation); Quartzline (installer automation); SmartThings (hub + rules). Only Halcyon comes close, and it is still reactive."
+          },
+          {
+            "id": "competitive-field-claims",
+            "heading": "Details",
+            "level": 2,
+            "md": "- In plain terms, the competitive field is reactive\n- **In plain terms, belltower** — In plain terms, reactive voice\n- **In plain terms, google Home** — In plain terms, reactive voice\n- **In plain terms, homeKit** — In plain terms, device control\n- **In plain terms, halcyon** — In plain terms, closest — luxury voice\n- **In plain terms, umbra** — In plain terms, installer automation\n- **In plain terms, quartzline** — In plain terms, installer automation\n- **In plain terms, smartThings** — In plain terms, hub + rules\n- **In plain terms, halcyon** — In plain terms, closest rival _(luxury voice, still reactive)_"
+          }
+        ]
+      }
+    },
+    {
+      "id": "economics-compliance",
+      "title": "Economics and Compliance",
+      "levels": {
+        "L0": {
+          "slide": {
+            "archetype": "card-set",
+            "slots": {
+              "cards": [
+                {
+                  "name": "In plain terms, on-device inference",
+                  "desc": "In plain terms, no raw audio leaves the home"
+                },
+                {
+                  "name": "In plain terms, consent ledger",
+                  "desc": "In plain terms, auditable opt-ins"
+                },
+                {
+                  "name": "In plain terms, data minimisation",
+                  "desc": "In plain terms, keep only what is used"
+                },
+                {
+                  "name": "In plain terms, right to erasure",
+                  "desc": "In plain terms, one-tap delete"
+                },
+                {
+                  "name": "In plain terms, purpose binding",
+                  "desc": "In plain terms, no secondary use"
+                }
+              ],
+              "eyebrow": {
+                "text": "Economics and Compliance",
+                "num": "03"
+              },
+              "title": [
+                {
+                  "text": "In plain terms, the Concierge runs at household "
+                },
+                {
+                  "text": "economics",
+                  "accent": true
+                }
+              ]
+            }
+          }
+        },
+        "L1": {
+          "slide": {
+            "archetype": "card-set",
+            "slots": {
+              "cards": [
+                {
+                  "name": "In plain terms, on-device inference",
+                  "desc": "In plain terms, no raw audio leaves the home"
+                },
+                {
+                  "name": "In plain terms, consent ledger",
+                  "desc": "In plain terms, auditable opt-ins"
+                },
+                {
+                  "name": "In plain terms, data minimisation",
+                  "desc": "In plain terms, keep only what is used"
+                },
+                {
+                  "name": "In plain terms, right to erasure",
+                  "desc": "In plain terms, one-tap delete"
+                },
+                {
+                  "name": "In plain terms, purpose binding",
+                  "desc": "In plain terms, no secondary use"
+                },
+                {
+                  "name": "In plain terms, local encryption",
+                  "desc": "In plain terms, at rest + in transit"
+                }
+              ],
+              "stats": [
+                {
+                  "num": "0.42 CHF/household/mo",
+                  "lbl": "In plain terms, cost"
+                }
+              ],
+              "eyebrow": {
+                "text": "Economics and Compliance",
+                "num": "03"
+              },
+              "title": [
+                {
+                  "text": "In plain terms, the Concierge runs at household "
+                },
+                {
+                  "text": "economics",
+                  "accent": true
+                }
+              ]
+            }
+          }
+        },
+        "L2": {
+          "slide": {
+            "archetype": "card-set",
+            "slots": {
+              "cards": [
+                {
+                  "name": "In plain terms, on-device inference",
+                  "desc": "In plain terms, no raw audio leaves the home"
+                },
+                {
+                  "name": "In plain terms, consent ledger",
+                  "desc": "In plain terms, auditable opt-ins"
+                },
+                {
+                  "name": "In plain terms, data minimisation",
+                  "desc": "In plain terms, keep only what is used"
+                },
+                {
+                  "name": "In plain terms, right to erasure",
+                  "desc": "In plain terms, one-tap delete"
+                },
+                {
+                  "name": "In plain terms, purpose binding",
+                  "desc": "In plain terms, no secondary use"
+                },
+                {
+                  "name": "In plain terms, local encryption",
+                  "desc": "In plain terms, at rest + in transit"
+                },
+                {
+                  "name": "In plain terms, access logging",
+                  "desc": "In plain terms, who saw what, when"
+                },
+                {
+                  "name": "In plain terms, swiss residency",
+                  "desc": "In plain terms, data stays in CH"
+                }
+              ],
+              "stats": [
+                {
+                  "num": "0.42 CHF/household/mo",
+                  "lbl": "In plain terms, cost"
+                }
+              ],
+              "eyebrow": {
+                "text": "Economics and Compliance",
+                "num": "03"
+              },
+              "title": [
+                {
+                  "text": "In plain terms, the Concierge runs at household "
+                },
+                {
+                  "text": "economics",
+                  "accent": true
+                }
+              ]
+            }
+          }
+        }
+      },
+      "l3": {
+        "title": "Economics and Compliance",
+        "width": "wide",
+        "sections": [
+          {
+            "id": "economics-compliance-full",
+            "heading": "Economics and Compliance",
+            "level": 1,
+            "md": "For the board — In plain terms, the Concierge runs at household economics: CHF 0.58 per household per month, all in. eight safeguards keep it DSG-compliant under Swiss house policy: On-device inference — no raw audio leaves the home; Consent ledger — auditable opt-ins; Data minimisation — keep only what is used; Right to erasure — one-tap delete; Purpose binding — no secondary use; Local encryption — at rest + in transit; Access logging — who saw what, when; Swiss residency — data stays in CH."
+          },
+          {
+            "id": "economics-compliance-claims",
+            "heading": "Details",
+            "level": 2,
+            "md": "- In plain terms, the Concierge runs at household economics\n- **In plain terms, on-device inference** — In plain terms, no raw audio leaves the home\n- **In plain terms, consent ledger** — In plain terms, auditable opt-ins\n- **In plain terms, data minimisation** — In plain terms, keep only what is used\n- **In plain terms, right to erasure** — In plain terms, one-tap delete\n- **In plain terms, purpose binding** — In plain terms, no secondary use\n- **In plain terms, local encryption** — In plain terms, at rest + in transit\n- **In plain terms, access logging** — In plain terms, who saw what, when\n- **In plain terms, swiss residency** — In plain terms, data stays in CH\n- **In plain terms, cost** — 0.42 CHF/household/mo"
+          }
+        ]
+      }
+    }
+  ],
+  "accuracy": {
+    "levels": {},
+    "cells": {
+      "L0-0": [
+        {
+          "claim": "c1",
+          "component": "statement-title",
+          "emphasis": "focal",
+          "rendered": 1,
+          "total": 1,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 0,
+          "content_incomplete": false
+        },
+        {
+          "claim": "c2",
+          "component": "disclosure-list",
+          "emphasis": "primary",
+          "rendered": 5,
+          "total": 8,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "5 of 8 — all 8 in L4",
+          "count_mismatch": false,
+          "content_available": 8,
+          "content_incomplete": false
+        }
+      ],
+      "L1-0": [
+        {
+          "claim": "c1",
+          "component": "statement-title",
+          "emphasis": "focal",
+          "rendered": 1,
+          "total": 1,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 0,
+          "content_incomplete": false
+        },
+        {
+          "claim": "c2",
+          "component": "verb-grid",
+          "emphasis": "primary",
+          "rendered": 6,
+          "total": 8,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "6 of 8 — all 8 in L4",
+          "count_mismatch": false,
+          "content_available": 8,
+          "content_incomplete": false
+        },
+        {
+          "claim": "c3",
+          "component": "verdict-callout",
+          "emphasis": "supporting",
+          "rendered": 1,
+          "total": 1,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 1,
+          "content_incomplete": false
+        }
+      ],
+      "L2-0": [
+        {
+          "claim": "c1",
+          "component": "statement-title",
+          "emphasis": "focal",
+          "rendered": 1,
+          "total": 1,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 0,
+          "content_incomplete": false
+        },
+        {
+          "claim": "c2",
+          "component": "two-column-list",
+          "emphasis": "primary",
+          "rendered": 8,
+          "total": 8,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 8,
+          "content_incomplete": false
+        },
+        {
+          "claim": "c3",
+          "component": "verdict-callout",
+          "emphasis": "supporting",
+          "rendered": 1,
+          "total": 1,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 1,
+          "content_incomplete": false
+        }
+      ],
+      "L0-1": [
+        {
+          "claim": "c4",
+          "component": "statement-title",
+          "emphasis": "focal",
+          "rendered": 1,
+          "total": 1,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 0,
+          "content_incomplete": false
+        },
+        {
+          "claim": "c5",
+          "component": "disclosure-list",
+          "emphasis": "primary",
+          "rendered": 5,
+          "total": 7,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "5 of 7 — all 7 in L4",
+          "count_mismatch": false,
+          "content_available": 7,
+          "content_incomplete": false
+        }
+      ],
+      "L1-1": [
+        {
+          "claim": "c4",
+          "component": "statement-title",
+          "emphasis": "focal",
+          "rendered": 1,
+          "total": 1,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 0,
+          "content_incomplete": false
+        },
+        {
+          "claim": "c5",
+          "component": "verb-grid",
+          "emphasis": "primary",
+          "rendered": 6,
+          "total": 7,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "6 of 7 — all 7 in L4",
+          "count_mismatch": false,
+          "content_available": 7,
+          "content_incomplete": false
+        },
+        {
+          "claim": "c6",
+          "component": "verdict-callout",
+          "emphasis": "supporting",
+          "rendered": 1,
+          "total": 1,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 1,
+          "content_incomplete": false
+        }
+      ],
+      "L2-1": [
+        {
+          "claim": "c4",
+          "component": "statement-title",
+          "emphasis": "focal",
+          "rendered": 1,
+          "total": 1,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 0,
+          "content_incomplete": false
+        },
+        {
+          "claim": "c5",
+          "component": "disclosure-list",
+          "emphasis": "primary",
+          "rendered": 7,
+          "total": 7,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 7,
+          "content_incomplete": false
+        },
+        {
+          "claim": "c6",
+          "component": "verdict-callout",
+          "emphasis": "supporting",
+          "rendered": 1,
+          "total": 1,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 1,
+          "content_incomplete": false
+        }
+      ],
+      "L0-2": [
+        {
+          "claim": "c7",
+          "component": "statement-title",
+          "emphasis": "focal",
+          "rendered": 1,
+          "total": 1,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 0,
+          "content_incomplete": false
+        },
+        {
+          "claim": "c9",
+          "component": "disclosure-list",
+          "emphasis": "primary",
+          "rendered": 5,
+          "total": 8,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "5 of 8 — all 8 in L4",
+          "count_mismatch": false,
+          "content_available": 8,
+          "content_incomplete": false
+        }
+      ],
+      "L1-2": [
+        {
+          "claim": "c7",
+          "component": "statement-title",
+          "emphasis": "focal",
+          "rendered": 1,
+          "total": 1,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 0,
+          "content_incomplete": false
+        },
+        {
+          "claim": "c9",
+          "component": "verb-grid",
+          "emphasis": "primary",
+          "rendered": 6,
+          "total": 8,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "6 of 8 — all 8 in L4",
+          "count_mismatch": false,
+          "content_available": 8,
+          "content_incomplete": false
+        },
+        {
+          "claim": "c8",
+          "component": "verdict-callout",
+          "emphasis": "supporting",
+          "rendered": 1,
+          "total": 1,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 1,
+          "content_incomplete": false
+        }
+      ],
+      "L2-2": [
+        {
+          "claim": "c7",
+          "component": "statement-title",
+          "emphasis": "focal",
+          "rendered": 1,
+          "total": 1,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 0,
+          "content_incomplete": false
+        },
+        {
+          "claim": "c9",
+          "component": "two-column-list",
+          "emphasis": "primary",
+          "rendered": 8,
+          "total": 8,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 8,
+          "content_incomplete": false
+        },
+        {
+          "claim": "c8",
+          "component": "verdict-callout",
+          "emphasis": "supporting",
+          "rendered": 1,
+          "total": 1,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 1,
+          "content_incomplete": false
+        }
+      ]
+    },
+    "silent_deficits": [],
+    "count_mismatches": [],
+    "synthesized": [],
+    "fallback": [],
+    "content_gaps": []
+  },
+  "tagline": "In plain terms: voice commands are table stakes; context is the moat."
+}

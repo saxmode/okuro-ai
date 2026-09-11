@@ -1,0 +1,22 @@
+-- <!-- AGENT_HEADER
+-- role: code
+-- purpose: 051_roles_panel_eligible — flag roles that should NOT be proposed as deliberation-panel members
+-- index: content
+-- AGENT_HEADER_END -->
+-- Adds `panel_eligible` to roles. The panel proposer (`match_roles`)
+-- filters out rows where this is 0 so meta/builder roles never land
+-- on a deliberation panel by default.
+--
+-- Why: deliberation gathers POSITIONS (claim/reasoning/risks). Meta
+-- roles (role-designer/role-researcher/role-maintainer) have no
+-- domain position to offer — their job is to author other roles.
+-- Builder roles whose primary output is a deliverable artifact
+-- (HTML decks, code, configs) belong in execution phases, not on a
+-- panel — when invited to deliberate, they tend to start building
+-- instead of reasoning.
+--
+-- Default is 1 (eligible) so existing roles keep current behaviour.
+-- Roles known to be panel-ineligible are tagged 0 in their catalog
+-- yaml; seed_from_catalog reads that field and propagates it here.
+
+ALTER TABLE roles ADD COLUMN panel_eligible INTEGER DEFAULT 1;

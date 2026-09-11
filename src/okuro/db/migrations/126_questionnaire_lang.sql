@@ -1,0 +1,28 @@
+-- <!-- AGENT_HEADER
+-- role: code
+-- purpose: 126_questionnaire_lang module
+-- index: content
+-- AGENT_HEADER_END -->
+-- Which language a magic-link survey is served in.
+--
+-- The offline path takes its language as a query parameter at generation
+-- time (GET /survey.html?lang=de) because the sender is holding the file.
+-- The token path cannot work that way: the recipient opens the link, and
+-- asking THEM to pick a language defeats the point of profiling how they
+-- prefer to be communicated with. So the SENDER chooses at mint time and the
+-- choice travels with the token.
+--
+-- Without this column, api/questionnaires.get_questionnaire called
+-- survey_form() with no argument and every /q/{token} survey rendered in
+-- English regardless of recipient — the i18n work reached the offline
+-- transport and stopped at the door of the online one.
+--
+-- NULLABLE, no default. NULL reads as "en" at the call site rather than
+-- being backfilled: a row minted before this migration was genuinely served
+-- in English, and stamping 'de' on it retroactively would be a lie about
+-- what a recipient saw. Existing rows keep their honest history.
+--
+-- Rollback: ALTER TABLE person_questionnaires DROP COLUMN lang; on
+-- SQLite >= 3.35, or leave it — nothing requires it to be populated.
+
+ALTER TABLE person_questionnaires ADD COLUMN lang TEXT;

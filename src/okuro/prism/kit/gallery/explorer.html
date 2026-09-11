@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en" data-theme="okuro">
+<head>
+<meta charset="utf-8">
+<title>prism · board kit — selection map</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../board/tokens.css">
+<link rel="stylesheet" href="../board/theme.css">
+<link rel="stylesheet" href="../board/components.css">
+<link rel="stylesheet" href="../board/zoom-stage.css">
+<link rel="stylesheet" href="gallery.css">
+<script src="gallery.js" defer></script>
+<script src="explorer.js" defer></script>
+<style>
+  /* Explorer-only chrome — reuses the kit's resolved theme vars, no new colors. */
+  .shape-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px; }
+  .shape-tabs button {
+    font-family: var(--font-mono); font-size: 12px; cursor: pointer;
+    padding: 6px 13px; border: 1px solid var(--border); border-radius: var(--radius-pill);
+    background: transparent; color: var(--fg-secondary);
+  }
+  .shape-tabs button:hover { color: var(--accent-text); border-color: var(--accent); }
+  .shape-tabs button.active { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 700; }
+
+  .rank-head { display: flex; align-items: baseline; gap: 14px; margin: 28px 0 6px; flex-wrap: wrap; }
+  .rank-head h3 { margin: 0; font-size: 18px; font-weight: 800; color: var(--fg-primary); }
+  .rank-head .rank-sub { font-size: 12px; color: var(--fg-tertiary); font-family: var(--font-mono); }
+  .cut-note { font-size: 12px; color: var(--fg-muted); font-family: var(--font-mono); margin: 18px 0 8px; text-transform: uppercase; letter-spacing: 1px; }
+
+  .comp-row {
+    display: grid; grid-template-columns: 132px 1fr; gap: 18px; align-items: start;
+    padding: 14px 0; border-bottom: 1px solid var(--border-soft);
+  }
+  .comp-row.below { opacity: 0.5; }
+  .fit-cell { display: flex; flex-direction: column; gap: 6px; }
+  .fit-bar { height: 6px; border-radius: 3px; background: var(--bg-elev); overflow: hidden; }
+  .fit-bar > i { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+  .fit-num { font-family: var(--font-mono); font-size: 12px; color: var(--fg-body); }
+  .comp-main .comp-id { font-family: var(--font-mono); font-size: 14px; font-weight: 700; color: var(--fg-primary); }
+  .comp-main .comp-role { font-size: 13px; color: var(--fg-secondary); margin: 3px 0 8px; max-width: 68ch; }
+  .meta-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag {
+    font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.3px;
+    padding: 2px 8px; border-radius: var(--radius-pill); border: 1px solid var(--border);
+    color: var(--fg-tertiary);
+  }
+  .tag.tier { color: var(--accent-text); border-color: var(--accent); }
+  .tag.prov { color: var(--fg-body); }
+  .empty-note { font-size: 13px; color: var(--fg-tertiary); padding: 18px 0; }
+</style>
+</head>
+<body>
+<div class="gallery-wrap">
+  <div class="gallery-head">
+    <div>
+      <h1>prism · board kit</h1>
+      <div class="sub">selection map · which component wins each claim-shape · brand <span data-brand-label></span></div>
+    </div>
+    <div class="grow"></div>
+    <div class="brand-switch" role="group" aria-label="brand">
+      <button data-brand="okuro">okuro · dark</button>
+      <button data-brand="northwind">Northwind · dark</button>
+      <button data-brand="meridian">Meridian · light</button>
+    </div>
+    <div class="gallery-links">
+      <a href="index.html">Overview</a>
+      <a href="design-language.html">Design language</a>
+      <a href="components.html">Components</a>
+      <a href="components-ext.html">Ports + high-card</a>
+      <a href="archetypes.html">Archetypes</a>
+      <a href="reflow.html">L3 reflow</a>
+      <a href="explorer.html" class="active">Selection map</a>
+    </div>
+  </div>
+
+  <div class="spec-section" style="margin-top:0">
+    <h2>How a component is chosen</h2>
+    <p class="spec-note">
+      Every claim is tagged with one of 11 <strong>claim-shapes</strong> (metric, comparison, quote…).
+      The solver builds a <strong>candidate set</strong> = components whose <code>fit</code> for that shape is
+      <strong>≥ 0.50</strong>, filters by capacity (can it hold the item count?) and emphasis, then ranks by
+      <code>(anti-sameness, −fit, compactness, id)</code> and takes the winner. Pick a shape below to see the full
+      ranking straight from <code>component-manifest.json</code> — candidates above the line, everything else dimmed below.
+    </p>
+    <div class="shape-tabs" id="shape-tabs"></div>
+  </div>
+
+  <div class="spec-section" id="ranking" style="margin-top:0">
+    <p class="empty-note">Loading manifest…</p>
+  </div>
+
+  <footer class="site-footer">
+    <span class="accent">prism board kit</span>
+    <span class="footer-meta"><span>selection map · read-only view of the W2 fit contract</span><span>data: component-manifest.json</span></span>
+  </footer>
+</div>
+</body>
+</html>

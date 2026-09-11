@@ -1,0 +1,2028 @@
+{
+  "kit_family": "board",
+  "version": "v4-w1",
+  "claim_shapes": [
+    "metric",
+    "delta",
+    "comparison",
+    "sequence",
+    "relationship",
+    "proportion",
+    "quote",
+    "set",
+    "trend",
+    "narrative",
+    "verdict"
+  ],
+  "emphasis": [
+    "focal",
+    "primary",
+    "support",
+    "aside"
+  ],
+  "density_cost_units": "raw px at 1-col reference width (NOT the W2 cross-model scalar)",
+  "height_model_ref": "board/height-model.json (calibrated by tests/calibrate_heights.py)",
+  "counts": {
+    "total": 37,
+    "placeable": 33,
+    "text_bearing": 25,
+    "by_tier": {
+      "shared": 13,
+      "bespoke": 13,
+      "port": 8,
+      "high-cardinality": 3
+    }
+  },
+  "components": [
+    {
+      "id": "statement-title",
+      "css": "slide-title",
+      "tier": "shared",
+      "role": "the ONE claim of a slide, display type, <=22ch",
+      "content_schema": {
+        "text": "string",
+        "accent": "optional inline span",
+        "_text_bearing": true
+      },
+      "fit": {
+        "metric": 0.4,
+        "delta": 0.0,
+        "comparison": 0.0,
+        "sequence": 0.0,
+        "relationship": 0.0,
+        "proportion": 0.0,
+        "quote": 0.0,
+        "set": 0.0,
+        "trend": 0.0,
+        "narrative": 1.0,
+        "verdict": 0.6
+      },
+      "capacity": {
+        "min": 1,
+        "typical": 1,
+        "max": 1,
+        "unbounded": false,
+        "item_noun": "title"
+      },
+      "size": {
+        "min_cols": 6,
+        "max_cols": 12,
+        "height_model": "statement-title",
+        "reflows": false
+      },
+      "density": {
+        "base_px": 96.0,
+        "per_item_px": 0.0
+      },
+      "emphasis": [
+        "focal"
+      ],
+      "provenance": false,
+      "inline": false,
+      "audit": "conforms",
+      "ports_from": null,
+      "notes": ""
+    },
+    {
+      "id": "lede",
+      "css": "slide-lede",
+      "tier": "shared",
+      "role": "one-sentence supporting frame under a title, <=70ch",
+      "content_schema": {
+        "text": "string",
+        "_text_bearing": true
+      },
+      "fit": {
+        "metric": 0.0,
+        "delta": 0.0,
+        "comparison": 0.0,
+        "sequence": 0.0,
+        "relationship": 0.0,
+        "proportion": 0.0,
+        "quote": 0.0,
+        "set": 0.0,
+        "trend": 0.0,
+        "narrative": 1.0,
+        "verdict": 0.0
+      },
+      "capacity": {
+        "min": 1,
+        "typical": 1,
+        "max": 1,
+        "unbounded": false,
+        "item_noun": "sentence"
+      },
+      "size": {
+        "min_cols": 6,
+        "max_cols": 12,
+        "height_model": "lede",
+        "reflows": false
+      },
+      "density": {
+        "base_px": 40.0,
+        "per_item_px": 0.0
+      },
+      "emphasis": [
+        "support"
+      ],
+      "provenance": false,
+      "inline": false,
+      "audit": "conforms",
+      "ports_from": null,
+      "notes": ""
+    },
+    {
+      "id": "prose",
+      "css": "prose",
+      "tier": "shared",
+      "role": "full markdown typography \u2014 L3/L4 doc body",
+      "content_schema": {
+        "markdown": "string",
+        "_text_bearing": true
+      },
+      "fit": {
+        "metric": 0.5,
+        "delta": 0.5,
+        "comparison": 0.5,
+        "sequence": 0.5,
+        "relationship": 0.5,
+        "proportion": 0.5,
+        "quote": 0.7,
+        "set": 0.5,
+        "trend": 0.5,
+        "narrative": 1.0,
+        "verdict": 0.5
+      },
+      "capacity": {
+        "min": 1,
+        "typical": 1,
+        "max": 1,
+        "unbounded": false,
+        "item_noun": "block"
+      },
+      "size": {
+        "min_cols": 6,
+        "max_cols": 12,
+        "height_model": "prose",
+        "reflows": true
+      },
+      "density": {
+        "base_px": 60.0,
+        "per_item_px": 34.0
+      },
+      "emphasis": [
+        "primary",
+        "support"
+      ],
+      "provenance": true,
+      "inline": false,
+      "audit": "conforms",
+      "ports_from": null,
+      "notes": ""
+    },
+    {
+      "id": "disclosure-list",
+      "css": "bullet-list",
+      "tier": "shared",
+      "role": "expandable evidence rows (mark + title + sub + reveal body)",
+      "content_schema": {
+        "rows": [
+          {
+            "mark": "str",
+            "title": "str",
+            "sub": "str",
+            "body": "str",
+            "severity": "enum"
+          }
+        ],
+        "_text_bearing": true
+      },
+      "fit": {
+        "metric": 0.0,
+        "delta": 0.0,
+        "comparison": 0.0,
+        "sequence": 0.0,
+        "relationship": 0.0,
+        "proportion": 0.0,
+        "quote": 0.5,
+        "set": 0.9,
+        "trend": 0.0,
+        "narrative": 0.7,
+        "verdict": 0.7
+      },
+      "capacity": {
+        "min": 3,
+        "typical": 5,
+        "max": 7,
+        "unbounded": false,
+        "item_noun": "row"
+      },
+      "size": {
+        "min_cols": 6,
+        "max_cols": 12,
+        "height_model": "disclosure-list",
+        "reflows": false
+      },
+      "density": {
+        "base_px": 24.0,
+        "per_item_px": 84.0
+      },
+      "emphasis": [
+        "primary",
+        "support"
+      ],
+      "provenance": true,
+      "inline": false,
+      "audit": "conforms",
+      "ports_from": null,
+      "notes": ""
+    },
+    {
+      "id": "card-set",
+      "css": "card-grid",
+      "tier": "shared",
+      "role": "auto-fit card grid (eyebrow/title/body/footer)",
+      "content_schema": {
+        "cards": [
+          {
+            "eyebrow": "str",
+            "title": "str",
+            "body": "str",
+            "footer": "str"
+          }
+        ],
+        "_text_bearing": true
+      },
+      "fit": {
+        "metric": 0.5,
+        "delta": 0.0,
+        "comparison": 0.4,
+        "sequence": 0.0,
+        "relationship": 0.0,
+        "proportion": 0.0,
+        "quote": 0.0,
+        "set": 1.0,
+        "trend": 0.0,
+        "narrative": 0.0,
+        "verdict": 0.0
+      },
+      "capacity": {
+        "min": 2,
+        "typical": 3,
+        "max": 5,
+        "unbounded": false,
+        "item_noun": "card"
+      },
+      "size": {
+        "min_cols": 6,
+        "max_cols": 12,
+        "height_model": "card-set",
+        "reflows": true
+      },
+      "density": {
+        "base_px": 28.0,
+        "per_item_px": 150.0
+      },
+      "emphasis": [
+        "primary",
+        "support"
+      ],
+      "provenance": true,
+      "inline": false,
+      "audit": "conforms",
+      "ports_from": null,
+      "notes": ""
+    },
+    {
+      "id": "metric-tiles",
+      "css": "card-grid",
+      "tier": "shared",
+      "role": "KPI tiles (label/value/desc) \u2014 the number is the point",
+      "content_schema": {
+        "tiles": [
+          {
+            "label": "str",
+            "value": "str",
+            "desc": "str"
+          }
+        ]
+      },
+      "fit": {
+        "metric": 1.0,
+        "delta": 0.6,
+        "comparison": 0.0,
+        "sequence": 0.0,
+        "relationship": 0.0,
+        "proportion": 0.5,
+        "quote": 0.0,
+        "set": 0.0,
+        "trend": 0.0,
+        "narrative": 0.0,
+        "verdict": 0.0
+      },
+      "capacity": {
+        "min": 2,
+        "typical": 3,
+        "max": 4,
+        "unbounded": false,
+        "item_noun": "tile"
+      },
+      "size": {
+        "min_cols": 4,
+        "max_cols": 12,
+        "height_model": "metric-tiles",
+        "reflows": true
+      },
+      "density": {
+        "base_px": 28.0,
+        "per_item_px": 110.0
+      },
+      "emphasis": [
+        "focal",
+        "primary"
+      ],
+      "provenance": false,
+      "inline": false,
+      "audit": "conforms",
+      "ports_from": null,
+      "notes": ""
+    },
+    {
+      "id": "callout",
+      "css": "callout",
+      "tier": "shared",
+      "role": "left-accent-bar emphasis box (note/info/warn)",
+      "content_schema": {
+        "label": "str",
+        "title": "str",
+        "text": "str",
+        "tone": "enum[accent,info,warn]",
+        "_text_bearing": true
+      },
+      "fit": {
+        "metric": 0.5,
+        "delta": 0.5,
+        "comparison": 0.5,
+        "sequence": 0.5,
+        "relationship": 0.5,
+        "proportion": 0.5,
+        "quote": 0.5,
+        "set": 0.5,
+        "trend": 0.5,
+        "narrative": 0.9,
+        "verdict": 0.7
+      },
+      "capacity": {
+        "min": 1,
+        "typical": 1,
+        "max": 1,
+        "unbounded": false,
+        "item_noun": "box"
+      },
+      "size": {
+        "min_cols": 6,
+        "max_cols": 12,
+        "height_model": "callout",
+        "reflows": false
+      },
+      "density": {
+        "base_px": 88.0,
+        "per_item_px": 0.0
+      },
+      "emphasis": [
+        "primary",
+        "aside"
+      ],
+      "provenance": false,
+      "inline": false,
+      "audit": "conforms",
+      "ports_from": null,
+      "notes": ""
+    },
+    {
+      "id": "option-grid",
+      "css": "option-grid",
+      "tier": "shared",
+      "role": "decision matrix of option cards (label/name/k-v lines, one recommended)",
+      "content_schema": {
+        "options": [
+          {
+            "label": "str",
+            "name": "str",
+            "recommended": "bool",
+            "lines": [
+              {
+                "k": "str",
+                "v": "str"
+              }
+            ]
+          }
+        ],
+        "_text_bearing": true
+      },
+      "fit": {
+        "metric": 0.0,
+        "delta": 0.6,
+        "comparison": 1.0,
+        "sequence": 0.0,
+        "relationship": 0.0,
+        "proportion": 0.0,
+        "quote": 0.0,
+        "set": 0.4,
+        "trend": 0.0,
+        "narrative": 0.0,
+        "verdict": 0.0
+      },
+      "capacity": {
+        "min": 3,
+        "typical": 3,
+        "max": 5,
+        "unbounded": false,
+        "item_noun": "option"
+      },
+      "size": {
+        "min_cols": 8,
+        "max_cols": 12,
+        "height_model": "option-grid",
+        "reflows": true
+      },
+      "density": {
+        "base_px": 24.0,
+        "per_item_px": 190.0
+      },
+      "emphasis": [
+        "focal",
+        "primary"
+      ],
+      "provenance": false,
+      "inline": false,
+      "audit": "conforms",
+      "ports_from": null,
+      "notes": ""
+    },
+    {
+      "id": "beat-list",
+      "css": "beat-list",
+      "tier": "shared",
+      "role": "time-ordered scenario beats (T-mark + body + actor)",
+      "content_schema": {
+        "beats": [
+          {
+            "time": "str",
+            "body": "str",
+            "actor": "str"
+          }
+        ],
+        "_text_bearing": true
+      },
+      "fit": {
+        "metric": 0.0,
+        "delta": 0.0,
+        "comparison": 0.0,
+        "sequence": 1.0,
+        "relationship": 0.5,
+        "proportion": 0.0,
+        "quote": 0.0,
+        "set": 0.0,
+        "trend": 0.0,
+        "narrative": 0.0,
+        "verdict": 0.0
+      },
+      "capacity": {
+        "min": 3,
+        "typical": 5,
+        "max": 10,
+        "unbounded": false,
+        "item_noun": "beat"
+      },
+      "size": {
+        "min_cols": 6,
+        "max_cols": 12,
+        "height_model": "beat-list",
+        "reflows": false
+      },
+      "density": {
+        "base_px": 24.0,
+        "per_item_px": 62.0
+      },
+      "emphasis": [
+        "primary",
+        "support"
+      ],
+      "provenance": false,
+      "inline": false,
+      "audit": "conforms",
+      "ports_from": null,
+      "notes": ""
+    },
+    {
+      "id": "stat-row",
+      "css": "stat-row",
+      "tier": "shared",
+      "role": "joined KPI strip (num + label, tone modifiers)",
+      "content_schema": {
+        "cells": [
+          {
+            "num": "str",
+            "label": "str",
+            "tone": "enum"
+          }
+        ]
+      },
+      "fit": {
+        "metric": 1.0,
+        "delta": 0.0,
+        "comparison": 0.0,
+        "sequence": 0.0,
+        "relationship": 0.0,
+        "proportion": 0.4,
+        "quote": 0.0,
+        "set": 0.0,
+        "trend": 0.0,
+        "narrative": 0.0,
+        "verdict": 0.0
+      },
+      "capacity": {
+        "min": 2,
+        "typical": 4,
+        "max": 4,
+        "unbounded": false,
+        "item_noun": "cell"
+      },
+      "size": {
+        "min_cols": 6,
+        "max_cols": 12,
+        "height_model": "stat-row",
+        "reflows": false
+      },
+      "density": {
+        "base_px": 64.0,
+        "per_item_px": 0.0
+      },
+      "emphasis": [
+        "focal",
+        "primary"
+      ],
+      "provenance": false,
+      "inline": false,
+      "audit": "conforms",
+      "ports_from": null,
+      "notes": ""
+    },
+    {
+      "id": "persona-row",
+      "css": "persona-row",
+      "tier": "shared",
+      "role": "audience roster pills (mark + name + lens)",
+      "content_schema": {
+        "personas": [
+          {
+            "name": "str",
+            "lens": "str",
+            "mark": "enum"
+          }
+        ]
+      },
+      "fit": {
+        "metric": 0.0,
+        "delta": 0.0,
+        "comparison": 0.0,
+        "sequence": 0.0,
+        "relationship": 0.0,
+        "proportion": 0.0,
+        "quote": 0.0,
+        "set": 0.8,
+        "trend": 0.0,
+        "narrative": 0.0,
+        "verdict": 0.0
+      },
+      "capacity": {
+        "min": 2,
+        "typical": 3,
+        "max": 4,
+        "unbounded": false,
+        "item_noun": "pill"
+      },
+      "size": {
+        "min_cols": 6,
+        "max_cols": 12,
+        "height_model": "persona-row",
+        "reflows": true
+      },
+      "density": {
+        "base_px": 44.0,
+        "per_item_px": 0.0
+      },
+      "emphasis": [
+        "support",
+        "aside"
+      ],
+      "provenance": false,
+      "inline": false,
+      "audit": "conforms",
+      "ports_from": null,
+      "notes": ""
+    },
+    {
+      "id": "lens-reframe",
+      "css": "lens-tabs",
+      "tier": "shared",
+      "role": "persona tab switcher \u2014 same claim reframed per audience",
+      "content_schema": {
+        "tabs": [
+          {
+            "name": "str",
+            "frame": "str"
+          }
+        ],
+        "panes": [
+          {
+            "rows": "list"
+          }
+        ],
+        "_text_bearing": true
+      },
+      "fit": {
+        "metric": 0.0,
+        "delta": 0.0,
+        "comparison": 0.5,
+        "sequence": 0.0,
+        "relationship": 0.0,
+        "proportion": 0.0,
+        "quote": 0.0,
+        "set": 0.9,
+        "trend": 0.0,
+        "narrative": 0.7,
+        "verdict": 0.0
+      },
+      "capacity": {
+        "min": 2,
+        "typical": 3,
+        "max": 4,
+        "unbounded": false,
+        "item_noun": "lens"
+      },
+      "size": {
+        "min_cols": 8,
+        "max_cols": 12,
+        "height_model": "lens-reframe",
+        "reflows": false
+      },
+      "density": {
+        "base_px": 120.0,
+        "per_item_px": 0.0
+      },
+      "emphasis": [
+        "focal",
+        "primary"
+      ],
+      "provenance": true,
+      "inline": false,
+      "audit": "conforms",
+      "ports_from": null,
+      "notes": ""
+    },
+    {
+      "id": "story-grid",
+      "css": "story-grid",
+      "tier": "shared",
+      "role": "overview chapter cards (num/title/desc/links) \u2014 index affordance",
+      "content_schema": {
+        "chapters": [
+          {
+            "num": "str",
+            "title": "str",
+            "desc": "str"
+          }
+        ],
+        "_text_bearing": true
+      },
+      "fit": {
+        "metric": 0.0,
+        "delta": 0.0,
+        "comparison": 0.6,
+        "sequence": 0.0,
+        "relationship": 0.6,
+        "proportion": 0.0,
+        "quote": 0.0,
+        "set": 0.9,
+        "trend": 0.0,
+        "narrative": 0.5,
+        "verdict": 0.0
+      },
+      "capacity": {
+        "min": 2,
+        "typical": 3,
+        "max": 4,
+        "unbounded": false,
+        "item_noun": "chapter"
+      },
+      "size": {
+        "min_cols": 6,
+        "max_cols": 12,
+        "height_model": "story-grid",
+        "reflows": true
+      },
+      "density": {
+        "base_px": 20.0,
+        "per_item_px": 120.0
+      },
+      "emphasis": [
+        "primary",
+        "support"
+      ],
+      "provenance": false,
+      "inline": false,
+      "audit": "conforms",
+      "ports_from": null,
+      "notes": ""
+    },
+    {
+      "id": "proportion-bars",
+      "css": "token-bar-wrap",
+      "tier": "bespoke",
+      "role": "share-of-whole / budget magnitude bars (label/pct/value/level)",
+      "content_schema": {
+        "rows": [
+          {
+            "label": "str",
+            "pct": "number",
+            "value": "str",
+            "level": "enum[safe,caution,danger]"
+          }
+        ]
+      },
+      "fit": {
+        "metric": 0.5,
+        "delta": 0.0,
+        "comparison": 0.0,
+        "sequence": 0.0,
+        "relationship": 0.0,
+        "proportion": 1.0,
+        "quote": 0.0,
+        "set": 0.0,
+        "trend": 0.7,
+        "narrative": 0.0,
+        "verdict": 0.0
+      },
+      "capacity": {
+        "min": 2,
+        "typical": 4,
+        "max": 8,
+        "unbounded": false,
+        "item_noun": "bar"
+      },
+      "size": {
+        "min_cols": 6,
+        "max_cols": 12,
+        "height_model": "proportion-bars",
+        "reflows": false
+      },
+      "density": {
+        "base_px": 20.0,
+        "per_item_px": 34.0
+      },
+      "emphasis": [
+        "focal",
+        "primary"
+      ],
+      "provenance": false,
+      "inline": false,
+      "audit": "conforms",
+      "ports_from": null,
+      "notes": ""
+    },
+    {
+      "id": "flow-steps",
+      "css": "flow-step",
+      "tier": "bespoke",
+      "role": "numbered agentic-flow steps (num/what/tool)",
+      "content_schema": {
+        "steps": [
+          {
+            "what": "str",
+            "tool": "str",
+            "actor": "enum"
+          }
+        ],
+        "_text_bearing": true
+      },
+      "fit": {
+        "metric": 0.0,
+        "delta": 0.0,
+        "comparison": 0.0,
+        "sequence": 1.0,
+        "relationship": 0.5,
+        "proportion": 0.0,
+        "quote": 0.0,
+        "set": 0.0,
+        "trend": 0.0,
+        "narrative": 0.0,
+        "verdict": 0.0
+      },
+      "capacity": {
+        "min": 4,
+        "typical": 6,
+        "max": 8,
+        "unbounded": false,
+        "item_noun": "step"
+      },
+      "size": {
+        "min_cols": 6,
+        "max_cols": 12,
+        "height_model": "flow-steps",
+        "reflows": false
+      },
+      "density": {
+        "base_px": 20.0,
+        "per_item_px": 56.0
+      },
+      "emphasis": [
+        "primary",
+        "support"
+      ],
+      "provenance": false,
+      "inline": false,
+      "audit": "conforms",
+      "ports_from": null,
+      "notes": ""
+    },
+    {
+      "id": "pipeline-table",
+      "css": "pipeline-row",
+      "tier": "bespoke",
+      "role": "multi-column stage comparison table (layer/edge/cloud/cost)",
+      "content_schema": {
+        "headers": [
+          "str"
+        ],
+        "rows": [
+          [
+            "str"
+          ]
+        ],
+        "_text_bearing": true
+      },
+      "fit": {
+        "metric": 0.0,
+        "delta": 0.0,
+        "comparison": 1.0,
+        "sequence": 0.0,
+        "relationship": 0.0,
+        "proportion": 0.0,
+        "quote": 0.0,
+        "set": 0.6,
+        "trend": 0.0,
+        "narrative": 0.0,
+        "verdict": 0.0
+      },
+      "capacity": {
+        "min": 2,
+        "typical": 5,
+        "max": 10,
+        "unbounded": false,
+        "item_noun": "row"
+      },
+      "size": {
+        "min_cols": 8,
+        "max_cols": 12,
+        "height_model": "pipeline-table",
+        "reflows": false
+      },
+      "density": {
+        "base_px": 42.0,
+        "per_item_px": 48.0
+      },
+      "emphasis": [
+        "primary",
+        "support"
+      ],
+      "provenance": false,
+      "inline": false,
+      "audit": "conforms",
+      "ports_from": null,
+      "notes": ""
+    },
+    {
+      "id": "verb-grid",
+      "css": "verb-grid",
+      "tier": "bespoke",
+      "role": "tool/verb schema cards, 3-col (name/desc/params/ack)",
+      "content_schema": {
+        "cards": [
+          {
+            "name": "str",
+            "desc": "str",
+            "params": "str",
+            "ack": "str"
+          }
+        ],
+        "_text_bearing": true
+      },
+      "fit": {
+        "metric": 0.0,
+        "delta": 0.0,
+        "comparison": 0.4,
+        "sequence": 0.0,
+        "relationship": 0.0,
+        "proportion": 0.0,
+        "quote": 0.0,
+        "set": 1.0,
+        "trend": 0.0,
+        "narrative": 0.0,
+        "verdict": 0.0
+      },
+      "capacity": {
+        "min": 3,
+        "typical": 3,
+        "max": 6,
+        "unbounded": false,
+        "item_noun": "card"
+      },
+      "size": {
+        "min_cols": 8,
+        "max_cols": 12,
+        "height_model": "verb-grid",
+        "reflows": true
+      },
+      "density": {
+        "base_px": 24.0,
+        "per_item_px": 130.0
+      },
+      "emphasis": [
+        "primary",
+        "support"
+      ],
+      "provenance": false,
+      "inline": false,
+      "audit": "conforms",
+      "ports_from": null,
+      "notes": ""
+    },
+    {
+      "id": "cmp-table",
+      "css": "cmp-table",
+      "tier": "bespoke",
+      "role": "before->after comparison table with status tags",
+      "content_schema": {
+        "headers": [
+          "str"
+        ],
+        "rows": [
+          {
+            "v1": "str",
+            "v2": "str",
+            "tag": "enum"
+          }
+        ],
+        "_text_bearing": true
+      },
+      "fit": {
+        "metric": 0.0,
+        "delta": 1.0,
+        "comparison": 1.0,
+        "sequence": 0.0,
+        "relationship": 0.0,
+        "proportion": 0.0,
+        "quote": 0.0,
+        "set": 0.0,
+        "trend": 0.0,
+        "narrative": 0.0,
+        "verdict": 0.0
+      },
+      "capacity": {
+        "min": 2,
+        "typical": 5,
+        "max": 12,
+        "unbounded": false,
+        "item_noun": "row"
+      },
+      "size": {
+        "min_cols": 8,
+        "max_cols": 12,
+        "height_model": "cmp-table",
+        "reflows": false
+      },
+      "density": {
+        "base_px": 44.0,
+        "per_item_px": 44.0
+      },
+      "emphasis": [
+        "primary",
+        "support"
+      ],
+      "provenance": false,
+      "inline": false,
+      "audit": "conforms",
+      "ports_from": null,
+      "notes": ""
+    },
+    {
+      "id": "transform-grid",
+      "css": "transform-grid",
+      "tier": "bespoke",
+      "role": "before->after transform cards (before/arrow/after + label)",
+      "content_schema": {
+        "cards": [
+          {
+            "header": "str",
+            "before": "str",
+            "after": "str",
+            "label": "str"
+          }
+        ],
+        "_text_bearing": true
+      },
+      "fit": {
+        "metric": 0.0,
+        "delta": 1.0,
+        "comparison": 0.8,
+        "sequence": 0.0,
+        "relationship": 0.0,
+        "proportion": 0.0,
+        "quote": 0.0,
+        "set": 0.0,
+        "trend": 0.0,
+        "narrative": 0.0,
+        "verdict": 0.0
+      },
+      "capacity": {
+        "min": 2,
+        "typical": 3,
+        "max": 6,
+        "unbounded": false,
+        "item_noun": "card"
+      },
+      "size": {
+        "min_cols": 8,
+        "max_cols": 12,
+        "height_model": "transform-grid",
+        "reflows": true
+      },
+      "density": {
+        "base_px": 24.0,
+        "per_item_px": 120.0
+      },
+      "emphasis": [
+        "primary",
+        "support"
+      ],
+      "provenance": false,
+      "inline": false,
+      "audit": "conforms",
+      "ports_from": null,
+      "notes": ""
+    },
+    {
+      "id": "phase-row",
+      "css": "phase-row",
+      "tier": "bespoke",
+      "role": "roadmap phase chain (done/next/future + arrows)",
+      "content_schema": {
+        "phases": [
+          {
+            "label": "str",
+            "state": "enum[done,next,future]"
+          }
+        ]
+      },
+      "fit": {
+        "metric": 0.0,
+        "delta": 0.0,
+        "comparison": 0.0,
+        "sequence": 0.9,
+        "relationship": 0.0,
+        "proportion": 0.0,
+        "quote": 0.0,
+        "set": 0.0,
+        "trend": 0.8,
+        "narrative": 0.0,
+        "verdict": 0.0
+      },
+      "capacity": {
+        "min": 2,
+        "typical": 4,
+        "max": 7,
+        "unbounded": false,
+        "item_noun": "phase"
+      },
+      "size": {
+        "min_cols": 6,
+        "max_cols": 12,
+        "height_model": "phase-row",
+        "reflows": true
+      },
+      "density": {
+        "base_px": 64.0,
+        "per_item_px": 8.0
+      },
+      "emphasis": [
+        "primary",
+        "support"
+      ],
+      "provenance": false,
+      "inline": false,
+      "audit": "conforms",
+      "ports_from": null,
+      "notes": ""
+    },
+    {
+      "id": "verdict-callout",
+      "css": "verdict-callout",
+      "tier": "bespoke",
+      "role": "summary banner with inline stat dots",
+      "content_schema": {
+        "total": "str",
+        "stats": [
+          {
+            "label": "str",
+            "count": "str"
+          }
+        ],
+        "_text_bearing": true
+      },
+      "fit": {
+        "metric": 0.6,
+        "delta": 0.0,
+        "comparison": 0.0,
+        "sequence": 0.0,
+        "relationship": 0.0,
+        "proportion": 0.0,
+        "quote": 0.0,
+        "set": 0.0,
+        "trend": 0.0,
+        "narrative": 0.0,
+        "verdict": 1.0
+      },
+      "capacity": {
+        "min": 1,
+        "typical": 3,
+        "max": 5,
+        "unbounded": false,
+        "item_noun": "stat"
+      },
+      "size": {
+        "min_cols": 8,
+        "max_cols": 12,
+        "height_model": "verdict-callout",
+        "reflows": true
+      },
+      "density": {
+        "base_px": 56.0,
+        "per_item_px": 0.0
+      },
+      "emphasis": [
+        "focal",
+        "primary"
+      ],
+      "provenance": false,
+      "inline": false,
+      "audit": "conforms",
+      "ports_from": null,
+      "notes": ""
+    },
+    {
+      "id": "ask-box",
+      "css": "ask-box",
+      "tier": "bespoke",
+      "role": "board-ask call-to-action (title + item list)",
+      "content_schema": {
+        "title": "str",
+        "items": [
+          "str"
+        ],
+        "_text_bearing": true
+      },
+      "fit": {
+        "metric": 0.0,
+        "delta": 0.0,
+        "comparison": 0.0,
+        "sequence": 0.0,
+        "relationship": 0.0,
+        "proportion": 0.0,
+        "quote": 0.0,
+        "set": 0.0,
+        "trend": 0.0,
+        "narrative": 0.7,
+        "verdict": 0.9
+      },
+      "capacity": {
+        "min": 1,
+        "typical": 3,
+        "max": 6,
+        "unbounded": false,
+        "item_noun": "ask"
+      },
+      "size": {
+        "min_cols": 6,
+        "max_cols": 12,
+        "height_model": "ask-box",
+        "reflows": false
+      },
+      "density": {
+        "base_px": 72.0,
+        "per_item_px": 26.0
+      },
+      "emphasis": [
+        "focal",
+        "primary"
+      ],
+      "provenance": false,
+      "inline": false,
+      "audit": "conforms",
+      "ports_from": null,
+      "notes": ""
+    },
+    {
+      "id": "arch-diagram",
+      "css": "arch-diagram",
+      "tier": "bespoke",
+      "role": "flow boxes colored by health (relationship)",
+      "content_schema": {
+        "items": [
+          {
+            "label": "str",
+            "value": "str",
+            "state": "enum"
+          }
+        ]
+      },
+      "fit": {
+        "metric": 0.0,
+        "delta": 0.0,
+        "comparison": 0.0,
+        "sequence": 0.0,
+        "relationship": 0.9,
+        "proportion": 0.0,
+        "quote": 0.0,
+        "set": 0.5,
+        "trend": 0.0,
+        "narrative": 0.0,
+        "verdict": 0.0
+      },
+      "capacity": {
+        "min": 2,
+        "typical": 3,
+        "max": 5,
+        "unbounded": false,
+        "item_noun": "box"
+      },
+      "size": {
+        "min_cols": 6,
+        "max_cols": 12,
+        "height_model": "arch-diagram",
+        "reflows": true
+      },
+      "density": {
+        "base_px": 20.0,
+        "per_item_px": 74.0
+      },
+      "emphasis": [
+        "primary",
+        "support"
+      ],
+      "provenance": false,
+      "inline": false,
+      "audit": "conforms",
+      "ports_from": null,
+      "notes": ""
+    },
+    {
+      "id": "provenance",
+      "css": "provenance",
+      "tier": "port",
+      "role": "source-ref affordance \u2014 surfaced on demand under any block",
+      "content_schema": {
+        "refs": [
+          {
+            "source": "str",
+            "as_of": "str",
+            "url": "str"
+          }
+        ],
+        "_text_bearing": true
+      },
+      "fit": {
+        "metric": 0.0,
+        "delta": 0.0,
+        "comparison": 0.0,
+        "sequence": 0.0,
+        "relationship": 0.0,
+        "proportion": 0.0,
+        "quote": 0.0,
+        "set": 0.0,
+        "trend": 0.0,
+        "narrative": 0.0,
+        "verdict": 0.0
+      },
+      "capacity": {
+        "min": 1,
+        "typical": 2,
+        "max": 5,
+        "unbounded": false,
+        "item_noun": "ref"
+      },
+      "size": {
+        "min_cols": 4,
+        "max_cols": 12,
+        "height_model": "provenance",
+        "reflows": true
+      },
+      "density": {
+        "base_px": 16.0,
+        "per_item_px": 20.0
+      },
+      "emphasis": [
+        "aside"
+      ],
+      "provenance": true,
+      "inline": true,
+      "audit": "conforms",
+      "ports_from": "Provenance (blocks.tsx:166 \u2014 on every v2 block)",
+      "notes": "v3 kit had NO provenance affordance (inventory gap). Every block can carry it."
+    },
+    {
+      "id": "evidence-list",
+      "css": "evidence-list",
+      "tier": "port",
+      "role": "rigor 'nutrition label' \u2014 claim + source grade + confidence + as_of",
+      "content_schema": {
+        "claims": [
+          {
+            "claim": "str",
+            "grade": "enum[A,B,C,D]",
+            "confidence": "number",
+            "as_of": "str"
+          }
+        ],
+        "_text_bearing": true
+      },
+      "fit": {
+        "metric": 0.0,
+        "delta": 0.0,
+        "comparison": 0.5,
+        "sequence": 0.0,
+        "relationship": 0.0,
+        "proportion": 0.0,
+        "quote": 0.0,
+        "set": 0.7,
+        "trend": 0.0,
+        "narrative": 0.0,
+        "verdict": 0.8
+      },
+      "capacity": {
+        "min": 2,
+        "typical": 4,
+        "max": 10,
+        "unbounded": false,
+        "item_noun": "claim"
+      },
+      "size": {
+        "min_cols": 8,
+        "max_cols": 12,
+        "height_model": "evidence-list",
+        "reflows": false
+      },
+      "density": {
+        "base_px": 28.0,
+        "per_item_px": 58.0
+      },
+      "emphasis": [
+        "primary",
+        "support"
+      ],
+      "provenance": true,
+      "inline": false,
+      "audit": "conforms",
+      "ports_from": "evidence (rigor-blocks.tsx:34)",
+      "notes": "closes the provenance/rigor claim-shape gap the brief names."
+    },
+    {
+      "id": "bias-check",
+      "css": "bias-check",
+      "tier": "port",
+      "role": "rigor \u2014 cognitive biases + risk + counter-measure",
+      "content_schema": {
+        "biases": [
+          {
+            "bias": "str",
+            "risk": "enum",
+            "counter": "str"
+          }
+        ],
+        "_text_bearing": true
+      },
+      "fit": {
+        "metric": 0.0,
+        "delta": 0.0,
+        "comparison": 0.0,
+        "sequence": 0.0,
+        "relationship": 0.0,
+        "proportion": 0.0,
+        "quote": 0.0,
+        "set": 0.7,
+        "trend": 0.0,
+        "narrative": 0.0,
+        "verdict": 0.7
+      },
+      "capacity": {
+        "min": 2,
+        "typical": 3,
+        "max": 8,
+        "unbounded": false,
+        "item_noun": "bias"
+      },
+      "size": {
+        "min_cols": 8,
+        "max_cols": 12,
+        "height_model": "bias-check",
+        "reflows": false
+      },
+      "density": {
+        "base_px": 24.0,
+        "per_item_px": 60.0
+      },
+      "emphasis": [
+        "support"
+      ],
+      "provenance": true,
+      "inline": false,
+      "audit": "conforms",
+      "ports_from": "biascheck (rigor-blocks.tsx:91)",
+      "notes": ""
+    },
+    {
+      "id": "chart",
+      "css": "chart",
+      "tier": "port",
+      "role": "dep-free single-hue SVG chart (bar/line/area/pie) + annotations",
+      "content_schema": {
+        "kind": "enum[bar,line,area,pie]",
+        "series": [
+          {
+            "label": "str",
+            "value": "number"
+          }
+        ],
+        "annotations": [
+          "str"
+        ]
+      },
+      "fit": {
+        "metric": 0.8,
+        "delta": 0.6,
+        "comparison": 0.8,
+        "sequence": 0.0,
+        "relationship": 0.0,
+        "proportion": 0.9,
+        "quote": 0.0,
+        "set": 0.0,
+        "trend": 1.0,
+        "narrative": 0.0,
+        "verdict": 0.0
+      },
+      "capacity": {
+        "min": 2,
+        "typical": 6,
+        "max": 16,
+        "unbounded": false,
+        "item_noun": "datum"
+      },
+      "size": {
+        "min_cols": 6,
+        "max_cols": 12,
+        "height_model": "chart",
+        "reflows": true
+      },
+      "density": {
+        "base_px": 220.0,
+        "per_item_px": 6.0
+      },
+      "emphasis": [
+        "focal",
+        "primary"
+      ],
+      "provenance": true,
+      "inline": false,
+      "audit": "conforms",
+      "ports_from": "chart (chart-block.tsx)",
+      "notes": "closes the chart claim-shape gap the brief names; dep-free SVG."
+    },
+    {
+      "id": "flow-embed",
+      "css": "flow-embed",
+      "tier": "port",
+      "role": "embed a saved okuro flow by id (framed panel + maximize affordance)",
+      "content_schema": {
+        "flow_id": "str",
+        "title": "str",
+        "nodes": "int",
+        "_text_bearing": true
+      },
+      "fit": {
+        "metric": 0.0,
+        "delta": 0.0,
+        "comparison": 0.0,
+        "sequence": 0.6,
+        "relationship": 1.0,
+        "proportion": 0.0,
+        "quote": 0.0,
+        "set": 0.0,
+        "trend": 0.0,
+        "narrative": 0.0,
+        "verdict": 0.0
+      },
+      "capacity": {
+        "min": 1,
+        "typical": 1,
+        "max": 1,
+        "unbounded": false,
+        "item_noun": "flow"
+      },
+      "size": {
+        "min_cols": 6,
+        "max_cols": 12,
+        "height_model": "flow-embed",
+        "reflows": true
+      },
+      "density": {
+        "base_px": 300.0,
+        "per_item_px": 0.0
+      },
+      "emphasis": [
+        "focal",
+        "primary"
+      ],
+      "provenance": true,
+      "inline": false,
+      "audit": "conforms",
+      "ports_from": "flow (flow-embed.tsx)",
+      "notes": "closes the flow-embed class the brief names; leapfrog v2 mechanic."
+    },
+    {
+      "id": "statement",
+      "css": "statement",
+      "tier": "port",
+      "role": "one assertion in huge type \u2014 the L1 hook / cover claim",
+      "content_schema": {
+        "text": "string",
+        "accent": "optional inline span",
+        "_text_bearing": true
+      },
+      "fit": {
+        "metric": 0.5,
+        "delta": 0.5,
+        "comparison": 0.5,
+        "sequence": 0.5,
+        "relationship": 0.5,
+        "proportion": 0.5,
+        "quote": 0.6,
+        "set": 0.5,
+        "trend": 0.5,
+        "narrative": 1.0,
+        "verdict": 0.8
+      },
+      "capacity": {
+        "min": 1,
+        "typical": 1,
+        "max": 1,
+        "unbounded": false,
+        "item_noun": "assertion"
+      },
+      "size": {
+        "min_cols": 8,
+        "max_cols": 12,
+        "height_model": "statement",
+        "reflows": false
+      },
+      "density": {
+        "base_px": 140.0,
+        "per_item_px": 0.0
+      },
+      "emphasis": [
+        "focal"
+      ],
+      "provenance": false,
+      "inline": false,
+      "audit": "conforms",
+      "ports_from": "statement (typography-blocks.tsx:18)",
+      "notes": "the maximal-impact hook archetype the inventory flagged missing (quote-cover class)."
+    },
+    {
+      "id": "pull-quote",
+      "css": "pull-quote",
+      "tier": "port",
+      "role": "pull-quote + attribution (oversized mark)",
+      "content_schema": {
+        "quote": "str",
+        "attribution": "str",
+        "_text_bearing": true
+      },
+      "fit": {
+        "metric": 0.0,
+        "delta": 0.0,
+        "comparison": 0.0,
+        "sequence": 0.0,
+        "relationship": 0.0,
+        "proportion": 0.0,
+        "quote": 1.0,
+        "set": 0.0,
+        "trend": 0.0,
+        "narrative": 0.6,
+        "verdict": 0.0
+      },
+      "capacity": {
+        "min": 1,
+        "typical": 1,
+        "max": 1,
+        "unbounded": false,
+        "item_noun": "quote"
+      },
+      "size": {
+        "min_cols": 6,
+        "max_cols": 12,
+        "height_model": "pull-quote",
+        "reflows": false
+      },
+      "density": {
+        "base_px": 120.0,
+        "per_item_px": 0.0
+      },
+      "emphasis": [
+        "focal",
+        "primary"
+      ],
+      "provenance": true,
+      "inline": false,
+      "audit": "conforms",
+      "ports_from": "quote (typography-blocks.tsx:45)",
+      "notes": "closes the quote claim-shape gap (kit had only .prose blockquote)."
+    },
+    {
+      "id": "matrix",
+      "css": "matrix",
+      "tier": "port",
+      "role": "feature comparison grid (checkmark/cross/tilde), winner-col tint",
+      "content_schema": {
+        "cols": [
+          "str"
+        ],
+        "rows": [
+          {
+            "label": "str",
+            "cells": [
+              "enum[yes,no,partial]"
+            ]
+          }
+        ],
+        "_text_bearing": true
+      },
+      "fit": {
+        "metric": 0.0,
+        "delta": 0.0,
+        "comparison": 1.0,
+        "sequence": 0.0,
+        "relationship": 0.0,
+        "proportion": 0.0,
+        "quote": 0.0,
+        "set": 0.7,
+        "trend": 0.0,
+        "narrative": 0.0,
+        "verdict": 0.5
+      },
+      "capacity": {
+        "min": 2,
+        "typical": 6,
+        "max": 16,
+        "unbounded": true,
+        "item_noun": "row"
+      },
+      "size": {
+        "min_cols": 8,
+        "max_cols": 12,
+        "height_model": "matrix",
+        "reflows": false
+      },
+      "density": {
+        "base_px": 48.0,
+        "per_item_px": 40.0
+      },
+      "emphasis": [
+        "primary",
+        "focal"
+      ],
+      "provenance": true,
+      "inline": false,
+      "audit": "conforms",
+      "ports_from": "matrix (data-blocks.tsx:39)",
+      "notes": "feature-comparison distinct from classification-table (verdict)."
+    },
+    {
+      "id": "dense-table",
+      "css": "dense-table",
+      "tier": "high-cardinality",
+      "role": "compact open-ended data table, 10-30 rows, zebra + sticky header",
+      "content_schema": {
+        "headers": [
+          "str"
+        ],
+        "rows": [
+          [
+            "str"
+          ]
+        ],
+        "row_state": "optional enum",
+        "_text_bearing": true
+      },
+      "fit": {
+        "metric": 0.5,
+        "delta": 0.0,
+        "comparison": 0.9,
+        "sequence": 0.0,
+        "relationship": 0.0,
+        "proportion": 0.0,
+        "quote": 0.0,
+        "set": 0.9,
+        "trend": 0.0,
+        "narrative": 0.0,
+        "verdict": 0.8
+      },
+      "capacity": {
+        "min": 8,
+        "typical": 16,
+        "max": 30,
+        "unbounded": true,
+        "item_noun": "row"
+      },
+      "size": {
+        "min_cols": 8,
+        "max_cols": 12,
+        "height_model": "dense-table",
+        "reflows": false
+      },
+      "density": {
+        "base_px": 44.0,
+        "per_item_px": 30.0
+      },
+      "emphasis": [
+        "primary",
+        "support"
+      ],
+      "provenance": true,
+      "inline": false,
+      "audit": "conforms",
+      "ports_from": null,
+      "notes": "the 13-principles claim renders here without truncation."
+    },
+    {
+      "id": "two-column-list",
+      "css": "two-col-list",
+      "tier": "high-cardinality",
+      "role": "10-20 short items balanced across two columns",
+      "content_schema": {
+        "items": [
+          {
+            "title": "str",
+            "sub": "str"
+          }
+        ],
+        "_text_bearing": true
+      },
+      "fit": {
+        "metric": 0.0,
+        "delta": 0.0,
+        "comparison": 0.0,
+        "sequence": 0.0,
+        "relationship": 0.0,
+        "proportion": 0.0,
+        "quote": 0.0,
+        "set": 1.0,
+        "trend": 0.0,
+        "narrative": 0.4,
+        "verdict": 0.0
+      },
+      "capacity": {
+        "min": 8,
+        "typical": 14,
+        "max": 24,
+        "unbounded": true,
+        "item_noun": "item"
+      },
+      "size": {
+        "min_cols": 8,
+        "max_cols": 12,
+        "height_model": "two-column-list",
+        "reflows": true
+      },
+      "density": {
+        "base_px": 24.0,
+        "per_item_px": 30.0
+      },
+      "emphasis": [
+        "primary",
+        "support"
+      ],
+      "provenance": true,
+      "inline": false,
+      "audit": "conforms",
+      "ports_from": null,
+      "notes": ""
+    },
+    {
+      "id": "tag-wall",
+      "css": "tag-wall",
+      "tier": "high-cardinality",
+      "role": "10-40 chips as a scannable wall (tech list, capability set, glossary)",
+      "content_schema": {
+        "tags": [
+          {
+            "label": "str",
+            "tone": "optional enum"
+          }
+        ]
+      },
+      "fit": {
+        "metric": 0.0,
+        "delta": 0.0,
+        "comparison": 0.0,
+        "sequence": 0.0,
+        "relationship": 0.0,
+        "proportion": 0.0,
+        "quote": 0.0,
+        "set": 1.0,
+        "trend": 0.0,
+        "narrative": 0.0,
+        "verdict": 0.0
+      },
+      "capacity": {
+        "min": 10,
+        "typical": 20,
+        "max": 40,
+        "unbounded": true,
+        "item_noun": "tag"
+      },
+      "size": {
+        "min_cols": 6,
+        "max_cols": 12,
+        "height_model": "tag-wall",
+        "reflows": true
+      },
+      "density": {
+        "base_px": 20.0,
+        "per_item_px": 12.0
+      },
+      "emphasis": [
+        "support",
+        "aside"
+      ],
+      "provenance": false,
+      "inline": false,
+      "audit": "conforms",
+      "ports_from": null,
+      "notes": "a 40-item capability set that would overflow card-set fits here."
+    },
+    {
+      "id": "tier-badge",
+      "css": "tier-badge",
+      "tier": "bespoke",
+      "role": "pill classifier chip",
+      "content_schema": {
+        "label": "str",
+        "tone": "enum"
+      },
+      "fit": {
+        "metric": 0.0,
+        "delta": 0.0,
+        "comparison": 0.0,
+        "sequence": 0.0,
+        "relationship": 0.0,
+        "proportion": 0.0,
+        "quote": 0.0,
+        "set": 0.0,
+        "trend": 0.0,
+        "narrative": 0.0,
+        "verdict": 0.5
+      },
+      "capacity": {
+        "min": 1,
+        "typical": 1,
+        "max": 1,
+        "unbounded": false,
+        "item_noun": "chip"
+      },
+      "size": {
+        "min_cols": 1,
+        "max_cols": 2,
+        "height_model": "_inline",
+        "reflows": false
+      },
+      "density": {
+        "base_px": 0.0,
+        "per_item_px": 0.0
+      },
+      "emphasis": [
+        "aside"
+      ],
+      "provenance": false,
+      "inline": true,
+      "audit": "conforms",
+      "ports_from": null,
+      "notes": ""
+    },
+    {
+      "id": "verdict-badge",
+      "css": "verdict-badge",
+      "tier": "bespoke",
+      "role": "status chip (dim tint + ink, AA)",
+      "content_schema": {
+        "label": "str",
+        "tone": "enum"
+      },
+      "fit": {
+        "metric": 0.0,
+        "delta": 0.0,
+        "comparison": 0.0,
+        "sequence": 0.0,
+        "relationship": 0.0,
+        "proportion": 0.0,
+        "quote": 0.0,
+        "set": 0.0,
+        "trend": 0.0,
+        "narrative": 0.0,
+        "verdict": 0.5
+      },
+      "capacity": {
+        "min": 1,
+        "typical": 1,
+        "max": 1,
+        "unbounded": false,
+        "item_noun": "chip"
+      },
+      "size": {
+        "min_cols": 1,
+        "max_cols": 2,
+        "height_model": "_inline",
+        "reflows": false
+      },
+      "density": {
+        "base_px": 0.0,
+        "per_item_px": 0.0
+      },
+      "emphasis": [
+        "aside"
+      ],
+      "provenance": false,
+      "inline": true,
+      "audit": "conforms",
+      "ports_from": null,
+      "notes": ""
+    },
+    {
+      "id": "method-badge",
+      "css": "method-badge",
+      "tier": "bespoke",
+      "role": "HTTP-method mono chip",
+      "content_schema": {
+        "label": "str"
+      },
+      "fit": {
+        "metric": 0.0,
+        "delta": 0.0,
+        "comparison": 0.0,
+        "sequence": 0.0,
+        "relationship": 0.0,
+        "proportion": 0.0,
+        "quote": 0.0,
+        "set": 0.0,
+        "trend": 0.0,
+        "narrative": 0.0,
+        "verdict": 0.0
+      },
+      "capacity": {
+        "min": 1,
+        "typical": 1,
+        "max": 1,
+        "unbounded": false,
+        "item_noun": "chip"
+      },
+      "size": {
+        "min_cols": 1,
+        "max_cols": 2,
+        "height_model": "_inline",
+        "reflows": false
+      },
+      "density": {
+        "base_px": 0.0,
+        "per_item_px": 0.0
+      },
+      "emphasis": [
+        "aside"
+      ],
+      "provenance": false,
+      "inline": true,
+      "audit": "conforms",
+      "ports_from": null,
+      "notes": ""
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>okuro·prism</title>
+    <!-- The backend injects the deck payload here before the module runs. The
+         classic inline script executes at parse time, ahead of the deferred
+         module below, so window.__PRISM_EXPORT__ is always set on mount. -->
+    <script>window.__PRISM_EXPORT__ = /*__PRISM_PAYLOAD__*/ null;</script>
+  </head>
+  <body>
+    <div id="prism-export-root"></div>
+    <script type="module" src="/src/prism-export.tsx"></script>
+  </body>
+</html>

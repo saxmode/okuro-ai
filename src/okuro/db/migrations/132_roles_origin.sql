@@ -1,0 +1,27 @@
+-- <!-- AGENT_HEADER
+-- role: code
+-- purpose: 132_roles_origin — record which layer a role row belongs to, so
+--   the seeder can protect personal roles from ever being overwritten by a
+--   shipped-catalog re-seed or a release update.
+-- index: content
+-- AGENT_HEADER_END -->
+--
+-- WHY THIS EXISTS. The role catalog is splitting into two layers (shipped
+-- in-tree vs personal in ~/.okuro/roles/catalog — okuro/roles/layers.py).
+-- The protection rule "a re-seed never clobbers a personal role" needs
+-- storage: today a runtime-created role (roles/drafter.py, roles/designer.py
+-- plain upserts) is indistinguishable from a catalog-seeded one.
+--
+-- VALUES. 'shipped' = seeded from the in-tree catalog. 'user' = personal:
+-- created at runtime or seeded from the user layer. Writers each declare
+-- their layer; seed_from_catalog additionally backfills 'user' onto every
+-- row whose role_id is absent from the shipped catalog (idempotent — this
+-- also gives pre-132 runtime-created rows the right value, and it means a
+-- role REMOVED from the shipped catalog flips to 'user', i.e. is preserved
+-- rather than orphaned).
+--
+-- Additive: constant default keeps the ALTER valid for SQLite, and
+-- 'shipped' is correct for the overwhelming majority of existing rows
+-- (94 curated roles) until the first seed run backfills the rest.
+
+ALTER TABLE roles ADD COLUMN origin TEXT NOT NULL DEFAULT 'shipped';

@@ -1,0 +1,99 @@
+# <!-- AGENT_HEADER
+# role: config
+# purpose: Canon entry — Antigravity CLI (agy) install / auth / detection.
+# index: tool_id | name | type | install | authenticate | detect
+# AGENT_HEADER_END -->
+tool_id: antigravity-cli
+name: "Antigravity CLI"
+type: cli_tool
+category: inference_cli
+version: "latest"
+
+description: >
+  Google's terminal coding agent, invoked as `agy`. The sanctioned successor
+  to the Gemini CLI, which stopped serving individual accounts on
+  2026-06-18. Notably NOT Google-only: `agy models` lists Gemini 3.5 Flash
+  and 3.1 Pro alongside Claude Sonnet 4.6, Claude Opus 4.6 and GPT-OSS 120B,
+  so one binary reaches three vendors' models on one consumer subscription.
+  Ships as a single flat native binary — no Node, no npm package to keep
+  updated.
+
+binary: agy
+provider_id: antigravity
+
+install:
+  # Verified 2026-07-17 by fetching the script itself (HTTP 200,
+  # content-type: application/x-sh, 7354 bytes) rather than trusting a blog:
+  # it declares TARGET_DIR="$HOME/.local/bin" and BINARY_PATH="$TARGET_DIR/agy",
+  # which is exactly where the working install on this machine lives. It is
+  # re-runnable ("Notice: 'agy' is already installed at ...").
+  linux:
+    prerequisites:
+      - name: curl
+        detect: "curl --version"
+        install_hint: "Ubuntu: `sudo apt install curl`  |  Fedora: `sudo dnf install curl`"
+    command: "curl -fsSL https://antigravity.google/cli/install.sh | bash"
+    post_install_check: "agy --version"
+  darwin:
+    prerequisites:
+      - name: curl
+        detect: "curl --version"
+        install_hint: "curl ships with macOS"
+    command: "curl -fsSL https://antigravity.google/cli/install.sh | bash"
+    post_install_check: "agy --version"
+
+authenticate:
+  command: "agy"
+  instructions: >
+    Launch `agy` once and complete the Google sign-in it prompts for. Unlike
+    the retired Gemini CLI, a consumer subscription is entitled to serve
+    models — verify with `agy models`, which lists what the account can
+    actually reach.
+
+detect:
+  which: "agy"
+  auth_probe:
+    # `agy models` — NOT `agy --version`. Measured 2026-07-17 with strace:
+    # `agy --version` makes ZERO network connections, so it exits 0 for an
+    # unauthenticated or unentitled account — the exact trap that made
+    # gemini's `--version` probe report "authenticated" for a CLI that could
+    # not answer. `agy models` opens ~84 outbound connections and reads the
+    # TLS trust store: it asks the service what this account may use, so it
+    # can actually fail. ~1.5s, and unlike `agy -p` it costs no inference.
+    command: ["agy", "models"]
+    timeout_seconds: 20
+    success_exit_code: 0
+
+# NOTE: `agy update` exists as a self-update path, and the installer is
+# re-runnable, so either upgrades in place.
+
+docs_url: "https://antigravity.google/docs/cli-getting-started"
+
+metadata:
+  author: okuro
+  created: "2026-07-17"
+  tags: [inference, cli, google, antigravity, multi-vendor]
+
+enabled: true
+recommended: false
+
+# --- Consumer registry (P2 Phase A) — additive read-model; wired to nothing yet.
+# NOT in _provider_paths / _PROVIDER_IDS / _KNOWN_CLIS yet — the "extra" the
+# equivalence proof expects. P3 promotes it to a first-class writer.
+short_name: antigravity
+capabilities:
+  kind: cli
+  mcp:
+    # CLI ("Global Configuration") target. The IDE reads a DIFFERENT file
+    # (~/.gemini/antigravity/mcp_config.json) — separate emitter, out of P2 scope.
+    path: ".gemini/config/mcp_config.json"
+    format: json
+    root_key: mcpServers
+    remote_field: serverUrl
+    transports: [stdio, sse]         # NO streamable http
+    preferred_transport: stdio
+  instructions:
+    path: ".gemini/AGENTS.md"
+  hooks:
+    supported: true                  # PreToolUse/PostToolUse/PreInvocation/PostInvocation/Stop
+  probe: cli

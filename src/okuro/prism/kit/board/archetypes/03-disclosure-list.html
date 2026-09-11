@@ -1,0 +1,14 @@
+<!-- archetype: expandable-disclosure-list (kit-spec 3b · index slide 5). Slots: eyebrow, title, lede, rows[3-7] -->
+<section class="slide" data-archetype="disclosure-list">
+  <div class="slide-inner">
+    <div class="slide-eyebrow" data-slot="eyebrow"><span class="slide-num">03</span> Safety guarantees</div>
+    <h1 class="slide-title" data-slot="title">Five promises you can <span class="accent">audit</span></h1>
+    <ul class="bullet-list" data-slot="rows">
+      <li class="bullet-row"><div class="bullet-head"><span class="bullet-mark">1</span><div><p class="bullet-title">The model is never load-bearing</p><div class="bullet-sub">Deterministic fallback on every path</div></div><span class="bullet-toggle">Evidence <span class="chevron">▾</span></span></div><div class="bullet-body"><p>If inference fails, the rules engine still resolves the request. <code>redteam.py</code> proves the offline path.</p></div></li>
+      <li class="bullet-row"><div class="bullet-head"><span class="bullet-mark">2</span><div><p class="bullet-title">PII never leaves the LAN</p><div class="bullet-sub">Recipient model is firewalled</div></div><span class="bullet-toggle">Evidence <span class="chevron">▾</span></span></div><div class="bullet-body"><p>Personal data is resolved locally; only shaped claims cross the boundary.</p></div></li>
+      <li class="bullet-row"><div class="bullet-head"><span class="bullet-mark">3</span><div><p class="bullet-title">Every claim is grounded</p><div class="bullet-sub">Entailment re-run after adaptation</div></div><span class="bullet-toggle">Evidence <span class="chevron">▾</span></span></div><div class="bullet-body"><p>Adaptation is a non-destructive overlay; grounding is re-checked.</p></div></li>
+      <li class="bullet-row"><div class="bullet-head"><span class="bullet-mark">4</span><div><p class="bullet-title">Opt-in, not opt-out</p><div class="bullet-sub">AI is optimisation, not dependency</div></div><span class="bullet-toggle">Evidence <span class="chevron">▾</span></span></div><div class="bullet-body"><p>Disable AI and the product still works, just slower.</p></div></li>
+      <li class="bullet-row"><div class="bullet-head"><span class="bullet-mark warn">5</span><div><p class="bullet-title">Wrong answers fail loud</p><div class="bullet-sub">Low confidence flags a human</div></div><span class="bullet-toggle">Evidence <span class="chevron">▾</span></span></div><div class="bullet-body"><p>Below threshold, the flow escalates rather than guessing.</p></div></li>
+    </ul>
+  </div>
+</section>

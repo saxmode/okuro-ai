@@ -1,0 +1,313 @@
+{
+  "id": "demo-board-deck",
+  "title": "Agents that act, not chat",
+  "brand": "okuro",
+  "tagline": "A recipient-tailored decision deck — one claim per slide, evidence on demand.",
+  "hero": {
+    "slide": {
+      "archetype": "hero",
+      "slots": {
+        "eyebrow": { "num": "01", "text": "Board brief · 2026" },
+        "title": [{ "text": "Agents that " }, { "text": "act", "accent": true }, { "text": ", not chat" }],
+        "lede": "A recipient-tailored decision deck: one claim per slide, evidence on demand, safety as an opt-in guarantee.",
+        "personas": [
+          { "mark": "a", "name": "Marco", "lens": "CEO · outcomes" },
+          { "mark": "b", "name": "Milo", "lens": "CPO · delivery" },
+          { "mark": "c", "name": "Dario", "lens": "CTO · safety" }
+        ],
+        "meta": [
+          { "label": "Scope", "value": "12 archetypes" },
+          { "label": "Canvas", "value": "1600×900" },
+          { "label": "Depth", "value": "L0–L3" }
+        ]
+      }
+    }
+  },
+  "topics": [
+    {
+      "id": "decision",
+      "title": "The decision",
+      "levels": {
+        "L0": {
+          "slide": {
+            "archetype": "binary-choice",
+            "slots": {
+              "eyebrow": { "num": "07", "text": "Fork in the road" },
+              "title": [{ "text": "Ship narrow or ship " }, { "text": "whole", "accent": true }],
+              "paths": [
+                { "tone": "warn", "eyebrow": "Path A · defer", "title": "One provider, one model", "body": "Fast to demo, but locks the roadmap to a single vendor's pricing and cadence.", "footer": "Risk: lock-in, brittle" },
+                { "tone": "accent", "eyebrow": "Path B · recommend", "title": "Provider-agnostic core", "body": "Route by capability, not name. Swap any model as data, never as a rewrite.", "footer": "Payoff: durable, no lock-in" }
+              ],
+              "callout": { "variant": "info", "label": "Recommendation", "body": "Take Path B — the abstraction cost is paid once; the flexibility compounds forever." }
+            }
+          }
+        },
+        "L1": {
+          "pick": 0,
+          "slide": {
+            "archetype": "decision-matrix",
+            "slots": {
+              "eyebrow": { "num": "05", "text": "The build decision" },
+              "title": [{ "text": "Where the agents " }, { "text": "run", "accent": true }],
+              "options": [
+                { "label": "Option A", "title": "Cloud-only", "lines": [{ "k": "Cost", "v": "Scales with use" }, { "k": "Latency", "v": "120–400 ms" }, { "k": "Privacy", "v": "Data leaves LAN" }] },
+                { "label": "Option B · pick", "title": "Local-first", "recommended": true, "lines": [{ "k": "Cost", "v": "Flat, owned GPU" }, { "k": "Latency", "v": "18–60 ms" }, { "k": "Privacy", "v": "Stays on LAN" }] },
+                { "label": "Option C", "title": "Hybrid", "lines": [{ "k": "Cost", "v": "Mixed" }, { "k": "Latency", "v": "Variable" }, { "k": "Privacy", "v": "Partial" }] }
+              ]
+            }
+          },
+          "alternates": [
+            {
+              "archetype": "card-set",
+              "slots": {
+                "eyebrow": { "num": "05", "text": "The build decision" },
+                "title": [{ "text": "Local-first, " }, { "text": "measured", "accent": true }],
+                "stats": [
+                  { "num": "18ms", "numState": "ok", "lbl": "local latency" },
+                  { "num": "120ms", "numState": "warn", "lbl": "cloud latency" },
+                  { "num": "0", "numState": "gold", "lbl": "data off-LAN" }
+                ],
+                "cards": [
+                  { "icon": "⚡", "name": "Fast", "desc": "Edge inference under 60 ms" },
+                  { "icon": "🔒", "name": "Private", "desc": "PII never leaves the LAN" },
+                  { "icon": "💾", "name": "Flat cost", "desc": "Owned GPU, no per-token bill" }
+                ]
+              }
+            }
+          ]
+        },
+        "L2": {
+          "slide": {
+            "archetype": "framework-tiles",
+            "slots": {
+              "eyebrow": { "num": "06", "text": "The multiplier" },
+              "title": [{ "text": "Compounding, not " }, { "text": "linear", "accent": true }],
+              "tiles": [
+                { "label": "Sessions / week", "value": "240", "desc": "agent runs feeding the brain" },
+                { "label": "Re-explain cost", "value": "−92%", "desc": "context is durable, not ephemeral" },
+                { "label": "Learnings kept", "value": "1.3k", "desc": "each session starts smarter" }
+              ],
+              "table": {
+                "headers": ["Lever", "Before", "After"],
+                "rows": [
+                  [{ "text": "Onboarding a deck" }, { "text": "3 meetings" }, { "text": "1 artifact", "strong": true }],
+                  [{ "text": "Context handoff" }, { "text": "Manual recap" }, { "text": "Auto-served", "strong": true }]
+                ]
+              }
+            }
+          }
+        }
+      },
+      "l3": {
+        "title": "The build decision — full context",
+        "width": "wide",
+        "sections": [
+          { "id": "why", "heading": "Why local-first", "level": 1, "md": "The core question is **where the agents run**. Cloud-only is fastest to demo but ties the roadmap to *one vendor's* pricing and cadence.\n\n## Trade-offs\n\nLocal-first pays an abstraction cost once and keeps three things under our control:\n\n- Latency — sub-`60ms` on the owned GPU\n- Privacy — no transcript leaves the box\n- Cost — flat, not metered\n\n> Own the substrate once; every modality rides it for free.\n\nSee the [request lifecycle](#topic-runs) for how a call resolves:\n\n```\nedge -> intent -> broker -> action\n```" },
+          { "id": "matrix", "heading": "The options at a glance", "level": 2, "figure": { "caption": "Decision matrix — Option B recommended.", "slide": { "archetype": "decision-matrix", "slots": { "eyebrow": { "num": "05", "text": "The build decision" }, "title": [{ "text": "Where the agents " }, { "text": "run", "accent": true }], "options": [ { "label": "Option A", "title": "Cloud-only", "lines": [{ "k": "Cost", "v": "Scales with use" }, { "k": "Latency", "v": "120–400 ms" }] }, { "label": "Option B · pick", "title": "Local-first", "recommended": true, "lines": [{ "k": "Cost", "v": "Flat, owned GPU" }, { "k": "Latency", "v": "18–60 ms" }] }, { "label": "Option C", "title": "Hybrid", "lines": [{ "k": "Cost", "v": "Mixed" }, { "k": "Latency", "v": "Variable" }] } ] } } } },
+          { "id": "next", "heading": "What follows", "level": 2, "md": "Once the provider-agnostic core lands, adding a model is data, not code. The same substrate carries every modality.", "crossLinks": [{ "topicId": "runs", "label": "How the request lifecycle runs" }] }
+        ]
+      }
+    },
+    {
+      "id": "runs",
+      "title": "How it runs",
+      "levels": {
+        "L0": {
+          "slide": {
+            "archetype": "flow-sequence",
+            "slots": {
+              "eyebrow": { "num": "09", "text": "Request lifecycle" },
+              "title": [{ "text": "Edge first, cloud " }, { "text": "last", "accent": true }],
+              "lede": "Where each step runs — and the latency it adds — read at a glance.",
+              "steps": [
+                { "num": "1", "actor": "user", "what": "User speaks a command in the room", "tool": "wake-word", "ms": "0 ms" },
+                { "num": "2", "actor": "edge", "what": "Local STT transcribes on-device", "tool": "whisper.cpp", "ms": "18 ms" },
+                { "num": "3", "actor": "edge", "what": "Intent resolved by the local model", "tool": "llama-local", "ms": "42 ms" },
+                { "num": "4", "actor": "cloud", "what": "Only novel asks escalate to cloud", "tool": "bridge", "ms": "210 ms" },
+                { "num": "5", "actor": "edge", "what": "Action executes against the broker", "tool": "mcp-call", "ms": "12 ms" }
+              ]
+            }
+          }
+        },
+        "L1": {
+          "slide": {
+            "archetype": "proportion-bars",
+            "slots": {
+              "eyebrow": { "num": "10", "text": "Context budget" },
+              "title": [{ "text": "Where the tokens " }, { "text": "go", "accent": true }],
+              "lede": "Each call's share of the window — green is safe, amber is caution, red overflows.",
+              "rows": [
+                { "stage": "System prompt", "pct": 22, "state": "safe", "value": "2.8k" },
+                { "stage": "Retrieved memory", "pct": 38, "state": "safe", "value": "4.9k" },
+                { "stage": "Tool schemas", "pct": 64, "state": "caution", "value": "8.1k" },
+                { "stage": "Transcript tail", "pct": 88, "state": "danger", "value": "11.2k" }
+              ]
+            }
+          }
+        },
+        "L2": {
+          "slide": {
+            "archetype": "classification-table",
+            "slots": {
+              "eyebrow": { "num": "08", "text": "API verdict" },
+              "title": [{ "text": "Keep, cut, or " }, { "text": "redesign", "accent": true }],
+              "summary": {
+                "text": "19 endpoints reviewed",
+                "stats": [
+                  { "color": "var(--ok)", "text": "8 essential" },
+                  { "color": "var(--warn)", "text": "5 no-go" },
+                  { "color": "var(--gold)", "text": "6 redesign" }
+                ]
+              },
+              "columns": [
+                { "label": "Endpoint" },
+                { "label": "Method", "role": "method" },
+                { "label": "Verdict", "role": "verdict" },
+                { "label": "Reason" }
+              ],
+              "rows": [
+                { "cells": ["/inbox/list", "get", "Essential", "Core read path, high traffic"], "verdict": "essential" },
+                { "cells": ["/legacy/sync", "post", "No-go", "Duplicates the event bus"], "verdict": "nogo" },
+                { "cells": ["/doc/render", "put", "Redesign", "Blocking; make it async"], "verdict": "redesign" },
+                { "cells": ["/ping/v1", "get", "Redundant", "Superseded by /health"], "verdict": "redundant" }
+              ]
+            }
+          }
+        }
+      },
+      "l3": {
+        "title": "Request lifecycle — full context",
+        "width": "reading",
+        "sections": [
+          { "id": "path", "heading": "The edge-first path", "level": 1, "md": "Every request tries the edge first. Wake-word, STT, and intent all resolve on-device; only novel asks escalate to cloud. The broker executes the resolved action locally, so the round trip stays well under a human's perception threshold." },
+          { "id": "budget", "heading": "Watching the context budget", "level": 2, "md": "The transcript tail is the first thing to overflow the window. Retrieval and tool schemas are bounded; the tail is not, so it is compacted first." }
+        ]
+      }
+    },
+    {
+      "id": "does",
+      "title": "What it does",
+      "levels": {
+        "L0": {
+          "slide": {
+            "archetype": "card-set",
+            "slots": {
+              "eyebrow": { "num": "11", "text": "What it can do" },
+              "title": [{ "text": "Four capabilities, one " }, { "text": "substrate", "accent": true }],
+              "stats": [
+                { "num": "4", "numState": "ok", "lbl": "modalities local" },
+                { "num": "48GB", "lbl": "VRAM on tap" },
+                { "num": "3", "numState": "info", "lbl": "edition tiers" },
+                { "num": "0", "numState": "gold", "lbl": "vendor lock-in" }
+              ],
+              "cards": [
+                { "icon": "🧠", "name": "Reason", "desc": "Local LLMs, routed by capability" },
+                { "icon": "🖼", "name": "See", "desc": "Image gen + vision on device" },
+                { "icon": "🔊", "name": "Speak", "desc": "TTS / STT with no cloud hop" },
+                { "icon": "🎬", "name": "Render", "desc": "Video from the same scene IR" }
+              ]
+            }
+          }
+        },
+        "L1": {
+          "slide": {
+            "archetype": "scenario-beats",
+            "slots": {
+              "eyebrow": { "num": "04", "text": "A day in the life" },
+              "title": [{ "text": "The 09:00 " }, { "text": "handover", "accent": true }],
+              "beats": [
+                { "mark": "T+0s", "body": "A session closes; what it learned is written back.", "who": "agent · close-out" },
+                { "mark": "T+3s", "body": "The next session opens already briefed on that work.", "who": "engine · orchestration" },
+                { "mark": "T+12s", "body": "The brief arrives shaped for whoever is reading it.", "who": "ui · delivery" }
+              ],
+              "callout": { "variant": "info", "label": "Why it lands", "body": "Every beat is a real primitive already in the stack — the wow is arrangement, not new tech." }
+            }
+          }
+        },
+        "L2": {
+          "slide": {
+            "archetype": "disclosure-list",
+            "slots": {
+              "eyebrow": { "num": "03", "text": "Safety guarantees" },
+              "title": [{ "text": "Five promises you can " }, { "text": "audit", "accent": true }],
+              "rows": [
+                { "mark": "1", "title": "The model is never load-bearing", "sub": "Deterministic fallback on every path", "toggle": "Evidence", "body": "If inference fails, the rules engine still resolves the request." },
+                { "mark": "2", "title": "PII never leaves the LAN", "sub": "Recipient model is firewalled", "toggle": "Evidence", "body": "Personal data is resolved locally; only shaped claims cross the boundary." },
+                { "mark": "3", "title": "Every claim is grounded", "sub": "Entailment re-run after adaptation", "toggle": "Evidence", "body": "Adaptation is a non-destructive overlay; grounding is re-checked." },
+                { "mark": "4", "title": "Opt-in, not opt-out", "sub": "AI is optimisation, not dependency", "toggle": "Evidence", "body": "Disable AI and the product still works, just slower." },
+                { "mark": "5", "warn": true, "title": "Wrong answers fail loud", "sub": "Low confidence flags a human", "toggle": "Evidence", "body": "Below threshold, the flow escalates rather than guessing." }
+              ]
+            }
+          }
+        }
+      },
+      "l3": {
+        "title": "Capabilities — full context",
+        "width": "wide",
+        "sections": [
+          { "id": "cap", "heading": "One substrate, four modalities", "level": 1, "md": "Reason, see, speak, and render all run on the same owned GPU. Adding a modality is data plus CSS, never a new pipeline." },
+          { "id": "safety", "heading": "Safety you can audit", "level": 2, "figure": { "caption": "The five audit promises.", "slide": { "archetype": "disclosure-list", "slots": { "eyebrow": { "num": "03", "text": "Safety guarantees" }, "title": [{ "text": "Five promises you can " }, { "text": "audit", "accent": true }], "rows": [ { "mark": "1", "title": "The model is never load-bearing", "sub": "Deterministic fallback", "body": "The rules engine still resolves the request." }, { "mark": "2", "title": "PII never leaves the LAN", "sub": "Recipient model firewalled", "body": "Only shaped claims cross the boundary." } ] } } } }
+        ]
+      }
+    },
+    {
+      "id": "reader",
+      "title": "Per reader",
+      "levels": {
+        "L0": {
+          "slide": {
+            "archetype": "lens-reframe",
+            "slots": {
+              "eyebrow": { "num": "02", "text": "One story, three readers" },
+              "title": [{ "text": "The " }, { "text": "same", "accent": true }, { "text": " decision, per lens" }],
+              "lenses": [
+                { "persona": { "mark": "a", "name": "Marco", "lens": "CEO · outcomes" }, "rows": [
+                  { "mark": "1", "title": "Revenue lands in Q3, not Q1", "sub": "Recipient-fit shortens the sales cycle", "toggle": "Detail", "body": "Decks arrive pre-shaped to each buyer, so fewer follow-ups are needed to close." },
+                  { "mark": "2", "title": "Cost stays flat", "sub": "Local models carry the load", "toggle": "Detail", "body": "Cloud is a fallback, not the default path." },
+                  { "mark": "3", "warn": true, "title": "One risk to watch", "sub": "Model drift on new domains", "toggle": "Detail", "body": "Mitigated by the re-verify gate after every adaptation." }
+                ] },
+                { "persona": { "mark": "b", "name": "Milo", "lens": "CPO · delivery" }, "rows": [
+                  { "mark": "1", "title": "Ships behind one route", "sub": "No big-bang migration", "toggle": "Detail", "body": "The new path lives behind a flag until it is proven." },
+                  { "mark": "2", "title": "Kit is the styling authority", "sub": "Generation cannot degrade design", "toggle": "Detail", "body": "Every visual is fixed in reviewed code." }
+                ] },
+                { "persona": { "mark": "c", "name": "Dario", "lens": "CTO · safety" }, "rows": [
+                  { "mark": "1", "title": "Deterministic fallback everywhere", "sub": "The model is never load-bearing", "toggle": "Detail", "body": "If inference fails, the rules engine resolves the request." },
+                  { "mark": "2", "warn": true, "title": "Firewalled recipient model", "sub": "PII stays local", "toggle": "Detail", "body": "Only shaped claims cross the LAN boundary." }
+                ] }
+              ]
+            }
+          }
+        },
+        "L1": {
+          "slide": {
+            "archetype": "ask-cta",
+            "slots": {
+              "eyebrow": { "num": "12", "text": "The ask" },
+              "title": [{ "text": "Three decisions, " }, { "text": "today", "accent": true }],
+              "ask": {
+                "title": "We ask the board to approve:",
+                "items": [
+                  "Green-light the provider-agnostic core for Q3",
+                  "Fund one RTX-class GPU for the advanced tier",
+                  "Name a design owner for the shipped kit"
+                ]
+              },
+              "arch": [
+                { "label": "Now", "value": "Kit shipped", "ok": true },
+                { "label": "Next", "value": "Pipeline wired" },
+                { "label": "Then", "value": "Live decks" }
+              ]
+            }
+          }
+        }
+      },
+      "l3": {
+        "title": "Per-reader tailoring — full context",
+        "width": "reading",
+        "sections": [
+          { "id": "lens", "heading": "One story, three readers", "level": 1, "md": "The same decision reads differently to a CEO, a CPO, and a CTO. Recipient-fit is a non-destructive overlay: the underlying claims are immutable; only emphasis and framing change per lens." }
+        ]
+      }
+    }
+  ]
+}

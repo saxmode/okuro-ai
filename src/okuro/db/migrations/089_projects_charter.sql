@@ -1,0 +1,22 @@
+-- <!-- AGENT_HEADER
+-- role: code
+-- purpose: 089_projects_charter — add the per-project `charter` column: a
+--   compact, human-authored knowledge payload (architecture, core job,
+--   doctrine/axioms) surfaced by build_project on project resolution. Turns
+--   the existing project section into a true per-project sub-bootstrap so
+--   agents stop re-learning a project's fundamentals every session.
+-- index: content
+-- AGENT_HEADER_END -->
+--
+-- Additive, nullable. Existing rows default to NULL and render exactly as
+-- before (build_project only emits a Charter block when the column is set).
+-- Distinct from principle_sets (constraints/rules) and design_profile
+-- (visual): the charter carries KNOWLEDGE — the abstract "what this project
+-- is and why", role-agnostic and user-agnostic. Freshness is tracked by the
+-- existing projects.updated_at (update_project stamps it).
+--
+-- Rollback (SQLite forward-only, matching 069): to reverse, rebuild the
+-- table without the column —
+--   ALTER TABLE projects DROP COLUMN charter;   (SQLite >= 3.35)
+
+ALTER TABLE projects ADD COLUMN charter TEXT;

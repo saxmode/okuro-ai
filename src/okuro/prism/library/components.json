@@ -1,0 +1,1100 @@
+{
+  "type": "components",
+  "selection_guide": "Pick the component that carries a single claim best for a given recipient and target info-depth (L1 sparse hooks .. L4 dense doc-body). Reason in three passes. (1) CLAIM-SHAPE: what is the content's essential shape? A number that is the point -> metric family (metric-tiles, stat-row); a part-of-whole split -> proportion-bars or a pie chart; a before/after -> cmp-table or transform-grid; an option decision -> option-grid; a time/step order -> beat-list or flow-steps or phase-row; a flat set of peers -> card-set (2-5), two-column-list/tag-wall (10-40); a feature yes/no grid -> matrix; a wide raw dataset -> dense-table or pipeline-table; a quote -> pull-quote or statement; a bottom-line verdict -> verdict-callout/ask-box; a network/architecture -> arch-diagram/flow-embed; rigor/sourcing -> evidence-list/bias-check/provenance. Match the content's shape to the entry whose `carries` lists it. (2) INFO-DEPTH: L1 wants one focal hook that lands in 3 seconds (statement, statement-title, one big metric, a pull-quote) -> pick sparse, focal entries and show fewer items; L2 wants a scannable primary block (card-set, option-grid, proportion-bars, beat-list); L3 wants dense evidence the reader will study (dense-table, matrix, evidence-list, pipeline-table, prose); L4 is full doc body (prose, dense-table). Prefer entries whose `info_depths` include the target level, and lower an item count before overflowing a sparse component. (3) RECIPIENT: an executive/board recipient -> lead with verdict/metric/ask components and hide detail behind disclosure-list or provenance; a technical/analyst recipient -> matrix, dense-table, pipeline-table, evidence-list carry the rigor they expect; a mixed audience -> lens-reframe restates one claim per persona, persona-row names who is in the room. CAPACITY is a hard filter, never a preference: if the claim has more items than a component's `capacity.max`, either drop to a higher-capacity component of the same shape (card-set 5 -> two-column-list 24 -> tag-wall 40 for a growing set) or render a truthful subset and surface the remainder elsewhere. Never trade semantic fit for raw capacity (a 5-item set never lands on a comparison matrix just because it holds more). ANTI-SAMENESS: avoid two blocks that paint identically (the card-grid family: card-set, verb-grid, story-grid, transform-grid, metric-tiles, option-grid) on one slide \u2014 a grid beside a table/list reads as intentional hierarchy; two grids read as one mismatched block. Every block can carry a `provenance` affordance; add it whenever the recipient will ask 'says who?'.",
+  "entries": [
+    {
+      "id": "statement-title",
+      "name": "Statement Title",
+      "one_liner": "The single display-type headline that names the ONE claim of a slide (<=22ch).",
+      "when_to_use": "Use as the slide's title: one short, declarative claim in large type that every other block on the slide supports. Best when you can compress the point to <=22 characters and want it to read as the anchor. Carries narrative framing and can double as a soft verdict header.",
+      "avoid_when": "Avoid for the cover/hook of a whole deck (use `statement`), for body sentences (use `lede` or `prose`), or when the claim needs more than ~22ch \u2014 it will truncate or shrink awkwardly.",
+      "info_depths": [
+        "L1",
+        "L2"
+      ],
+      "carries": [
+        "narrative",
+        "verdict"
+      ],
+      "capacity": {
+        "min": 1,
+        "typical": 1,
+        "max": 1,
+        "item_noun": "title"
+      },
+      "density": "sparse",
+      "pairs_with": [
+        "lede",
+        "prose",
+        "metric-tiles",
+        "card-set",
+        "disclosure-list",
+        "provenance"
+      ],
+      "source_ref": "component-manifest.json:statement-title"
+    },
+    {
+      "id": "lede",
+      "name": "Lede",
+      "one_liner": "A one-sentence supporting frame set under a title (<=70ch).",
+      "when_to_use": "Use directly beneath a title to add the one sentence of context or framing the headline cannot hold \u2014 the 'why this matters' line. Pure narrative connective tissue at L1/L2.",
+      "avoid_when": "Avoid when the supporting content is more than one sentence (use `prose`), or when it carries data/structure rather than framing \u2014 a lede is prose-only, no items.",
+      "info_depths": [
+        "L1",
+        "L2"
+      ],
+      "carries": [
+        "narrative"
+      ],
+      "capacity": {
+        "min": 1,
+        "typical": 1,
+        "max": 1,
+        "item_noun": "sentence"
+      },
+      "density": "sparse",
+      "pairs_with": [
+        "statement-title",
+        "statement",
+        "prose",
+        "metric-tiles",
+        "card-set"
+      ],
+      "source_ref": "component-manifest.json:lede"
+    },
+    {
+      "id": "prose",
+      "name": "Prose",
+      "one_liner": "Full markdown typography \u2014 the L3/L4 document body block.",
+      "when_to_use": "Use for genuine prose: multi-sentence explanation, argument, or narrative that needs headings, lists, emphasis, or an inline blockquote. The universal fallback when a claim has no cleaner structural shape. Reflows freely and can carry provenance. Also holds a quote acceptably (fit 0.7) when a dedicated pull-quote is too loud.",
+      "avoid_when": "Avoid at L1 (too dense for a hook) and whenever the content has a crisp shape a purpose-built component renders better \u2014 a set, comparison, metric, or sequence should not be buried in paragraphs.",
+      "info_depths": [
+        "L3",
+        "L4"
+      ],
+      "carries": [
+        "metric",
+        "delta",
+        "comparison",
+        "sequence",
+        "relationship",
+        "proportion",
+        "quote",
+        "set",
+        "trend",
+        "narrative",
+        "verdict"
+      ],
+      "capacity": {
+        "min": 1,
+        "typical": 1,
+        "max": 1,
+        "item_noun": "block"
+      },
+      "density": "dense",
+      "pairs_with": [
+        "statement-title",
+        "lede",
+        "pull-quote",
+        "callout",
+        "provenance"
+      ],
+      "source_ref": "component-manifest.json:prose"
+    },
+    {
+      "id": "disclosure-list",
+      "name": "Disclosure List",
+      "one_liner": "Expandable evidence rows: mark + title + sub, with a reveal body underneath.",
+      "when_to_use": "Use for a set of 3-7 findings/items where each has a headline the reader scans plus detail they can expand on demand \u2014 progressive disclosure. Ideal for an exec audience: the titles carry the summary, the reveal bodies hold the proof. Supports a per-row severity mark. Carries sets, narrative findings, and verdicts, and can hold quotes.",
+      "avoid_when": "Avoid when items have no expandable detail (use `card-set` or `two-column-list`), when there are more than 7 (use `dense-table`/`two-column-list`), or when the reader needs everything visible at once.",
+      "info_depths": [
+        "L2",
+        "L3"
+      ],
+      "carries": [
+        "set",
+        "narrative",
+        "verdict",
+        "quote"
+      ],
+      "capacity": {
+        "min": 3,
+        "typical": 5,
+        "max": 7,
+        "item_noun": "row"
+      },
+      "density": "medium",
+      "pairs_with": [
+        "statement-title",
+        "lede",
+        "verdict-badge",
+        "provenance"
+      ],
+      "source_ref": "component-manifest.json:disclosure-list"
+    },
+    {
+      "id": "card-set",
+      "name": "Card Set",
+      "one_liner": "Auto-fit grid of 2-5 content cards (eyebrow/title/body/footer).",
+      "when_to_use": "Use for a flat set of 2-5 peer items that each deserve a titled card with a short body \u2014 features, pillars, workstreams, options without a decision. The default 'a handful of related things' block. Also carries a light metric or loose comparison.",
+      "avoid_when": "Avoid past 5 items (overflows \u2014 use `two-column-list` or `tag-wall`), when one option should be recommended (use `option-grid`), or when a second card-grid already sits on the slide (anti-sameness \u2014 switch to a list/table).",
+      "info_depths": [
+        "L2",
+        "L3"
+      ],
+      "carries": [
+        "set",
+        "metric"
+      ],
+      "capacity": {
+        "min": 2,
+        "typical": 3,
+        "max": 5,
+        "item_noun": "card"
+      },
+      "density": "medium",
+      "pairs_with": [
+        "statement-title",
+        "lede",
+        "callout",
+        "tag-wall"
+      ],
+      "source_ref": "component-manifest.json:card-set"
+    },
+    {
+      "id": "metric-tiles",
+      "name": "Metric Tiles",
+      "one_liner": "2-4 KPI tiles (label/value/desc) where the number is the point.",
+      "when_to_use": "Use when 2-4 headline numbers ARE the message \u2014 KPIs, results, magnitudes the recipient should remember. Value renders large and focal. Best for an exec/board L1-L2 hook. Also carries a delta framing and a light proportion.",
+      "avoid_when": "Avoid for a single number (use `stat-row` or a `statement`), for more than 4 metrics (use `stat-row` up to 4 or a `chart`), or when the number needs a trend/time axis (use `chart`).",
+      "info_depths": [
+        "L1",
+        "L2"
+      ],
+      "carries": [
+        "metric",
+        "delta",
+        "proportion"
+      ],
+      "capacity": {
+        "min": 2,
+        "typical": 3,
+        "max": 4,
+        "item_noun": "tile"
+      },
+      "density": "sparse",
+      "pairs_with": [
+        "statement-title",
+        "lede",
+        "chart",
+        "proportion-bars",
+        "provenance"
+      ],
+      "source_ref": "component-manifest.json:metric-tiles"
+    },
+    {
+      "id": "callout",
+      "name": "Callout",
+      "one_liner": "Left-accent-bar emphasis box in note/info/warn tone.",
+      "when_to_use": "Use to lift ONE short passage out of the flow \u2014 a caveat, a key insight, a warning \u2014 with a tone (accent/info/warn) that signals how to read it. Narrative emphasis, one box only. Pairs well as an aside beside a denser primary block.",
+      "avoid_when": "Avoid for multiple parallel notes (it holds one box), for the main claim itself (use a title/statement), or for structured data.",
+      "info_depths": [
+        "L1",
+        "L2"
+      ],
+      "carries": [
+        "metric",
+        "delta",
+        "comparison",
+        "sequence",
+        "relationship",
+        "proportion",
+        "quote",
+        "set",
+        "trend",
+        "narrative",
+        "verdict"
+      ],
+      "capacity": {
+        "min": 1,
+        "typical": 1,
+        "max": 1,
+        "item_noun": "box"
+      },
+      "density": "sparse",
+      "pairs_with": [
+        "prose",
+        "disclosure-list",
+        "card-set",
+        "statement-title"
+      ],
+      "source_ref": "component-manifest.json:callout"
+    },
+    {
+      "id": "option-grid",
+      "name": "Option Grid",
+      "one_liner": "Decision matrix of 3-5 option cards with k-v lines, one flagged recommended.",
+      "when_to_use": "Use for an explicit choose-between decision: 3-5 options, each with the same key/value attributes for side-by-side compare, and exactly one marked recommended. The go-to when the deliverable is a recommendation the recipient must approve. Strongest comparison component and carries a delta between options.",
+      "avoid_when": "Avoid when no option is recommended (use `card-set` or `matrix`), for yes/no feature grids (use `matrix`), or for more than 5 options.",
+      "info_depths": [
+        "L2",
+        "L3"
+      ],
+      "carries": [
+        "comparison",
+        "delta"
+      ],
+      "capacity": {
+        "min": 3,
+        "typical": 3,
+        "max": 5,
+        "item_noun": "option"
+      },
+      "density": "medium",
+      "pairs_with": [
+        "statement-title",
+        "lede",
+        "verdict-callout",
+        "ask-box",
+        "provenance"
+      ],
+      "source_ref": "component-manifest.json:option-grid"
+    },
+    {
+      "id": "beat-list",
+      "name": "Beat List",
+      "one_liner": "Time-ordered scenario beats: T-mark + body + actor.",
+      "when_to_use": "Use for a chronological walkthrough \u2014 an incident timeline, a scenario, a demo narrative \u2014 where each beat has a time/marker, what happens, and who acts. 3-10 beats. Carries sequence primarily and light relationship (actor-to-action).",
+      "avoid_when": "Avoid for numbered process steps with tools (use `flow-steps`), for a coarse roadmap of phases (use `phase-row`), or for non-temporal sets.",
+      "info_depths": [
+        "L2",
+        "L3"
+      ],
+      "carries": [
+        "sequence",
+        "relationship"
+      ],
+      "capacity": {
+        "min": 3,
+        "typical": 5,
+        "max": 10,
+        "item_noun": "beat"
+      },
+      "density": "medium",
+      "pairs_with": [
+        "statement-title",
+        "lede",
+        "callout",
+        "persona-row"
+      ],
+      "source_ref": "component-manifest.json:beat-list"
+    },
+    {
+      "id": "stat-row",
+      "name": "Stat Row",
+      "one_liner": "Joined horizontal KPI strip: 2-4 num + label cells with tone.",
+      "when_to_use": "Use for 2-4 numbers presented as a single tight banner strip \u2014 a results bar, a headline-metrics ribbon. More compact and unified than metric-tiles; the number leads, tone modifiers color good/bad. A strong L1 focal hook.",
+      "avoid_when": "Avoid past 4 cells, when each metric needs its own descriptive body (use `metric-tiles`), or when a trend/axis is implied (use `chart`).",
+      "info_depths": [
+        "L1",
+        "L2"
+      ],
+      "carries": [
+        "metric"
+      ],
+      "capacity": {
+        "min": 2,
+        "typical": 4,
+        "max": 4,
+        "item_noun": "cell"
+      },
+      "density": "sparse",
+      "pairs_with": [
+        "statement-title",
+        "lede",
+        "chart",
+        "proportion-bars"
+      ],
+      "source_ref": "component-manifest.json:stat-row"
+    },
+    {
+      "id": "persona-row",
+      "name": "Persona Row",
+      "one_liner": "Audience roster pills: mark + name + lens.",
+      "when_to_use": "Use to name who is in the room / who the deck addresses \u2014 2-4 audience pills, each with a name and the lens they read through. An orienting, supporting element, often on an opening or lens slide.",
+      "avoid_when": "Avoid when you actually need to reframe a claim per persona (use `lens-reframe`), or as a primary content block \u2014 it is an aside/support roster, not an argument.",
+      "info_depths": [
+        "L1",
+        "L2"
+      ],
+      "carries": [
+        "set"
+      ],
+      "capacity": {
+        "min": 2,
+        "typical": 3,
+        "max": 4,
+        "item_noun": "pill"
+      },
+      "density": "sparse",
+      "pairs_with": [
+        "statement-title",
+        "lens-reframe",
+        "lede"
+      ],
+      "source_ref": "component-manifest.json:persona-row"
+    },
+    {
+      "id": "lens-reframe",
+      "name": "Lens Reframe",
+      "one_liner": "Persona tab switcher: the same claim restated per audience.",
+      "when_to_use": "Use when ONE claim must be told differently to 2-4 audiences and you want them to switch between framings \u2014 tabs by persona, each pane reframing the same underlying point (e.g. cost to the CFO, risk to the CISO). Ideal for a mixed-audience recipient. Carries a set of framings, narrative, and a soft comparison.",
+      "avoid_when": "Avoid when the audiences see genuinely different content (not one reframed claim), or when a static side-by-side is enough (use `option-grid`/`matrix`). Only 2-4 tabs.",
+      "info_depths": [
+        "L2",
+        "L3"
+      ],
+      "carries": [
+        "set",
+        "narrative",
+        "comparison"
+      ],
+      "capacity": {
+        "min": 2,
+        "typical": 3,
+        "max": 4,
+        "item_noun": "lens"
+      },
+      "density": "medium",
+      "pairs_with": [
+        "persona-row",
+        "statement-title",
+        "provenance"
+      ],
+      "source_ref": "component-manifest.json:lens-reframe"
+    },
+    {
+      "id": "story-grid",
+      "name": "Story Grid",
+      "one_liner": "Overview chapter cards (num/title/desc) \u2014 a table-of-contents affordance.",
+      "when_to_use": "Use as an index/agenda: 2-4 numbered chapter cards previewing the sections of a deck or document. An orientation device at the top of a story. Carries a set with light narrative sequencing.",
+      "avoid_when": "Avoid for content cards (use `card-set`), for a strict process (use `flow-steps`), or past 4 chapters.",
+      "info_depths": [
+        "L1",
+        "L2"
+      ],
+      "carries": [
+        "set",
+        "narrative",
+        "comparison",
+        "relationship"
+      ],
+      "capacity": {
+        "min": 2,
+        "typical": 3,
+        "max": 4,
+        "item_noun": "chapter"
+      },
+      "density": "medium",
+      "pairs_with": [
+        "statement-title",
+        "lede",
+        "statement"
+      ],
+      "source_ref": "component-manifest.json:story-grid"
+    },
+    {
+      "id": "proportion-bars",
+      "name": "Proportion Bars",
+      "one_liner": "Horizontal share-of-whole / budget-magnitude bars (label/pct/value/level).",
+      "when_to_use": "Use for a part-of-whole split of 2-8 shares where each bar's length shows its proportion and a level (safe/caution/danger) colors it \u2014 budget allocation, capacity usage, share breakdowns. Strongest proportion component; also reads as a light trend and carries the underlying metric.",
+      "avoid_when": "Avoid for a single percentage (use a `statement`/metric), for a true 2D comparison (use `chart` bar), or past 8 bars (use a `chart` or `dense-table`).",
+      "info_depths": [
+        "L2",
+        "L3"
+      ],
+      "carries": [
+        "proportion",
+        "trend",
+        "metric"
+      ],
+      "capacity": {
+        "min": 2,
+        "typical": 4,
+        "max": 8,
+        "item_noun": "bar"
+      },
+      "density": "medium",
+      "pairs_with": [
+        "statement-title",
+        "metric-tiles",
+        "chart",
+        "provenance"
+      ],
+      "source_ref": "component-manifest.json:proportion-bars"
+    },
+    {
+      "id": "flow-steps",
+      "name": "Flow Steps",
+      "one_liner": "Numbered agentic-flow steps (num/what/tool/actor).",
+      "when_to_use": "Use for an ordered process of 4-8 steps where each step names what happens, the tool used, and the actor (human/agent) \u2014 pipelines, agent workflows, procedures. Sequence-first with light relationship (actor per step).",
+      "avoid_when": "Avoid for a timed scenario (use `beat-list`), for a coarse roadmap (use `phase-row`), for fewer than 4 or more than 8 steps, or when there is no ordering.",
+      "info_depths": [
+        "L2",
+        "L3"
+      ],
+      "carries": [
+        "sequence",
+        "relationship"
+      ],
+      "capacity": {
+        "min": 4,
+        "typical": 6,
+        "max": 8,
+        "item_noun": "step"
+      },
+      "density": "medium",
+      "pairs_with": [
+        "statement-title",
+        "lede",
+        "verb-grid",
+        "arch-diagram"
+      ],
+      "source_ref": "component-manifest.json:flow-steps"
+    },
+    {
+      "id": "pipeline-table",
+      "name": "Pipeline Table",
+      "one_liner": "Multi-column stage comparison table (e.g. layer/edge/cloud/cost).",
+      "when_to_use": "Use for a structured multi-column comparison of 2-10 rows across a fixed set of stage/dimension columns \u2014 architecture stages, deployment tiers with attributes. A denser, more column-oriented comparison than cmp-table's two-column before/after. Carries comparison and a set.",
+      "avoid_when": "Avoid for a simple before->after (use `cmp-table`), for yes/no feature grids (use `matrix`), or for open-ended raw data of 10-30 rows (use `dense-table`).",
+      "info_depths": [
+        "L3"
+      ],
+      "carries": [
+        "comparison",
+        "set"
+      ],
+      "capacity": {
+        "min": 2,
+        "typical": 5,
+        "max": 10,
+        "item_noun": "row"
+      },
+      "density": "dense",
+      "pairs_with": [
+        "statement-title",
+        "lede",
+        "method-badge",
+        "provenance"
+      ],
+      "source_ref": "component-manifest.json:pipeline-table"
+    },
+    {
+      "id": "verb-grid",
+      "name": "Verb Grid",
+      "one_liner": "3-column tool/verb schema cards (name/desc/params/ack).",
+      "when_to_use": "Use to document a set of 3-6 tools/verbs/API operations, each as a card with name, description, params, and an ack/return \u2014 a capability catalog or MCP tool schema. A specialized card-grid for API-shaped sets.",
+      "avoid_when": "Avoid for generic content cards (use `card-set`), for an endpoint table (use `pipeline-table`/`dense-table`), or when another card-grid is already on the slide (anti-sameness).",
+      "info_depths": [
+        "L2",
+        "L3"
+      ],
+      "carries": [
+        "set"
+      ],
+      "capacity": {
+        "min": 3,
+        "typical": 3,
+        "max": 6,
+        "item_noun": "card"
+      },
+      "density": "medium",
+      "pairs_with": [
+        "statement-title",
+        "flow-steps",
+        "method-badge"
+      ],
+      "source_ref": "component-manifest.json:verb-grid"
+    },
+    {
+      "id": "cmp-table",
+      "name": "Comparison Table",
+      "one_liner": "Before->after comparison table with per-row status tags.",
+      "when_to_use": "Use for a two-column before/after (or v1/v2, old/new) comparison of 2-12 rows, each tagged with a status showing what changed. The default for 'here is what changed' at row scale. Strongest on delta and comparison together.",
+      "avoid_when": "Avoid for multi-dimension stage tables (use `pipeline-table`), yes/no feature grids (use `matrix`), or a punchy card-style before/after of a few items (use `transform-grid`).",
+      "info_depths": [
+        "L2",
+        "L3"
+      ],
+      "carries": [
+        "delta",
+        "comparison"
+      ],
+      "capacity": {
+        "min": 2,
+        "typical": 5,
+        "max": 12,
+        "item_noun": "row"
+      },
+      "density": "medium",
+      "pairs_with": [
+        "statement-title",
+        "verdict-callout",
+        "verdict-badge",
+        "provenance"
+      ],
+      "source_ref": "component-manifest.json:cmp-table"
+    },
+    {
+      "id": "transform-grid",
+      "name": "Transform Grid",
+      "one_liner": "Before->after transform cards (before / arrow / after + label).",
+      "when_to_use": "Use for 2-6 punchy before->after transformations shown as cards with a visual arrow \u2014 'from this, to that' payoffs, migrations, improvements. More visual and fewer items than cmp-table; carries delta and comparison.",
+      "avoid_when": "Avoid past 6 items or when many rows need tight tabular alignment (use `cmp-table`), or when a second card-grid is present (anti-sameness).",
+      "info_depths": [
+        "L2",
+        "L3"
+      ],
+      "carries": [
+        "delta",
+        "comparison"
+      ],
+      "capacity": {
+        "min": 2,
+        "typical": 3,
+        "max": 6,
+        "item_noun": "card"
+      },
+      "density": "medium",
+      "pairs_with": [
+        "statement-title",
+        "lede",
+        "callout"
+      ],
+      "source_ref": "component-manifest.json:transform-grid"
+    },
+    {
+      "id": "phase-row",
+      "name": "Phase Row",
+      "one_liner": "Roadmap phase chain (done/next/future) with arrows.",
+      "when_to_use": "Use for a coarse roadmap or maturity chain of 2-7 phases, each stated as done / next / future, connected by arrows. The high-level 'where we are on the path' band. Sequence with a forward trend.",
+      "avoid_when": "Avoid for detailed process steps (use `flow-steps`), a timed scenario (use `beat-list`), or when phases carry sub-content rather than a single state label.",
+      "info_depths": [
+        "L1",
+        "L2"
+      ],
+      "carries": [
+        "sequence",
+        "trend"
+      ],
+      "capacity": {
+        "min": 2,
+        "typical": 4,
+        "max": 7,
+        "item_noun": "phase"
+      },
+      "density": "sparse",
+      "pairs_with": [
+        "statement-title",
+        "ask-box",
+        "beat-list"
+      ],
+      "source_ref": "component-manifest.json:phase-row"
+    },
+    {
+      "id": "verdict-callout",
+      "name": "Verdict Callout",
+      "one_liner": "Summary banner stating the bottom line with inline stat dots.",
+      "when_to_use": "Use to deliver the verdict \u2014 a headline conclusion (total/summary) plus up to 5 inline stat dots that back it. The 'so what' banner an exec reads first. Strongest verdict component; also carries the headline metric.",
+      "avoid_when": "Avoid for detailed evidence (use `evidence-list`/`dense-table`), for a call-to-action ask (use `ask-box`), or when there is no single conclusion to state.",
+      "info_depths": [
+        "L1",
+        "L2"
+      ],
+      "carries": [
+        "verdict",
+        "metric"
+      ],
+      "capacity": {
+        "min": 1,
+        "typical": 3,
+        "max": 5,
+        "item_noun": "stat"
+      },
+      "density": "sparse",
+      "pairs_with": [
+        "option-grid",
+        "cmp-table",
+        "evidence-list",
+        "ask-box",
+        "matrix"
+      ],
+      "source_ref": "component-manifest.json:verdict-callout"
+    },
+    {
+      "id": "ask-box",
+      "name": "Ask Box",
+      "one_liner": "Board-ask call-to-action: title + list of specific asks.",
+      "when_to_use": "Use for the explicit ask/decision the recipient must act on \u2014 a titled box listing 1-6 concrete requests (approve budget, assign owner, sign off). The closing 'what we need from you' block. Verdict/narrative shaped.",
+      "avoid_when": "Avoid for stating a conclusion without a request (use `verdict-callout`), for options to weigh (use `option-grid`), or past ~6 asks.",
+      "info_depths": [
+        "L1",
+        "L2"
+      ],
+      "carries": [
+        "verdict",
+        "narrative"
+      ],
+      "capacity": {
+        "min": 1,
+        "typical": 3,
+        "max": 6,
+        "item_noun": "ask"
+      },
+      "density": "sparse",
+      "pairs_with": [
+        "statement-title",
+        "verdict-callout",
+        "phase-row",
+        "option-grid"
+      ],
+      "source_ref": "component-manifest.json:ask-box"
+    },
+    {
+      "id": "arch-diagram",
+      "name": "Architecture Diagram",
+      "one_liner": "Flow boxes colored by health, expressing relationship between parts.",
+      "when_to_use": "Use to show how 2-5 components/systems relate as connected boxes, each colored by a state/health. The lightweight 'how the parts fit together' schematic. Relationship-first with a light set reading.",
+      "avoid_when": "Avoid for a real saved okuro flow with nodes (use `flow-embed`), for an ordered process (use `flow-steps`), or for more than 5 boxes.",
+      "info_depths": [
+        "L2",
+        "L3"
+      ],
+      "carries": [
+        "relationship",
+        "set"
+      ],
+      "capacity": {
+        "min": 2,
+        "typical": 3,
+        "max": 5,
+        "item_noun": "box"
+      },
+      "density": "medium",
+      "pairs_with": [
+        "statement-title",
+        "lede",
+        "callout",
+        "flow-steps"
+      ],
+      "source_ref": "component-manifest.json:arch-diagram"
+    },
+    {
+      "id": "provenance",
+      "name": "Provenance",
+      "one_liner": "Inline source-ref affordance surfaced on demand under any block.",
+      "when_to_use": "STRUCTURALLY INLINE \u2014 not a standalone content block; attach beneath any block to cite 1-5 sources (source + as_of + url). Add whenever the recipient will ask 'says who?' or the claim needs an audit trail. Every block can carry it. Carries no claim-shape of its own; it is a rigor affordance.",
+      "avoid_when": "Avoid as a primary block or when a full sourced-claims ledger is needed (use `evidence-list`). Not for narrative content.",
+      "info_depths": [
+        "L2",
+        "L3",
+        "L4"
+      ],
+      "carries": [],
+      "capacity": {
+        "min": 1,
+        "typical": 2,
+        "max": 5,
+        "item_noun": "ref"
+      },
+      "density": "sparse",
+      "pairs_with": [
+        "prose",
+        "chart",
+        "dense-table",
+        "matrix",
+        "evidence-list",
+        "metric-tiles"
+      ],
+      "source_ref": "component-manifest.json:provenance"
+    },
+    {
+      "id": "evidence-list",
+      "name": "Evidence List",
+      "one_liner": "Rigor 'nutrition label': claim + source grade + confidence + as_of.",
+      "when_to_use": "Use to make sourcing explicit for 2-10 claims, each with a source grade (A-D), a confidence number, and an as_of date. The block that answers 'how solid is each claim?' for a rigorous/technical recipient. Carries verdict (per-claim strength), a set, and comparison across grades.",
+      "avoid_when": "Avoid when a single citation strip suffices (use `provenance`), for cognitive-bias auditing (use `bias-check`), or for undated narrative claims.",
+      "info_depths": [
+        "L3"
+      ],
+      "carries": [
+        "verdict",
+        "set",
+        "comparison"
+      ],
+      "capacity": {
+        "min": 2,
+        "typical": 4,
+        "max": 10,
+        "item_noun": "claim"
+      },
+      "density": "dense",
+      "pairs_with": [
+        "statement-title",
+        "verdict-callout",
+        "bias-check",
+        "provenance"
+      ],
+      "source_ref": "component-manifest.json:evidence-list"
+    },
+    {
+      "id": "bias-check",
+      "name": "Bias Check",
+      "one_liner": "Rigor block listing cognitive biases + risk level + counter-measure.",
+      "when_to_use": "Use to pre-empt objections by naming 2-8 cognitive biases that could distort the analysis, each with a risk level and a counter-measure. Signals intellectual honesty to a skeptical/technical recipient. Carries a set with a verdict reading (risk per bias).",
+      "avoid_when": "Avoid for source grading (use `evidence-list`), for general risks that aren't cognitive biases, or when it would read as defensive filler to the audience.",
+      "info_depths": [
+        "L3"
+      ],
+      "carries": [
+        "set",
+        "verdict"
+      ],
+      "capacity": {
+        "min": 2,
+        "typical": 3,
+        "max": 8,
+        "item_noun": "bias"
+      },
+      "density": "medium",
+      "pairs_with": [
+        "evidence-list",
+        "statement-title",
+        "provenance"
+      ],
+      "source_ref": "component-manifest.json:bias-check"
+    },
+    {
+      "id": "chart",
+      "name": "Chart",
+      "one_liner": "Dependency-free single-hue SVG chart (bar/line/area/pie) + annotations.",
+      "when_to_use": "Use when data needs a real plotted visual: a trend over time (line/area), a magnitude comparison (bar), or a part-of-whole (pie), 2-16 data points, with optional annotations. The strongest trend component and a strong carrier of proportion, comparison, metric, and delta \u2014 reach for it whenever a number has a shape a picture shows better than tiles.",
+      "avoid_when": "Avoid for 1-4 standalone KPIs (use `metric-tiles`/`stat-row`), for labeled share bars with status levels (use `proportion-bars`), or past ~16 points (use `dense-table`).",
+      "info_depths": [
+        "L2",
+        "L3"
+      ],
+      "carries": [
+        "trend",
+        "proportion",
+        "comparison",
+        "metric",
+        "delta"
+      ],
+      "capacity": {
+        "min": 2,
+        "typical": 6,
+        "max": 16,
+        "item_noun": "datum"
+      },
+      "density": "medium",
+      "pairs_with": [
+        "statement-title",
+        "metric-tiles",
+        "stat-row",
+        "provenance"
+      ],
+      "source_ref": "component-manifest.json:chart"
+    },
+    {
+      "id": "flow-embed",
+      "name": "Flow Embed",
+      "one_liner": "Embeds a saved okuro flow by id in a framed, maximizable panel.",
+      "when_to_use": "Use to show an actual saved okuro flow (by flow_id) as a live framed panel with a maximize affordance \u2014 a real node graph rather than a drawn schematic. Strongest relationship carrier; also reads as sequence. One flow per embed.",
+      "avoid_when": "Avoid when there is no saved flow to reference (use `arch-diagram` to draw one), for ordered steps (use `flow-steps`), or on a sparse L1 hook slide (it is tall/dense).",
+      "info_depths": [
+        "L3"
+      ],
+      "carries": [
+        "relationship",
+        "sequence"
+      ],
+      "capacity": {
+        "min": 1,
+        "typical": 1,
+        "max": 1,
+        "item_noun": "flow"
+      },
+      "density": "medium",
+      "pairs_with": [
+        "statement-title",
+        "lede",
+        "prose"
+      ],
+      "source_ref": "component-manifest.json:flow-embed"
+    },
+    {
+      "id": "statement",
+      "name": "Statement",
+      "one_liner": "One assertion in huge type \u2014 the L1 hook / cover claim.",
+      "when_to_use": "Use for maximal impact: a single assertion in the largest type, as a deck cover or a full-slide hook that must land in one glance. Carries narrative, a strong verdict, and a quote-cover. The most focal component in the kit.",
+      "avoid_when": "Avoid as a slide title with supporting blocks (use `statement-title`), for attributed quotations (use `pull-quote`), or anywhere detail/data belongs \u2014 it holds one line only.",
+      "info_depths": [
+        "L1"
+      ],
+      "carries": [
+        "metric",
+        "delta",
+        "comparison",
+        "sequence",
+        "relationship",
+        "proportion",
+        "quote",
+        "set",
+        "trend",
+        "narrative",
+        "verdict"
+      ],
+      "capacity": {
+        "min": 1,
+        "typical": 1,
+        "max": 1,
+        "item_noun": "assertion"
+      },
+      "density": "sparse",
+      "pairs_with": [
+        "lede",
+        "story-grid"
+      ],
+      "source_ref": "component-manifest.json:statement"
+    },
+    {
+      "id": "pull-quote",
+      "name": "Pull Quote",
+      "one_liner": "Pull-quote with attribution and an oversized quotation mark.",
+      "when_to_use": "Use for a single attributed quotation given room to breathe \u2014 a customer voice, an expert endorsement, a telling line from a source. Strongest quote component; also carries narrative. One quote per block.",
+      "avoid_when": "Avoid for an unattributed cover assertion (use `statement`), for a quote inside running text (use `prose` blockquote), or for multiple quotes at once.",
+      "info_depths": [
+        "L1",
+        "L2"
+      ],
+      "carries": [
+        "quote",
+        "narrative"
+      ],
+      "capacity": {
+        "min": 1,
+        "typical": 1,
+        "max": 1,
+        "item_noun": "quote"
+      },
+      "density": "sparse",
+      "pairs_with": [
+        "prose",
+        "statement-title",
+        "provenance"
+      ],
+      "source_ref": "component-manifest.json:pull-quote"
+    },
+    {
+      "id": "matrix",
+      "name": "Matrix",
+      "one_liner": "Feature comparison grid (yes/no/partial) with a winner-column tint.",
+      "when_to_use": "Use for a capability/feature comparison: rows of features x columns of options, each cell a yes/no/partial mark, with the winning column tinted. The classic 'us vs them' or feature-matrix. Unbounded rows (typical 6, up to 16+). Strongest comparison carrier with a set and a soft verdict.",
+      "avoid_when": "Avoid for a recommendation with attributes (use `option-grid`), for before/after (use `cmp-table`), or when cells hold free text rather than yes/no marks (use `pipeline-table`/`dense-table`).",
+      "info_depths": [
+        "L2",
+        "L3"
+      ],
+      "carries": [
+        "comparison",
+        "set",
+        "verdict"
+      ],
+      "capacity": {
+        "min": 2,
+        "typical": 6,
+        "max": 16,
+        "item_noun": "row"
+      },
+      "density": "dense",
+      "pairs_with": [
+        "statement-title",
+        "verdict-callout",
+        "provenance"
+      ],
+      "source_ref": "component-manifest.json:matrix"
+    },
+    {
+      "id": "dense-table",
+      "name": "Dense Table",
+      "one_liner": "Compact open-ended data table, 10-30 rows, zebra + sticky header.",
+      "when_to_use": "Use for a genuinely large tabular dataset of 10-30 rows the reader will scan/study \u2014 the high-cardinality workhorse that renders a long list without truncation (the 13-principles class). Unbounded. Carries comparison, a set, per-row verdict/status, and a light metric.",
+      "avoid_when": "Avoid for a few rows (use `cmp-table`/`pipeline-table`), for yes/no feature grids (use `matrix`), or on an L1 hook (far too dense).",
+      "info_depths": [
+        "L3",
+        "L4"
+      ],
+      "carries": [
+        "comparison",
+        "set",
+        "verdict",
+        "metric"
+      ],
+      "capacity": {
+        "min": 8,
+        "typical": 16,
+        "max": 30,
+        "item_noun": "row"
+      },
+      "density": "dense",
+      "pairs_with": [
+        "statement-title",
+        "lede",
+        "verdict-badge",
+        "provenance"
+      ],
+      "source_ref": "component-manifest.json:dense-table"
+    },
+    {
+      "id": "two-column-list",
+      "name": "Two-Column List",
+      "one_liner": "10-24 short items (title + sub) balanced across two columns.",
+      "when_to_use": "Use for a medium-large flat set of 8-24 short items with a title and one sub-line each, balanced across two columns \u2014 the step up from card-set when a handful becomes a long list. Unbounded. Pure set carrier.",
+      "avoid_when": "Avoid for 2-5 rich cards (use `card-set`), for 20-40 single-word chips (use `tag-wall`), or for tabular data with columns (use `dense-table`).",
+      "info_depths": [
+        "L3"
+      ],
+      "carries": [
+        "set"
+      ],
+      "capacity": {
+        "min": 8,
+        "typical": 14,
+        "max": 24,
+        "item_noun": "item"
+      },
+      "density": "dense",
+      "pairs_with": [
+        "statement-title",
+        "lede",
+        "provenance"
+      ],
+      "source_ref": "component-manifest.json:two-column-list"
+    },
+    {
+      "id": "tag-wall",
+      "name": "Tag Wall",
+      "one_liner": "10-40 chips as a scannable wall (tech list, capability set, glossary).",
+      "when_to_use": "Use for a large set of 10-40 short single-label items where the SET's breadth is the point, not each item's detail \u2014 a tech stack, capability list, glossary, or coverage wall. Unbounded chips with an optional tone. The overflow target when a set outgrows card-set/two-column-list.",
+      "avoid_when": "Avoid when each item needs a description (use `two-column-list`/`card-set`), for fewer than ~10 items, or when items carry data/structure.",
+      "info_depths": [
+        "L2",
+        "L3"
+      ],
+      "carries": [
+        "set"
+      ],
+      "capacity": {
+        "min": 10,
+        "typical": 20,
+        "max": 40,
+        "item_noun": "tag"
+      },
+      "density": "medium",
+      "pairs_with": [
+        "statement-title",
+        "lede",
+        "card-set"
+      ],
+      "source_ref": "component-manifest.json:tag-wall"
+    },
+    {
+      "id": "tier-badge",
+      "name": "Tier Badge",
+      "one_liner": "Inline pill classifier chip (a tier/label with tone).",
+      "when_to_use": "STRUCTURALLY INLINE \u2014 a single decorative classifier pill embedded within another block (a card, a title, a table cell) to tag a tier/category. Carries a light verdict/classification only. Not placed on its own.",
+      "avoid_when": "Avoid as a standalone block, for a status verdict (use `verdict-badge`), or for an HTTP method (use `method-badge`).",
+      "info_depths": [
+        "L1",
+        "L2",
+        "L3",
+        "L4"
+      ],
+      "carries": [
+        "verdict"
+      ],
+      "capacity": {
+        "min": 1,
+        "typical": 1,
+        "max": 1,
+        "item_noun": "chip"
+      },
+      "density": "sparse",
+      "pairs_with": [
+        "card-set",
+        "statement-title",
+        "dense-table",
+        "story-grid"
+      ],
+      "source_ref": "component-manifest.json:tier-badge"
+    },
+    {
+      "id": "verdict-badge",
+      "name": "Verdict Badge",
+      "one_liner": "Inline status chip (dim tint + ink, AA-contrast) carrying a verdict tone.",
+      "when_to_use": "STRUCTURALLY INLINE \u2014 a single status chip embedded in a row/cell/card to mark a verdict state (pass/fail, ok/risk) with an accessible tint. Carries a light verdict only. Use inside tables and disclosure rows to color status.",
+      "avoid_when": "Avoid as a standalone block, for a tier/category tag (use `tier-badge`), or for an HTTP method (use `method-badge`).",
+      "info_depths": [
+        "L1",
+        "L2",
+        "L3",
+        "L4"
+      ],
+      "carries": [
+        "verdict"
+      ],
+      "capacity": {
+        "min": 1,
+        "typical": 1,
+        "max": 1,
+        "item_noun": "chip"
+      },
+      "density": "sparse",
+      "pairs_with": [
+        "cmp-table",
+        "dense-table",
+        "disclosure-list",
+        "evidence-list"
+      ],
+      "source_ref": "component-manifest.json:verdict-badge"
+    },
+    {
+      "id": "method-badge",
+      "name": "Method Badge",
+      "one_liner": "Inline monospace HTTP-method chip (GET/POST/...).",
+      "when_to_use": "STRUCTURALLY INLINE \u2014 a single mono chip labeling an HTTP method, embedded in an API/endpoint table or verb card. Purely a typographic label; carries no claim-shape of its own.",
+      "avoid_when": "Avoid as a standalone block, for a tier tag (use `tier-badge`), or for a status verdict (use `verdict-badge`).",
+      "info_depths": [
+        "L2",
+        "L3",
+        "L4"
+      ],
+      "carries": [],
+      "capacity": {
+        "min": 1,
+        "typical": 1,
+        "max": 1,
+        "item_noun": "chip"
+      },
+      "density": "sparse",
+      "pairs_with": [
+        "pipeline-table",
+        "verb-grid",
+        "dense-table"
+      ],
+      "source_ref": "component-manifest.json:method-badge"
+    }
+  ]
+}

@@ -1,0 +1,114 @@
+# Cognitive trait questions — behavioral preferences, not diagnoses.
+# Each question maps to strategy parameters via the answer mapping below.
+#
+# These replace the neurotype multi-select. Instead of "are you ADHD?",
+# we ask "do you prefer novelty or routine?" — same parameters, no labels.
+
+questions:
+  - id: 1
+    question: "When it comes to projects and ideas, you…"
+    option_a: "love starting new things — novelty energizes me"
+    option_b: "prefer sticking to established routines and processes"
+    trait: novelty_vs_routine
+
+  - id: 2
+    question: "When you're deep in a task and someone interrupts, you…"
+    option_a: "can usually pick up where you left off without much friction"
+    option_b: "lose significant context — getting back in is expensive"
+    trait: context_switch_tolerance
+
+  - id: 3
+    question: "When working with tools and interfaces, you prefer…"
+    option_a: "the same layout and format every time"
+    option_b: "variety — different formats keep things interesting"
+    trait: pattern_consistency
+
+  - id: 4
+    question: "Your typical deep focus sessions last…"
+    option_a: "under 2 hours before I need a break or switch"
+    option_b: "4+ hours when I'm in the zone"
+    trait: focus_duration
+
+  - id: 5
+    question: "When you receive a reminder, you prefer…"
+    option_a: "short and direct — just the key facts"
+    option_b: "full context — what, why, where I left off"
+    trait: context_detail
+
+  - id: 6
+    question: "When something isn't clear, you'd rather…"
+    option_a: "figure it out from context — ambiguity doesn't bother me much"
+    option_b: "get explicit clarification immediately — uncertainty is stressful"
+    trait: ambiguity_tolerance
+
+# Answer mapping → strategy parameters
+# Each trait + answer combination sets specific behavioral_overrides values.
+# These are the same parameters that neurotype defaults used to set.
+
+mapping:
+  novelty_vs_routine:
+    a:  # novelty
+      suggestion_aggression: high
+      re_entry_reminders: true
+      stale_project_days: 3
+      stale_thought_days: 3
+    b:  # routine
+      suggestion_aggression: low
+      re_entry_reminders: false
+      protect_routines: true
+      stale_project_days: 7
+      stale_thought_days: 7
+
+  context_switch_tolerance:
+    a:  # tolerant
+      context_switch_alert_min: 0
+      transition_buffer_min: 0
+    b:  # expensive
+      context_switch_alert_min: 15
+      transition_buffer_min: 10
+
+  pattern_consistency:
+    a:  # consistent
+      context_format: checklist
+      protect_routines: true
+    b:  # variety
+      context_format: brief
+
+  focus_duration:
+    a:  # short bursts
+      focus_session_max_hours: 2
+    b:  # long sessions
+      focus_session_max_hours: 5
+
+  context_detail:
+    a:  # brief
+      context_format: brief
+    b:  # full
+      context_format: full
+
+  ambiguity_tolerance:
+    a:  # tolerant
+      {}
+    b:  # needs clarity
+      {}
+
+# Implications generated from answers (for bootstrap display)
+implications:
+  novelty_vs_routine:
+    a: "loves novelty, hates repetition — surface new ideas proactively"
+    b: "prefers routine — protect established workflows, minimize surprises"
+  context_switch_tolerance:
+    a: "handles context switches fluidly"
+    b: "context switches are expensive — finish current topic before switching"
+  pattern_consistency:
+    a: "needs consistent format — use the same structure and terminology every time"
+    b: "enjoys varied formats — shape changes help separate concepts"
+  focus_duration:
+    a: "works in short focused bursts — keep communication blocks brief"
+    b: "sustains long deep focus — batch updates, don't interrupt unnecessarily"
+  context_detail:
+    a: "prefers brief reminders — just the key facts"
+    b: "needs full context in reminders — what, why, and where I left off"
+  ambiguity_tolerance:
+    a: "comfortable with ambiguity — can figure things out from context"
+    b: "ambiguity is a stressor — eliminate proactively, be explicit"

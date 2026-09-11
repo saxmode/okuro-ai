@@ -1,0 +1,30 @@
+<!-- archetype: proportion/latency-bars (kit-spec 3b · mcp token-bar / lat-seg). Slots: eyebrow, title, lede, rows[] -->
+<section class="slide" data-archetype="proportion-bars">
+  <div class="slide-inner">
+    <div class="slide-eyebrow" data-slot="eyebrow"><span class="slide-num">10</span> Context budget</div>
+    <h1 class="slide-title" data-slot="title">Where the tokens <span class="accent">go</span></h1>
+    <p class="slide-lede" data-slot="lede">Each call's share of the window — green is safe, amber is caution, red overflows.</p>
+    <div data-slot="rows" style="display:flex;flex-direction:column;gap:18px;margin-top:8px">
+      <div class="lat-seg-row" style="grid-template-columns:220px 1fr 120px">
+        <span class="stage">System prompt</span>
+        <span class="bar-cell"><span class="token-bar safe" style="width:22%"></span></span>
+        <span class="lat-e">2.8k</span>
+      </div>
+      <div class="lat-seg-row" style="grid-template-columns:220px 1fr 120px">
+        <span class="stage">Retrieved memory</span>
+        <span class="bar-cell"><span class="token-bar safe" style="width:38%"></span></span>
+        <span class="lat-e">4.9k</span>
+      </div>
+      <div class="lat-seg-row" style="grid-template-columns:220px 1fr 120px">
+        <span class="stage">Tool schemas</span>
+        <span class="bar-cell"><span class="token-bar caution" style="width:64%"></span></span>
+        <span class="lat-e">8.1k</span>
+      </div>
+      <div class="lat-seg-row" style="grid-template-columns:220px 1fr 120px">
+        <span class="stage">Transcript tail</span>
+        <span class="bar-cell"><span class="token-bar danger" style="width:88%"></span></span>
+        <span class="lat-e">11.2k</span>
+      </div>
+    </div>
+  </div>
+</section>

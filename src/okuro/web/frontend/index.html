@@ -1,0 +1,63 @@
+<!-- Main entry point for the Okuro web frontend application -->
+<!doctype html>
+<!-- data-appearance IS THE REGISTER'S ONE USER CHOICE. The engine emits both
+     grounds and switches on `:root[data-appearance="dark"]`; with the attribute
+     absent, :root is the LIGHT ground, so linking the sheet alone would flip the
+     whole app white in one step. It is set to `dark` here so the re-theme changes
+     WHERE every value comes from without also changing what okuro looks like —
+     one variable at a time. Removing it, or driving it from a setting, is the
+     light/dark choice, and it is the only thing standing between the two. The
+     `color-scheme` style and meta below stay in agreement with it. -->
+<html lang="en" data-appearance="dark" style="color-scheme: dark;">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0a0a0a" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <title>Okuro</title>
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" type="image/svg+xml" href="/icons/okuro.svg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <!-- THE ENGINE SHEET, AND NOW THE ONLY ONE. P5's re-theme: the app reads the
+         resolved brand per ground instead of a frozen token dump.
+
+         /tokens.css WAS LINKED FIRST HERE AND IS NOT ANY MORE (2026-09-03, step
+         one of the v1 retirement the owner approved as unlink-then-delete). Both
+         sheets declared the same consumer names at :root at equal specificity,
+         so the later one won — which made the ORDER of two lines the difference
+         between the re-theme and a silent revert, with every file still looking
+         correct and no other test failing. One sheet cannot be out of order, so
+         the trap is gone by construction rather than by assertion.
+
+         WHAT UNLINKING ACTUALLY DROPPED, measured against the two live sheets
+         before the edit: 20 names /tokens.css declared that the engine does not
+         (--curve-* ×12, --motion-default/-xfast/-xslow, --font-weight-bold/
+         -medium/-regular, --font-size-3xl, --spacing-md-plus). ZERO of them is
+         read anywhere in this frontend — the only two source hits for any of
+         them are a fixture string and its assertion inside the v1 module's own
+         test. Every name both sheets declared is unchanged, because the engine
+         was already winning it. tokens.css carried no rules of its own beyond
+         those declarations: its [data-theme] blocks were empty.
+
+         The engine sheet is the fallback for nothing now. If it fails to load
+         the app renders unstyled, which is the honest failure — the old silent
+         one repainted okuro in a frozen brand and looked deliberate.
+
+         Not under /api/*: a stylesheet fetch cannot attach a bearer. See
+         okuro/design_engine/api.py::engine_css. -->
+    <link rel="stylesheet" href="/engine.css" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <!-- audit fix 2026-04-27: SW registration moved to external file
+         /sw-register.js so we satisfy `script-src 'self'` in CSP without
+         needing 'unsafe-inline'. The previous inline block triggered a CSP
+         violation in pywebview/Safari. -->
+    <script src="/sw-register.js"></script>
+  </body>
+</html>

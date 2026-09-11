@@ -1,0 +1,22 @@
+-- Migration 107 — add the provider-agnostic effort (thinking-depth) axis to roles.
+--
+-- DECIDED 2026-07-22: tier and effort are two ORTHOGONAL axes. Tier picks the
+-- model class (fast/standard/strategic/critical -> haiku/sonnet/opus/fable on
+-- claude); effort picks how hard that model thinks. They were conflated before —
+-- codex encoded effort AS its tier_map, claude had no effort knob at all.
+--
+-- VERIFIED via CLI probes 2026-07-22 (no assumptions — every value tested):
+--   claude -p --effort <low|medium|high|xhigh|max>   (all 5 accepted)
+--   codex   -c model_reasoning_effort=<low|medium|high>   (3; xhigh/max cap to high)
+--   agy     --effort <low|medium|high>                    (3; xhigh/max cap to high)
+--
+-- Canonical effort vocabulary: low, medium, high, xhigh, max (Claude's GA set).
+-- Each provider's effort_map (config.yaml) maps the canonical value to its own
+-- flag, capping where the provider tops out.
+--
+-- Default 'medium' matches the Claude API default (cost-balanced). Per-role
+-- overrides are set in the /agents Roles UI. Idempotent via IF-guard pattern:
+-- SQLite has no ADD COLUMN IF NOT EXISTS, so the runner's per-file tracking
+-- (this file runs exactly once) is what guarantees single application.
+
+ALTER TABLE roles ADD COLUMN effort TEXT DEFAULT 'medium';

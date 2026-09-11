@@ -1,0 +1,108 @@
+/* PRISM v4 W2 — composed-slide geometry + fallbacks for solver-rendered slides.
+   The solver owns geometry; this file expresses it as CSS grid over the kit's 12
+   columns, reusing the kit theme tokens. Only classes NOT already in the shipped
+   components.css / components-ext.css get a fallback rule here (kept minimal). */
+
+/* A composed slide IS a slide — it is not wrapped in `.slide` (the fragment is
+   emitted wrapperless by solver/render.py so the viewer and the gallery render
+   byte-identical markup). It therefore has to carry the SAME canvas contract
+   `.slide` does (components.css): fill the fixed 1600x900 canvas and centre its
+   content. It previously declared width only, so its height was content-driven —
+   a 347px slide sat at the top of a 900px canvas leaving 61% dead space.
+
+   min-height (not height): the slide always FILLS the canvas, and content that
+   exceeds it stays VISIBLE and measurable instead of being silently clipped, so
+   the deck gate's `scrollHeight > 900` check can catch the overflow. Dimensions
+   come from the kit tokens so there is one source of truth for the canvas size. */
+.composed-slide {
+  box-sizing: border-box;
+  width: var(--canvas-w, 1600px);
+  min-height: var(--canvas-h, 900px);
+  padding: 64px;
+  display: flex;
+  flex-direction: column;
+  justify-content: safe center;   /* see .slide — never split overflow across both ends */
+  background: var(--bg-base);
+  color: var(--fg-body);
+  font-family: var(--font-body);
+}
+/* The viewer's React mount wrapper must not become a layout box between
+   `.zoom-canvas` and `.composed-slide` — `display: contents` makes the composed
+   slide a direct layout child, exactly as it is in the standalone gallery doc. */
+.composed-mount { display: contents; }
+/* A cell whose rendered text does not trace to its own claims (fidelity below
+   the floor) still draws — hiding it would conceal the defect — but it must
+   never be mistaken for the document. Under `prism.strict` such a cell is
+   refused at build time and this badge is unreachable; it exists for a deck
+   built with strict off. */
+.composed-unfaithful {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 5;
+  padding: 2px 8px;
+  border: 1px solid var(--warn);
+  border-radius: 3px;
+  background: var(--bg-base);
+  color: var(--warn);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: help;
+}
+.composed-row {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  align-items: start;
+}
+.composed-cell { min-width: 0; }
+.composed-cell.spacer { visibility: hidden; }
+
+/* W3 — composed TITLE BAND, LEVEL-AWARE (R32 distinct macro-skeleton per level).
+   L1: a commanding HERO band (large display type + accent rule, vertically centred)
+   so the hook's title DOMINATES. L2/L3: the same idea COMPRESSED to a HEADER STRIP
+   (smaller type, an underline rule, no tall centred band) so the DETAIL bands below
+   become the dominant mass — the ladder reads as three compositions, not one slide
+   accreting rows. Composed-path only (these selectors don't exist in the W1 gallery). */
+.composed-cell[data-component="statement-title"] {
+  display: flex; flex-direction: column; justify-content: center;
+}
+.composed-cell[data-component="statement-title"] .slide-title {
+  margin: 0; max-width: none;
+}
+/* L1 — hero */
+.composed-slide[data-level="L1"] .composed-cell[data-component="statement-title"] .slide-title {
+  font-size: var(--fs-display, 56px); line-height: var(--lh-tight);
+}
+.composed-slide[data-level="L1"] .composed-cell[data-component="statement-title"] .slide-title::after {
+  content: ""; display: block; width: 84px; height: 4px; margin-top: 22px;
+  background: var(--accent); border-radius: 2px;
+}
+/* L2 / L3 — compact header strip (idea compressed, detail dominates) */
+.composed-slide[data-level="L2"] .composed-cell[data-component="statement-title"],
+.composed-slide[data-level="L3"] .composed-cell[data-component="statement-title"] {
+  justify-content: flex-start;
+}
+.composed-slide[data-level="L2"] .composed-cell[data-component="statement-title"] .slide-title,
+.composed-slide[data-level="L3"] .composed-cell[data-component="statement-title"] .slide-title {
+  font-size: var(--fs-heading, 30px); line-height: var(--lh-title, 1.15);
+  padding-bottom: 14px; border-bottom: 2px solid var(--accent);
+}
+
+/* fallbacks for builder classes not defined by the shipped kit CSS */
+.prose { font-size: 17px; line-height: 1.7; color: var(--fg-body); max-width: 72ch; }
+.prose p { margin: 0 0 12px; }
+.beat-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.beat-row { display: flex; gap: 12px; align-items: baseline; }
+.beat-num { font-family: var(--font-mono); color: var(--accent); font-size: 13px; }
+.beat-what { color: var(--fg-body); }
+.proportion-bars { display: flex; flex-direction: column; gap: 12px; }
+.prop-row { display: grid; grid-template-columns: 160px 1fr 56px; gap: 12px; align-items: center; }
+.prop-label { font-size: 13px; color: var(--fg-tertiary); }
+.prop-track { height: 14px; background: var(--bg-raised); border-radius: 7px; overflow: hidden; }
+.prop-fill { height: 100%; width: 42%; background: var(--accent); }
+.prop-value { font-family: var(--font-mono); font-size: 13px; text-align: right; }
+.flow-sequence { display: flex; flex-direction: column; gap: 10px; }
+.pipeline { display: flex; flex-direction: column; gap: 6px; }
+.component-unknown { min-height: 45px; border: 1px dashed var(--border-soft); border-radius: 8px; }

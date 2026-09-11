@@ -1,0 +1,83 @@
+# <!-- AGENT_HEADER
+# role: config
+# purpose: Canon entry — Claude Code CLI install / auth / detection.
+# index: tool_id | name | type | install | authenticate | detect
+# AGENT_HEADER_END -->
+tool_id: claude-code
+name: "Claude Code"
+type: cli_tool
+category: inference_cli
+version: "latest"
+
+description: >
+  Anthropic's official coding agent CLI. Default inference backend for okuro's
+  bridge_invoke. Required for most agent-powered features.
+
+binary: claude
+provider_id: claude
+
+install:
+  linux:
+    prerequisites:
+      - name: node
+        min_version: "18"
+        detect: "node --version"
+        install_hint: "Ubuntu: `sudo apt install nodejs npm`  |  Fedora: `sudo dnf install nodejs`"
+    command: "npm install -g @anthropic-ai/claude-code"
+    post_install_check: "claude --version"
+  darwin:
+    prerequisites:
+      - name: node
+        min_version: "18"
+        detect: "node --version"
+        install_hint: "`brew install node`"
+    command: "npm install -g @anthropic-ai/claude-code"
+    post_install_check: "claude --version"
+    alt_command: "curl -fsSL https://claude.ai/install.sh | bash"
+
+authenticate:
+  command: "claude /login"
+  instructions: >
+    A browser window opens for sign-in. Complete it, then return to the
+    terminal — authentication persists for future `claude` sessions.
+  non_interactive_alt: "claude setup-token"
+
+detect:
+  which: "claude"
+  auth_probe:
+    command: ["claude", "-p", "echo ok"]
+    timeout_seconds: 30
+    success_exit_code: 0
+
+docs_url: "https://code.claude.com/docs/en/setup"
+
+metadata:
+  author: okuro
+  created: "2026-04-20"
+  tags: [inference, cli, anthropic, recommended]
+
+enabled: true
+recommended: true
+
+# --- Consumer registry (P2 Phase A) — additive read-model; wired to nothing yet.
+# short_name is the key used by mcp_config._provider_paths / _PROVIDER_IDS and
+# cli_probe._KNOWN_CLIS. See okuro.canon.consumers.
+short_name: claude
+capabilities:
+  kind: cli
+  mcp:
+    # USER scope. ~/.mcp.json loads as PROJECT scope (walk-up from cwd),
+    # outranks user scope, and starts disconnected every session — proven
+    # 2026-07-17 to be the every-session `/mcp reconnect` bug. Repointed to
+    # ~/.claude.json in lockstep with mcp_config._provider_paths["claude"].
+    path: ".claude.json"
+    format: json
+    root_key: mcpServers
+    remote_field: url
+    transports: [stdio, http]        # sse deprecated
+    preferred_transport: http
+  instructions:
+    path: ".claude/CLAUDE.md"
+  hooks:
+    supported: true                  # 30 events (vocabulary is NOT portable)
+  probe: cli

@@ -1,0 +1,72 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   prism · board kit · tokens.css  (STRUCTURAL EXTRAS — brand-independent)
+   The 62 board tokens (colours, fonts, type scale, spacing, widths, radii,
+   motion, shadows) are OWNED by A1's theme-resolver — token_manifest("board")
+   in src/okuro/prism/theme.py — and shipped per-brand in board/theme.css.
+   This file adds ONLY what the manifest does NOT provide and the kit still
+   needs: the fixed logical canvas, the ultra doc tier, and typographic
+   relationship tokens (line-heights, tracking, weights) the ramp uses.
+   It must NOT redefine any manifest name (that would shadow the brand value).
+   ═══════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── fixed logical canvas (plan 1 — all archetypes target this) ── */
+  --canvas-w: 1600px;
+  --canvas-h: 900px;
+
+  /* ── doc-mode ultra tier (plan 1) — manifest ships reading/wide/slide only ── */
+  --ultra-w: 2560px;
+
+  /* NB: --accent-ink, --ok-dim, --persona-a/b/c are DERIVED per-brand in
+     fixtures/gen_theme_css.py and shipped in theme.css — not defined here,
+     so they track the resolved brand rather than being hand-hardcoded. */
+
+  /* ── line-heights (kit-spec 1h — not in the manifest) ── */
+  --lh-tight: 1.1;      /* display titles */
+  --lh-title: 1.2;
+  --lh-body: 1.7;       /* board.css:58 */
+  --lh-prose: 1.75;     /* board.css:485 */
+  --lh-lede: 1.55;
+
+  /* ── tracking (kit-spec 1h) ── */
+  --track-display: -0.02em;   /* negative on >=38px titles */
+  --track-eyebrow: 2.5px;     /* positive + uppercase on small labels */
+  --track-label: 1.5px;
+
+  /* ── weights (kit-spec 1h — weight climbs with size) ── */
+  --wt-body: 400;
+  --wt-medium: 500;
+  --wt-semibold: 600;
+  --wt-bold: 700;
+  --wt-heavy: 800;
+}
+
+/* ── base reset + document (structural; consumes manifest theme vars) ── */
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg-base);
+  color: var(--fg-body);
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  font-weight: var(--wt-body);
+  line-height: var(--lh-body);
+  letter-spacing: 0.005em;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* scrollbar (board.css:916-919) */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 5px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
+
+/* utility (board.css:908-913) */
+.muted { color: var(--fg-tertiary); }
+.tiny { font-size: 12px; }
+.center { text-align: center; }
+.spacer-l { height: 80px; }
+.spacer-m { height: 40px; }
+.mono { font-family: var(--font-mono); }

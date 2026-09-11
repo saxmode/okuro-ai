@@ -1,0 +1,21 @@
+-- <!-- AGENT_HEADER
+-- role: code
+-- purpose: 053_sessions_inline_is_agentic — flag agentic (subagent) sessions to bypass the human-approval gate
+-- index: content
+-- AGENT_HEADER_END -->
+-- Add ``is_agentic`` to ``sessions_inline``. The MCP approval gate at
+-- ``mcp/_registry.py:343`` currently consults for EVERY session with a
+-- non-null inline session id — which includes orchestrator subagent
+-- sessions minted by ``bridge.streaming.registry.create()``. Subagents
+-- have no human watching the gate, so EVERY write-tier MCP call
+-- (artifact_write, log_progress, session_report, write_role_handover,
+-- write_memory, …) waits the full 300 s timeout and returns
+-- approval_denied — invisible to the engine, looks like the subagent
+-- silently failed. Root cause of ~all 20 task failures audited 2026-05-29.
+--
+-- Default 0 (human-driven, gate ACTIVE) so existing browser Solve
+-- sessions keep gating. The orchestrator's streaming dispatch path
+-- sets this to 1 when minting subagent sessions; the dispatcher reads
+-- the column and skips the gate consult when 1.
+
+ALTER TABLE sessions_inline ADD COLUMN is_agentic INTEGER NOT NULL DEFAULT 0;

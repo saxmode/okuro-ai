@@ -1,0 +1,1361 @@
+{
+  "id": "benchmark-northwind-board",
+  "title": "Northwind Board — Architecture Rebuild Overview",
+  "brand": "northwind",
+  "hero": {
+    "slide": {
+      "archetype": "hero",
+      "slots": {
+        "eyebrow": {
+          "text": "briefing",
+          "num": "01"
+        },
+        "title": [
+          {
+            "text": "Northwind Board — Architecture Rebuild "
+          },
+          {
+            "text": "Overview",
+            "accent": true
+          }
+        ],
+        "lede": "Problem (legacy fails, patching only delays) -> Options (four architectures scored) -> Best option's case (Arc-T closes everything) -> Recommendation (phased rebuild, cost framing) -> Ask (binary decision plus open questions)",
+        "personas": [
+          {
+            "mark": "a",
+            "name": "Marco",
+            "lens": "Board member · northwind"
+          },
+          {
+            "mark": "b",
+            "name": "Robin Vogt",
+            "lens": "Board member · northwind"
+          },
+          {
+            "mark": "c",
+            "name": "Alex Reiter",
+            "lens": "CEO & Founder / Board member · northwind"
+          }
+        ],
+        "meta": [
+          {
+            "label": "family",
+            "value": "swiss"
+          },
+          {
+            "label": "audience",
+            "value": "composite"
+          },
+          {
+            "label": "brand",
+            "value": "northwind"
+          }
+        ]
+      }
+    }
+  },
+  "topics": [
+    {
+      "id": "t1",
+      "title": "The Legacy Problem and Its Limits",
+      "levels": {
+        "L0": {
+          "slide": {
+            "archetype": "disclosure-list",
+            "slots": {
+              "eyebrow": {
+                "text": "The Legacy Problem and Its Limits",
+                "num": "01"
+              },
+              "title": [
+                {
+                  "text": "Patching the legacy system buys 2-3 years before forcing a rebuild in 2031-2032 under deadline pressure on end-of-life Windows "
+                },
+                {
+                  "text": "hardware",
+                  "accent": true
+                }
+              ],
+              "rows": [
+                {
+                  "mark": "1",
+                  "title": "Patching the legacy system buys 2-3 years before forcing a rebuild in 2031-2032 under deadline pressure on end-of-life W"
+                }
+              ]
+            }
+          },
+          "provenance": [
+            {
+              "claim": "c20",
+              "quote": "forces a rebuild in 2031-2032 under deadline pressure on EOL Windows hardware",
+              "artifactId": "2c0bd518-6d5c-4e2c-a1d7-ea643eefc7cc",
+              "artifactTitle": "Northwind Board — Architecture Rebuild Overview"
+            }
+          ],
+          "visual": {
+            "kind": "stat",
+            "title": "The board review studied the legacy Vega1 stack (31 problems",
+            "stat": {
+              "value": "5",
+              "label": "items",
+              "sub": "Legacy Vega1 stack (31 problems / 8 cate"
+            },
+            "source": {
+              "claim": "c1",
+              "quote": "Legacy Vega1 stack (31 problems / 8 categories) + 4 architecture proposals",
+              "artifactId": "2c0bd518-6d5c-4e2c-a1d7-ea643eefc7cc",
+              "artifactTitle": "Northwind Board — Architecture Rebuild Overview"
+            }
+          },
+          "lensSlides": {
+            "marco": {
+              "archetype": "disclosure-list",
+              "slots": {
+                "eyebrow": {
+                  "text": "The Legacy Problem and Its Limits",
+                  "num": "01"
+                },
+                "title": [
+                  {
+                    "text": "Patching the current system buys about 2-3 years of extra time. But that time runs out on a fixed schedule: the hardware runs end-of-life Windows, and by 2031-2032 a full rebuild becomes unavoidable — done under time pressure, on systems that are already "
+                  },
+                  {
+                    "text": "outdated",
+                    "accent": true
+                  }
+                ],
+                "rows": [
+                  {
+                    "mark": "1",
+                    "title": "Patching the current system buys about 2-3 years of extra time. But that time runs out on a fixed schedule: the hardware"
+                  }
+                ]
+              }
+            },
+            "robin-vogt": {
+              "archetype": "disclosure-list",
+              "slots": {
+                "eyebrow": {
+                  "text": "The Legacy Problem and Its Limits",
+                  "num": "01"
+                },
+                "title": [
+                  {
+                    "text": "Fixing the current system only delays the problem: it buys about 2-3 years before a full rebuild becomes unavoidable by 2031-2032, at which point the computers involved will already be running outdated, unsupported Windows software — meaning the rebuild would happen under time pressure rather than on the board's own "
+                  },
+                  {
+                    "text": "schedule",
+                    "accent": true
+                  }
+                ],
+                "rows": [
+                  {
+                    "mark": "1",
+                    "title": "Fixing the current system only delays the problem: it buys about 2-3 years before a full rebuild becomes unavoidable by "
+                  }
+                ]
+              }
+            },
+            "alex-reiter": {
+              "archetype": "disclosure-list",
+              "slots": {
+                "eyebrow": {
+                  "text": "The Legacy Problem and Its Limits",
+                  "num": "01"
+                },
+                "title": [
+                  {
+                    "text": "Patching the current system buys 2-3 years — but it's time rented, not saved. By 2031-2032, a rebuild becomes unavoidable, forced by hardware running end-of-life Windows. Waiting means we make that call under deadline pressure instead of on our own "
+                  },
+                  {
+                    "text": "terms",
+                    "accent": true
+                  }
+                ],
+                "rows": [
+                  {
+                    "mark": "1",
+                    "title": "Patching the current system buys 2-3 years — but it's time rented, not saved. By 2031-2032, a rebuild becomes unavoidabl"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "L2": {
+          "slide": {
+            "archetype": "framework-tiles",
+            "slots": {
+              "tiles": [
+                {
+                  "label": "Belvedere welcome scenario delivery (legacy vs Arc-T)",
+                  "value": "~10% → 100%"
+                }
+              ],
+              "eyebrow": {
+                "text": "The Legacy Problem and Its Limits",
+                "num": "01"
+              },
+              "title": [
+                {
+                  "text": "Patching the legacy system buys 2-3 years before forcing a rebuild in 2031-2032 under deadline pressure on end-of-life Windows "
+                },
+                {
+                  "text": "hardware",
+                  "accent": true
+                }
+              ]
+            }
+          },
+          "provenance": [
+            {
+              "claim": "c20",
+              "quote": "forces a rebuild in 2031-2032 under deadline pressure on EOL Windows hardware",
+              "artifactId": "2c0bd518-6d5c-4e2c-a1d7-ea643eefc7cc",
+              "artifactTitle": "Northwind Board — Architecture Rebuild Overview"
+            },
+            {
+              "claim": "c10",
+              "quote": "Legacy delivers ~10 %; Arc-T delivers 100 % by design",
+              "artifactId": "2c0bd518-6d5c-4e2c-a1d7-ea643eefc7cc",
+              "artifactTitle": "Northwind Board — Architecture Rebuild Overview"
+            }
+          ],
+          "lensSlides": {
+            "marco": {
+              "archetype": "framework-tiles",
+              "slots": {
+                "tiles": [
+                  {
+                    "label": "Belvedere welcome experience: today vs. Arc-T",
+                    "value": "~10% → 100%"
+                  }
+                ],
+                "eyebrow": {
+                  "text": "The Legacy Problem and Its Limits",
+                  "num": "01"
+                },
+                "title": [
+                  {
+                    "text": "Patching the current system buys about 2-3 years of extra time. But that time runs out on a fixed schedule: the hardware runs end-of-life Windows, and by 2031-2032 a full rebuild becomes unavoidable — done under time pressure, on systems that are already "
+                  },
+                  {
+                    "text": "outdated",
+                    "accent": true
+                  }
+                ]
+              }
+            },
+            "robin-vogt": {
+              "archetype": "framework-tiles",
+              "slots": {
+                "tiles": [
+                  {
+                    "label": "Belvedere welcome scenario — visitor experience delivered (current system vs. Arc-T)",
+                    "value": "~10% → 100%"
+                  }
+                ],
+                "eyebrow": {
+                  "text": "The Legacy Problem and Its Limits",
+                  "num": "01"
+                },
+                "title": [
+                  {
+                    "text": "Fixing the current system only delays the problem: it buys about 2-3 years before a full rebuild becomes unavoidable by 2031-2032, at which point the computers involved will already be running outdated, unsupported Windows software — meaning the rebuild would happen under time pressure rather than on the board's own "
+                  },
+                  {
+                    "text": "schedule",
+                    "accent": true
+                  }
+                ]
+              }
+            },
+            "alex-reiter": {
+              "archetype": "framework-tiles",
+              "slots": {
+                "tiles": [
+                  {
+                    "label": "Belvedere welcome experience: today vs. Arc-T",
+                    "value": "~10% → 100%"
+                  }
+                ],
+                "eyebrow": {
+                  "text": "The Legacy Problem and Its Limits",
+                  "num": "01"
+                },
+                "title": [
+                  {
+                    "text": "Patching the current system buys 2-3 years — but it's time rented, not saved. By 2031-2032, a rebuild becomes unavoidable, forced by hardware running end-of-life Windows. Waiting means we make that call under deadline pressure instead of on our own "
+                  },
+                  {
+                    "text": "terms",
+                    "accent": true
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "l3": {
+        "title": "The Legacy Problem and Its Limits",
+        "width": "wide",
+        "sections": [
+          {
+            "id": "t1-full",
+            "heading": "The Legacy Problem and Its Limits",
+            "level": 1,
+            "md": "## The Legacy Problem and Its Limits\n\nThe board review examined the current Vega1 stack in full: 31 distinct problems spread across 8 categories. Alongside that inventory, the review placed four architecture proposals side by side — Arc-A, Arc-B, Arc-C, and a re-cut version, Arc-T — setting up the comparison that the rest of this deck works through.\n\nThe central question the review had to settle first: can the legacy system simply be patched instead of rebuilt? The answer is that patching is a delay, not a fix. Applying fixes to the existing Vega1 stack buys roughly 2-3 years of runway. But that runway runs out on a fixed clock — the underlying hardware is running end-of-life Windows, and by 2031-2032 a rebuild becomes unavoidable. At that point it happens under deadline pressure, on infrastructure that is already past its supported life, which is a materially worse position than choosing the timing now.\n\nThe gap patching leaves in place is visible in concrete scenarios, not just architecture diagrams. Take the Belvedere welcome scenario: today's legacy system delivers about 10% of the intended experience. Arc-T, by contrast, is designed to deliver 100% of that same scenario. That is not a marginal improvement — it is the difference between a system that structurally cannot support the intended customer experience and one built to support it from the ground up.\n\nTaken together, these findings frame the rest of the deck: the legacy system's problems are broad (29 issues, 8 categories), patching them only rents time before an end-of-life-hardware deadline forces the issue anyway, and the experience cost of staying on legacy is already measurable today, not hypothetical.\n\nLegacy Vega1 stack (31 problems / 8 categories) + 4 architecture proposals\n\nforces a rebuild in 2031-2032 under deadline pressure on EOL Windows hardware\n\nLegacy delivers ~10 %; Arc-T delivers 100 % by design"
+          },
+          {
+            "id": "t1-claims",
+            "heading": "Details",
+            "level": 2,
+            "md": "- Patching the legacy system buys 2-3 years before forcing a rebuild in 2031-2032 under deadline pressure on end-of-life Windows hardware.\n- **Legacy Vega1 stack (31 problems / 8 categories)**\n- **Arc-A proposal**\n- **Arc-B proposal**\n- **Arc-C proposal**\n- **Arc-T re-cut proposal**\n- **Belvedere welcome scenario delivery (legacy vs Arc-T)** — ~10% → 100%"
+          }
+        ]
+      }
+    },
+    {
+      "id": "t2",
+      "title": "Four Architectures, One Scorecard",
+      "levels": {
+        "L0": {
+          "slide": {
+            "archetype": "proportion-bars",
+            "slots": {
+              "rows": [
+                {
+                  "stage": "Arc-A",
+                  "pct": 26,
+                  "state": "safe",
+                  "value": "27 problems"
+                },
+                {
+                  "stage": "Arc-B",
+                  "pct": 24,
+                  "state": "safe",
+                  "value": "26 problems"
+                },
+                {
+                  "stage": "Arc-C",
+                  "pct": 25,
+                  "state": "safe",
+                  "value": "26 problems"
+                },
+                {
+                  "stage": "Arc-T",
+                  "pct": 29,
+                  "state": "safe",
+                  "value": "31 problems"
+                }
+              ],
+              "eyebrow": {
+                "text": "Four Architectures, One Scorecard",
+                "num": "02"
+              },
+              "title": [
+                {
+                  "text": "Four Architectures, One "
+                },
+                {
+                  "text": "Scorecard",
+                  "accent": true
+                }
+              ]
+            }
+          },
+          "provenance": [
+            {
+              "claim": "c6",
+              "quote": "Closes 31 problems",
+              "artifactId": "2c0bd518-6d5c-4e2c-a1d7-ea643eefc7cc",
+              "artifactTitle": "Northwind Board — Architecture Rebuild Overview"
+            }
+          ],
+          "visual": {
+            "kind": "proportion",
+            "title": "Of the 31 legacy problems identified, Arc-A closes 26, Arc-B",
+            "bars": [
+              {
+                "label": "Arc-A",
+                "value": 26,
+                "display": "27 problems",
+                "state": "safe"
+              },
+              {
+                "label": "Arc-B",
+                "value": 24,
+                "display": "26 problems",
+                "state": "safe"
+              },
+              {
+                "label": "Arc-C",
+                "value": 25,
+                "display": "26 problems",
+                "state": "safe"
+              },
+              {
+                "label": "Arc-T",
+                "value": 29,
+                "display": "31 problems",
+                "state": "safe"
+              }
+            ],
+            "source": {
+              "claim": "c6",
+              "quote": "Closes 31 problems",
+              "artifactId": "2c0bd518-6d5c-4e2c-a1d7-ea643eefc7cc",
+              "artifactTitle": "Northwind Board — Architecture Rebuild Overview"
+            }
+          },
+          "lensSlides": {
+            "marco": {
+              "archetype": "proportion-bars",
+              "slots": {
+                "rows": [
+                  {
+                    "stage": "Arc-A",
+                    "pct": 26,
+                    "state": "safe",
+                    "value": "27 problems"
+                  },
+                  {
+                    "stage": "Arc-B",
+                    "pct": 24,
+                    "state": "safe",
+                    "value": "26 problems"
+                  },
+                  {
+                    "stage": "Arc-C",
+                    "pct": 25,
+                    "state": "safe",
+                    "value": "26 problems"
+                  },
+                  {
+                    "stage": "Arc-T",
+                    "pct": 29,
+                    "state": "safe",
+                    "value": "31 problems"
+                  }
+                ],
+                "eyebrow": {
+                  "text": "Four Architectures, One Scorecard",
+                  "num": "02"
+                },
+                "title": [
+                  {
+                    "text": "Four Architectures, One "
+                  },
+                  {
+                    "text": "Scorecard",
+                    "accent": true
+                  }
+                ]
+              }
+            },
+            "robin-vogt": {
+              "archetype": "proportion-bars",
+              "slots": {
+                "rows": [
+                  {
+                    "stage": "Arc-A",
+                    "pct": 26,
+                    "state": "safe",
+                    "value": "27 problems"
+                  },
+                  {
+                    "stage": "Arc-B",
+                    "pct": 24,
+                    "state": "safe",
+                    "value": "26 problems"
+                  },
+                  {
+                    "stage": "Arc-C",
+                    "pct": 25,
+                    "state": "safe",
+                    "value": "26 problems"
+                  },
+                  {
+                    "stage": "Arc-T",
+                    "pct": 29,
+                    "state": "safe",
+                    "value": "31 problems"
+                  }
+                ],
+                "eyebrow": {
+                  "text": "Four Architectures, One Scorecard",
+                  "num": "02"
+                },
+                "title": [
+                  {
+                    "text": "Four Architectures, One "
+                  },
+                  {
+                    "text": "Scorecard",
+                    "accent": true
+                  }
+                ]
+              }
+            },
+            "alex-reiter": {
+              "archetype": "proportion-bars",
+              "slots": {
+                "rows": [
+                  {
+                    "stage": "Arc-A",
+                    "pct": 26,
+                    "state": "safe",
+                    "value": "27 problems"
+                  },
+                  {
+                    "stage": "Arc-B",
+                    "pct": 24,
+                    "state": "safe",
+                    "value": "26 problems"
+                  },
+                  {
+                    "stage": "Arc-C",
+                    "pct": 25,
+                    "state": "safe",
+                    "value": "26 problems"
+                  },
+                  {
+                    "stage": "Arc-T",
+                    "pct": 29,
+                    "state": "safe",
+                    "value": "31 problems"
+                  }
+                ],
+                "eyebrow": {
+                  "text": "Four Architectures, One Scorecard",
+                  "num": "02"
+                },
+                "title": [
+                  {
+                    "text": "Four Architectures, One "
+                  },
+                  {
+                    "text": "Scorecard",
+                    "accent": true
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "l3": {
+        "title": "Four Architectures, One Scorecard",
+        "width": "wide",
+        "sections": [
+          {
+            "id": "t2-full",
+            "heading": "Four Architectures, One Scorecard",
+            "level": 1,
+            "md": "## Four Architectures, One Scorecard\n\nFour rebuild paths were put through the same scorecard — timeline to ship, risk profile, how many of the 29 known legacy problems each closes, how many of 11 unexamined principles each closes, and how many single points of failure (SPOFs) remain. The four are:\n\n- **Arc-A** — Event-sourced spine (Postgres + NATS + .NET)\n- **Arc-B** — Reactive actor mesh (Rust + iroh)\n- **Arc-C** — SQLite-as-the-system, MCP-first (Bun)\n- **Arc-T** — Six layers: Substrate / Signal / Ontology / Intent+Safety / Surface / Federation\n\n### Timeline, risk, and closure\n\n| Architecture | Agentic v1 | Agentic v2 | Risk | Problems closed (of 31) | Principles closed (of 11) | SPOF count |\n|---|---|---|---|---|---|---|\n| Arc-A | 8-10 wk | 24 wk | Low | 26 | 0 | 1 (Postgres) |\n| Arc-B | 12-16 wk | 36 wk | Medium | 24 | 0 | 0 |\n| Arc-C | 5-7 wk | 20 wk | Medium | 25 | 0 | 1 (SQLite) |\n| Arc-T | 14-20 wk | 48 wk | Medium-high | 29 | 11 | 0 |\n\nArc-A closes 26 of the 31 legacy problems, Arc-B closes 24, and Arc-C closes 25. Arc-T is the only option that closes all 31. On the 11 unexamined principles — risks nobody has mapped yet — Arc-A, Arc-B, and Arc-C close none of them, while Arc-T closes all 11. This is the core trade-off: Arc-T is the slowest to ship (14-20 weeks for v1, 48 weeks for v2, versus as little as 5-7 weeks for Arc-C) and carries the highest risk rating, but it is the only architecture that closes everything — every known problem and every unexamined principle.\n\n### Single points of failure\n\nSPOF counts diverge sharply: Arc-A has 1 (Postgres), Arc-B has 0, Arc-C has 1 (SQLite), and Arc-T has 0. Fewer SPOFs means fewer ways the whole system can go down at once — Arc-B and Arc-T eliminate this risk entirely, while Arc-A and Arc-C each still depend on a single database layer.\n\n### Decision matrix: speed and hiring vs. future-proofing\n\nA second cut of the data — restricted to Arc-A, Arc-C, and Arc-T — scores three criteria: time to first customer install (high weight), future-proofing for 2030 KNX-IoT + Matter + AI (high weight), and whether the team can ship without hiring (medium weight).\n\n| Criterion | Arc-A | Arc-C | Arc-T |\n|---|---|---|---|\n| Time to first customer install | 8-10 wk | 5-7 wk | 14-20 wk |\n| Future-proof for 2030 (KNX-IoT + Matter + AI) | medium | medium | high |\n| Ship without hiring | yes (.NET) | yes (TS) | no (needs a Quint formal-methods contractor plus Rust ramp-up) |\n\nArc-A and Arc-C both beat Arc-T on time-to-first-install and can ship with the existing team's current stack (.NET or TypeScript) with no new hires. Arc-T alone scores high on future-proofing for 2030-era smart-home standards and AI integration, but it requires bringing in a Quint formal-methods contractor and ramping the team on Rust. This is why the fast, hiring-free options and the future-proof option cannot both win: speed and internal-only staffing pull one way, long-term durability pulls the other.\n\nCloses 31 problems\n\nCloses 31 problems\n\nCloses 11 unexamined principles\n\nTime to first customer install (high)"
+          },
+          {
+            "id": "t2-claims",
+            "heading": "Details",
+            "level": 2,
+            "md": "- **Arc-A**\n- **Arc-B**\n- **Arc-C**\n- **Arc-T**\n- **Arc-A** — 27 problems\n- **Arc-B** — 26 problems\n- **Arc-C** — 26 problems\n- **Arc-T** — 31 problems\n- **Arc-A** — 0 principles\n- **Arc-B** — 0 principles\n- **Arc-C** — 0 principles\n- **Arc-T** — 11 principles\n- **Arc-A**\n- **Arc-C**\n- **Arc-T**\n- **Arc-A: 1 (Postgres)**\n- **Arc-B: 0**\n- **Arc-C: 1 (SQLite)**\n- **Arc-T: 0**"
+          }
+        ]
+      }
+    },
+    {
+      "id": "t3",
+      "title": "Arc-T's Complete Fix",
+      "levels": {
+        "L0": {
+          "slide": {
+            "archetype": "framework-tiles",
+            "slots": {
+              "tiles": [
+                {
+                  "label": "safety invariants in Alex's safety frame",
+                  "value": "15"
+                }
+              ],
+              "eyebrow": {
+                "text": "Arc-T's Complete Fix",
+                "num": "03"
+              },
+              "title": [
+                {
+                  "text": "Only Arc-T re-cuts the architecture's layers, closing all 31 legacy problems and all 11 unexamined principles, while the other three proposals keep the legacy mental "
+                },
+                {
+                  "text": "model",
+                  "accent": true
+                }
+              ]
+            }
+          },
+          "provenance": [
+            {
+              "claim": "c2",
+              "quote": "only Arc-T re-cuts the layers + closes 29/31 problems + 11/11 unexamined principles",
+              "artifactId": "2c0bd518-6d5c-4e2c-a1d7-ea643eefc7cc",
+              "artifactTitle": "Northwind Board — Architecture Rebuild Overview"
+            },
+            {
+              "claim": "c16",
+              "quote": "Alex's safety frame — the 15 invariants",
+              "artifactId": "2c0bd518-6d5c-4e2c-a1d7-ea643eefc7cc",
+              "artifactTitle": "Northwind Board — Architecture Rebuild Overview"
+            }
+          ],
+          "visual": {
+            "kind": "stat",
+            "title": "Alex's safety frame defines 15 invariants enforced by the ",
+            "stat": {
+              "value": "15",
+              "label": "safety invariants in Alex's safety frame"
+            },
+            "source": {
+              "claim": "c16",
+              "quote": "Alex's safety frame — the 15 invariants",
+              "artifactId": "2c0bd518-6d5c-4e2c-a1d7-ea643eefc7cc",
+              "artifactTitle": "Northwind Board — Architecture Rebuild Overview"
+            }
+          },
+          "lensSlides": {
+            "marco": {
+              "archetype": "framework-tiles",
+              "slots": {
+                "tiles": [
+                  {
+                    "label": "Safety rules in Alex's safety design",
+                    "value": "15"
+                  }
+                ],
+                "eyebrow": {
+                  "text": "Arc-T's Complete Fix",
+                  "num": "03"
+                },
+                "title": [
+                  {
+                    "text": "Of the four architecture proposals evaluated, only Arc-T restructures the system's core design. It resolves all 31 known problems and addresses all 11 principles that had gone unchecked, while the other three proposals keep the existing design "
+                  },
+                  {
+                    "text": "as-is",
+                    "accent": true
+                  }
+                ]
+              }
+            },
+            "robin-vogt": {
+              "archetype": "framework-tiles",
+              "slots": {
+                "tiles": [
+                  {
+                    "label": "Safety rules in Alex's safety frame",
+                    "value": "15"
+                  }
+                ],
+                "eyebrow": {
+                  "text": "Arc-T's Complete Fix",
+                  "num": "03"
+                },
+                "title": [
+                  {
+                    "text": "Of four proposals compared, only Arc-T rebuilds the system's core structure rather than working around it — fully resolving all 31 known problems and all 11 gaps that had never been checked before. The other three proposals leave the existing structure in "
+                  },
+                  {
+                    "text": "place",
+                    "accent": true
+                  }
+                ]
+              }
+            },
+            "alex-reiter": {
+              "archetype": "framework-tiles",
+              "slots": {
+                "tiles": [
+                  {
+                    "label": "Safety rules defined in Alex's safety framework",
+                    "value": "15"
+                  }
+                ],
+                "eyebrow": {
+                  "text": "Arc-T's Complete Fix",
+                  "num": "03"
+                },
+                "title": [
+                  {
+                    "text": "Of the four proposals evaluated, only Arc-T restructures the system at its foundation. It resolves all 31 legacy issues identified in the review and addresses all 11 design principles the old architecture left unexamined. The other three options leave the underlying structure untouched — they improve within the existing system rather than rebuilding "
+                  },
+                  {
+                    "text": "it",
+                    "accent": true
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "l3": {
+        "title": "Arc-T's Complete Fix",
+        "width": "wide",
+        "sections": [
+          {
+            "id": "t3-full",
+            "heading": "Arc-T's Complete Fix",
+            "level": 1,
+            "md": "Among the four architectures scored against the legacy system, only Arc-T re-cuts the underlying layers rather than working within the existing mental model. Rulings across the evaluation confirm Arc-T closes all 31 legacy problems identified during the audit, and clears all 11 principles that had gone unexamined under the legacy design. The other three proposals were scored differently: each retains the legacy mental model, meaning they patch symptoms inside the same layer boundaries rather than restructuring them. That distinction is why Arc-T stands apart — it is the only option that actually fixes everything the audit surfaced, not a subset of it.\n\nPart of what makes this closure credible is the rigor behind Arc-T's safety design. Alex's safety frame — the component governing behavior at the architecture's lowest layer — defines 15 distinct invariants. These invariants are enforced by the L3 safety kernel, meaning safety guarantees are not aspirational or process-based but built into the layer that sits beneath everything else Arc-T does. The invariant count is a concrete engineering artifact: each invariant is a rule the kernel actively enforces, not a guideline teams are asked to follow.\n\nTogether, the two facts reinforce each other. Arc-T's claim to closing 29/31 problems and 11/11 principles is not just a scoring outcome — it is backed by an enforcement mechanism (the 15-invariant safety kernel) that gives the \"closes everything\" verdict a mechanical guarantee rather than a design intention. Where the other three proposals leave enforcement implicit within the legacy model, Arc-T makes it explicit and load-bearing at the lowest layer of the stack.\n\nonly Arc-T re-cuts the layers + closes 29/31 problems + 11/11 unexamined principles\n\nAlex's safety frame — the 15 invariants"
+          },
+          {
+            "id": "t3-claims",
+            "heading": "Details",
+            "level": 2,
+            "md": "- **Arc-T** — Only proposal that re-cuts the layers, closes 29/31 problems, and closes 11/11 unexamined principles\n- **safety invariants in Alex's safety frame** — 15"
+          }
+        ]
+      }
+    },
+    {
+      "id": "t4",
+      "title": "The Phased Rebuild Recommendation",
+      "levels": {
+        "L0": {
+          "slide": {
+            "archetype": "disclosure-list",
+            "slots": {
+              "eyebrow": {
+                "text": "The Phased Rebuild Recommendation",
+                "num": "04"
+              },
+              "title": [
+                {
+                  "text": "The proposal is to invest in a rebuild, using Arc-A as a 6-month MVP doorway and Arc-T as a 12-month "
+                },
+                {
+                  "text": "long-bet",
+                  "accent": true
+                }
+              ],
+              "rows": [
+                {
+                  "mark": "1",
+                  "title": "The proposal is to invest in a rebuild, using Arc-A as a 6-month MVP doorway and Arc-T as a 12-month long-bet."
+                }
+              ]
+            }
+          },
+          "provenance": [
+            {
+              "claim": "c3",
+              "quote": "Invest in a rebuild. Arc-A = 6-month MVP doorway; Arc-T = 12-month long-bet",
+              "artifactId": "2c0bd518-6d5c-4e2c-a1d7-ea643eefc7cc",
+              "artifactTitle": "Northwind Board — Architecture Rebuild Overview"
+            }
+          ],
+          "visual": {
+            "kind": "stat",
+            "title": "Pursuing Arc-T requires budget for one Quint formal-methods ",
+            "stat": {
+              "value": "6 weeks",
+              "label": "Quint formal-methods contractor engagement (Arc-T only)"
+            },
+            "source": {
+              "claim": "c23",
+              "quote": "1× Quint formal-methods contractor (6 weeks)",
+              "artifactId": "2c0bd518-6d5c-4e2c-a1d7-ea643eefc7cc",
+              "artifactTitle": "Northwind Board — Architecture Rebuild Overview"
+            }
+          },
+          "lensSlides": {
+            "marco": {
+              "archetype": "disclosure-list",
+              "slots": {
+                "eyebrow": {
+                  "text": "The Phased Rebuild Recommendation",
+                  "num": "04"
+                },
+                "title": [
+                  {
+                    "text": "The proposal is to invest in a rebuild, using Arc-A as a 6-month MVP doorway and Arc-T as a 12-month "
+                  },
+                  {
+                    "text": "long-bet",
+                    "accent": true
+                  }
+                ],
+                "rows": [
+                  {
+                    "mark": "1",
+                    "title": "The proposal is to invest in a rebuild, using Arc-A as a 6-month MVP doorway and Arc-T as a 12-month long-bet."
+                  }
+                ]
+              }
+            },
+            "robin-vogt": {
+              "archetype": "disclosure-list",
+              "slots": {
+                "eyebrow": {
+                  "text": "The Phased Rebuild Recommendation",
+                  "num": "04"
+                },
+                "title": [
+                  {
+                    "text": "The recommendation: invest in a rebuild, done in two stages. Arc-A comes first — a 6-month starter build. Arc-T follows — a 12-month long-term "
+                  },
+                  {
+                    "text": "build",
+                    "accent": true
+                  }
+                ],
+                "rows": [
+                  {
+                    "mark": "1",
+                    "title": "The recommendation: invest in a rebuild, done in two stages. Arc-A comes first — a 6-month starter build. Arc-T follows "
+                  }
+                ]
+              }
+            },
+            "alex-reiter": {
+              "archetype": "disclosure-list",
+              "slots": {
+                "eyebrow": {
+                  "text": "The Phased Rebuild Recommendation",
+                  "num": "04"
+                },
+                "title": [
+                  {
+                    "text": "The recommendation: invest in a full rebuild, phased in two stages — Arc-A as a 6-month MVP doorway, followed by Arc-T as a 12-month long-term "
+                  },
+                  {
+                    "text": "build",
+                    "accent": true
+                  }
+                ],
+                "rows": [
+                  {
+                    "mark": "1",
+                    "title": "The recommendation: invest in a full rebuild, phased in two stages — Arc-A as a 6-month MVP doorway, followed by Arc-T a"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "L1": {
+          "slide": {
+            "archetype": "scenario-beats",
+            "slots": {
+              "beats": [
+                {
+                  "mark": "1",
+                  "body": ": Pay agent-weeks now or architect-years later."
+                }
+              ],
+              "eyebrow": {
+                "text": "The Phased Rebuild Recommendation",
+                "num": "04"
+              },
+              "title": [
+                {
+                  "text": "The proposal is to invest in a rebuild, using Arc-A as a 6-month MVP doorway and Arc-T as a 12-month "
+                },
+                {
+                  "text": "long-bet",
+                  "accent": true
+                }
+              ]
+            }
+          },
+          "provenance": [
+            {
+              "claim": "c3",
+              "quote": "Invest in a rebuild. Arc-A = 6-month MVP doorway; Arc-T = 12-month long-bet",
+              "artifactId": "2c0bd518-6d5c-4e2c-a1d7-ea643eefc7cc",
+              "artifactTitle": "Northwind Board — Architecture Rebuild Overview"
+            },
+            {
+              "claim": "c21",
+              "quote": "Arc-A's event log becomes Arc-T's substrate history later",
+              "artifactId": "2c0bd518-6d5c-4e2c-a1d7-ea643eefc7cc",
+              "artifactTitle": "Northwind Board — Architecture Rebuild Overview"
+            },
+            {
+              "claim": "c19",
+              "quote": "Pay agent-weeks now or architect-years later.",
+              "artifactId": "2c0bd518-6d5c-4e2c-a1d7-ea643eefc7cc",
+              "artifactTitle": "Northwind Board — Architecture Rebuild Overview"
+            }
+          ],
+          "lensSlides": {
+            "marco": {
+              "archetype": "scenario-beats",
+              "slots": {
+                "beats": [
+                  {
+                    "mark": "1",
+                    "body": ": Pay agent-weeks now or architect-years later."
+                  }
+                ],
+                "eyebrow": {
+                  "text": "The Phased Rebuild Recommendation",
+                  "num": "04"
+                },
+                "title": [
+                  {
+                    "text": "The proposal is to invest in a rebuild, using Arc-A as a 6-month MVP doorway and Arc-T as a 12-month "
+                  },
+                  {
+                    "text": "long-bet",
+                    "accent": true
+                  }
+                ]
+              }
+            },
+            "robin-vogt": {
+              "archetype": "scenario-beats",
+              "slots": {
+                "beats": [
+                  {
+                    "mark": "1",
+                    "body": ": Pay agent-weeks now or architect-years later."
+                  }
+                ],
+                "eyebrow": {
+                  "text": "The Phased Rebuild Recommendation",
+                  "num": "04"
+                },
+                "title": [
+                  {
+                    "text": "The recommendation: invest in a rebuild, done in two stages. Arc-A comes first — a 6-month starter build. Arc-T follows — a 12-month long-term "
+                  },
+                  {
+                    "text": "build",
+                    "accent": true
+                  }
+                ]
+              }
+            },
+            "alex-reiter": {
+              "archetype": "scenario-beats",
+              "slots": {
+                "beats": [
+                  {
+                    "mark": "1",
+                    "body": ": Pay agent-weeks now or architect-years later."
+                  }
+                ],
+                "eyebrow": {
+                  "text": "The Phased Rebuild Recommendation",
+                  "num": "04"
+                },
+                "title": [
+                  {
+                    "text": "The recommendation: invest in a full rebuild, phased in two stages — Arc-A as a 6-month MVP doorway, followed by Arc-T as a 12-month long-term "
+                  },
+                  {
+                    "text": "build",
+                    "accent": true
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "l3": {
+        "title": "The Phased Rebuild Recommendation",
+        "width": "wide",
+        "sections": [
+          {
+            "id": "t4-full",
+            "heading": "The Phased Rebuild Recommendation",
+            "level": 1,
+            "md": "## The Recommendation\n\nThe proposal is to invest in a rebuild rather than continue patching the legacy system. The path is phased in two stages:\n\n- **Arc-A** — a 6-month MVP doorway. Ships fast, proves the architecture, gets a working system into production sooner.\n- **Arc-T** — a 12-month long-bet. The fuller architecture that closes the remaining gaps the MVP doesn't address.\n\n### Why the phasing isn't a compromise\n\nA natural worry with any \"start small\" plan is that the small version becomes throwaway work if the team later decides to go bigger. That isn't the case here: Arc-A's event log becomes Arc-T's substrate history later. The data and history the MVP generates carries forward directly into the long-bet architecture, so choosing the safer, faster MVP path does not forfeit the option to build the fuller system afterward. Every week Arc-A runs in production is a week of substrate history Arc-T inherits for free.\n\n### The cost of going further\n\nPursuing Arc-T is not free of new spend beyond engineering time: it requires budget for one Quint formal-methods contractor, engaged for 6 weeks. This is the one concrete extra line item tied to the future-proof option, used to formally verify the harder guarantees Arc-T is meant to deliver.\n\n### The framing\n\nThe recommendation closes on a deliberately stark line: pay agent-weeks now, or pay architect-years later. That is the choice being put in front of the decision-makers — a modest, bounded spend today (the MVP build plus a 6-week specialist engagement) against a much larger, less bounded cost if the rebuild is deferred and the legacy system's problems compound instead.\n\nInvest in a rebuild. Arc-A = 6-month MVP doorway; Arc-T = 12-month long-bet\n\nPay agent-weeks now or architect-years later.\n\n1× Quint formal-methods contractor (6 weeks)"
+          },
+          {
+            "id": "t4-claims",
+            "heading": "Details",
+            "level": 2,
+            "md": "- The proposal is to invest in a rebuild, using Arc-A as a 6-month MVP doorway and Arc-T as a 12-month long-bet.\n- **—** — Pay agent-weeks now or architect-years later.\n- Choosing Arc-A as the MVP is upgrade-compatible, since Arc-A's event log becomes Arc-T's substrate history later.\n- **Quint formal-methods contractor engagement (Arc-T only)** — 6 weeks"
+          }
+        ]
+      }
+    },
+    {
+      "id": "t5",
+      "title": "The Board's Decision",
+      "levels": {
+        "L0": {
+          "slide": {
+            "archetype": "disclosure-list",
+            "slots": {
+              "eyebrow": {
+                "text": "The Board's Decision",
+                "num": "05"
+              },
+              "title": [
+                {
+                  "text": "The board is asked one binary question — patch versus rebuild — and if rebuild, whether to choose Arc-A for safety or Arc-T for "
+                },
+                {
+                  "text": "future-proofing",
+                  "accent": true
+                }
+              ],
+              "rows": [
+                {
+                  "mark": "1",
+                  "title": "The board is asked one binary question — patch versus rebuild — and if rebuild, whether to choose Arc-A for safety or Ar"
+                }
+              ]
+            }
+          },
+          "provenance": [
+            {
+              "claim": "c4",
+              "quote": "One binary: patch vs rebuild. If rebuild → Arc-A (safe) or Arc-T (future-proof)",
+              "artifactId": "2c0bd518-6d5c-4e2c-a1d7-ea643eefc7cc",
+              "artifactTitle": "Northwind Board — Architecture Rebuild Overview"
+            }
+          ],
+          "visual": {
+            "kind": "stat",
+            "title": "The board faces 7 open questions, covering patch-vs-rebuild,",
+            "stat": {
+              "value": "7",
+              "label": "items",
+              "sub": "Patch or rebuild? (binary)"
+            },
+            "source": {
+              "claim": "c17",
+              "quote": "7 open questions for the board",
+              "artifactId": "2c0bd518-6d5c-4e2c-a1d7-ea643eefc7cc",
+              "artifactTitle": "Northwind Board — Architecture Rebuild Overview"
+            }
+          },
+          "lensSlides": {
+            "marco": {
+              "archetype": "disclosure-list",
+              "slots": {
+                "eyebrow": {
+                  "text": "The Board's Decision",
+                  "num": "05"
+                },
+                "title": [
+                  {
+                    "text": "Today's decision for the board is simple: keep patching the current system, or rebuild it. If the board chooses to rebuild, a second choice follows right away — Arc-A, the safer route, or Arc-T, the route built for the "
+                  },
+                  {
+                    "text": "future",
+                    "accent": true
+                  }
+                ],
+                "rows": [
+                  {
+                    "mark": "1",
+                    "title": "Today's decision for the board is simple: keep patching the current system, or rebuild it. If the board chooses to rebui"
+                  }
+                ]
+              }
+            },
+            "robin-vogt": {
+              "archetype": "disclosure-list",
+              "slots": {
+                "eyebrow": {
+                  "text": "The Board's Decision",
+                  "num": "05"
+                },
+                "title": [
+                  {
+                    "text": "Today's decision is simple: keep patching the current system, or rebuild it. If the board chooses to rebuild, the next choice is between Arc-A (the safer option) or Arc-T (the option built for the "
+                  },
+                  {
+                    "text": "future)",
+                    "accent": true
+                  }
+                ],
+                "rows": [
+                  {
+                    "mark": "1",
+                    "title": "Today's decision is simple: keep patching the current system, or rebuild it. If the board chooses to rebuild, the next c"
+                  }
+                ]
+              }
+            },
+            "alex-reiter": {
+              "archetype": "disclosure-list",
+              "slots": {
+                "eyebrow": {
+                  "text": "The Board's Decision",
+                  "num": "05"
+                },
+                "title": [
+                  {
+                    "text": "The board has one decision to make: patch the current system, or rebuild it. If we rebuild, there's an immediate follow-on choice — Arc-A, the safer path, or Arc-T, the path built for the long "
+                  },
+                  {
+                    "text": "term",
+                    "accent": true
+                  }
+                ],
+                "rows": [
+                  {
+                    "mark": "1",
+                    "title": "The board has one decision to make: patch the current system, or rebuild it. If we rebuild, there's an immediate follow-"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "l3": {
+        "title": "The Board's Decision",
+        "width": "wide",
+        "sections": [
+          {
+            "id": "t5-full",
+            "heading": "The Board's Decision",
+            "level": 1,
+            "md": "The board's task today is deliberately narrow: one binary decision, cleanly separated from the open questions that follow it.\n\nThe headline vote is patch versus rebuild. If the board chooses to patch, the discussion ends there — legacy continues with incremental fixes. If the board chooses to rebuild, a second-order choice follows immediately: which architecture lane to commit to. The framing offers two named options — Arc-A, positioned as the safe choice, and Arc-T, positioned as the future-proof choice. This is presented as the exact decision the board needs to make today, with no additional scope folded into it.\n\nBeyond this headline vote, seven further questions remain open and are explicitly flagged as unresolved rather than decided in this session:\n\n- Patch or rebuild, restated as the binary itself.\n- If rebuild is chosen, which lane — Arc-A, Arc-T, or Arc-C.\n- The multi-tenant horizon the solution should target: a near-term scale of one to ten buildings, or a much larger scale of one hundred to one thousand.\n- Whether AI should be treated as a load-bearing differentiator for the product, a yes/no strategic call.\n- Whether federation across homes should be built into version 1, or deferred to version 2.\n- Whether budget will be allocated for one Quint formal-methods contractor over a six-week engagement — a question that applies specifically to the Arc-T lane.\n- Which site serves as the pilot for version 1, with Marco, Belvedere, and Alex named as the candidate options.\n\nTogether, this closes the topic — and the deck — by isolating the single decision that must be made now (patch vs. rebuild, and if rebuild, Arc-A vs. Arc-T) from the broader set of strategic and logistical questions that still need answers afterward.\n\nOne binary: patch vs rebuild. If rebuild → Arc-A (safe) or Arc-T (future-proof)\n\n7 open questions for the board"
+          },
+          {
+            "id": "t5-claims",
+            "heading": "Details",
+            "level": 2,
+            "md": "- The board is asked one binary question — patch versus rebuild — and if rebuild, whether to choose Arc-A for safety or Arc-T for future-proofing.\n- **Patch or rebuild? (binary)**\n- **If rebuild — which lane? (Arc-A / Arc-T / Arc-C)**\n- **Multi-tenant horizon? (1-10 buildings / 100-1000)**\n- **AI as load-bearing differentiator? (yes / no)**\n- **Federation across homes in v1? (v1 / v2)**\n- **Budget for 1× Quint formal-methods contractor (6 weeks)? (yes / no — Arc-T only)**\n- **Pilot site for v1? (Marco / Belvedere / Alex)**"
+          }
+        ]
+      }
+    }
+  ],
+  "accuracy": {
+    "levels": {},
+    "cells": {
+      "L0-0": [
+        {
+          "claim": "c20",
+          "component": "statement-title",
+          "emphasis": "focal",
+          "rendered": 1,
+          "total": 1,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 0,
+          "content_incomplete": false
+        }
+      ],
+      "L2-0": [
+        {
+          "claim": "c20",
+          "component": "statement-title",
+          "emphasis": "focal",
+          "rendered": 1,
+          "total": 1,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 0,
+          "content_incomplete": false
+        },
+        {
+          "claim": "c10",
+          "component": "cmp-table",
+          "emphasis": "primary",
+          "rendered": 2,
+          "total": 1,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 1,
+          "content_incomplete": true
+        }
+      ],
+      "L0-1": [
+        {
+          "claim": "__title__",
+          "component": "statement-title",
+          "emphasis": "focal",
+          "rendered": 1,
+          "total": 1,
+          "in_l4": false,
+          "synthesized": true,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 0,
+          "content_incomplete": false
+        },
+        {
+          "claim": "c6",
+          "component": "proportion-bars",
+          "emphasis": "primary",
+          "rendered": 4,
+          "total": 4,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 4,
+          "content_incomplete": false
+        }
+      ],
+      "L0-2": [
+        {
+          "claim": "c2",
+          "component": "statement-title",
+          "emphasis": "focal",
+          "rendered": 1,
+          "total": 1,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 1,
+          "content_incomplete": false
+        },
+        {
+          "claim": "c16",
+          "component": "verdict-callout",
+          "emphasis": "primary",
+          "rendered": 1,
+          "total": 1,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 1,
+          "content_incomplete": false
+        }
+      ],
+      "L0-3": [
+        {
+          "claim": "c3",
+          "component": "statement-title",
+          "emphasis": "focal",
+          "rendered": 1,
+          "total": 1,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 0,
+          "content_incomplete": false
+        }
+      ],
+      "L1-3": [
+        {
+          "claim": "c3",
+          "component": "statement-title",
+          "emphasis": "focal",
+          "rendered": 1,
+          "total": 1,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 0,
+          "content_incomplete": false
+        },
+        {
+          "claim": "c21",
+          "component": "lede",
+          "emphasis": "supporting",
+          "rendered": 1,
+          "total": 1,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 0,
+          "content_incomplete": false
+        },
+        {
+          "claim": "c19",
+          "component": "pull-quote",
+          "emphasis": "aside",
+          "rendered": 1,
+          "total": 1,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 0,
+          "content_incomplete": false
+        }
+      ],
+      "L0-4": [
+        {
+          "claim": "c4",
+          "component": "statement-title",
+          "emphasis": "focal",
+          "rendered": 1,
+          "total": 1,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 0,
+          "content_incomplete": false
+        }
+      ]
+    },
+    "silent_deficits": [],
+    "count_mismatches": [],
+    "synthesized": [
+      "__title__"
+    ],
+    "fallback": [],
+    "content_gaps": [
+      "c10"
+    ]
+  },
+  "tagline": "Problem (legacy fails, patching only delays) -> Options (four architectures scored) -> Best option's case (Arc-T closes everything) -> Recommendation (phased rebuild, cost framing) -> Ask (binary decision plus open questions)",
+  "brandLogo": {
+    "corner": "tl",
+    "dark": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 135 44\" role=\"img\" aria-label=\"Northwind logo\"><rect x=\"6\" y=\"13\" width=\"18\" height=\"18\" rx=\"2\" fill=\"#f4f4f5\"/><text x=\"34\" y=\"29\" font-family=\"ui-monospace,SFMono-Regular,Menlo,monospace\" font-size=\"21\" font-weight=\"700\" letter-spacing=\"0.5\" fill=\"#f4f4f5\">Northwind</text></svg>",
+    "light": "<svg width=\"465\" height=\"142\" viewBox=\"0 0 465 142\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n<g clip-path=\"url(#clip0_230_6116)\">\n<path fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M1.99628 62.9162C1.16041 63.5197 0 62.9224 0 61.8919V40.578C0 40.3546 0.029498 40.1349 0.088501 39.9238C0.236006 39.3685 0.570337 38.8723 1.04236 38.528L52.64 1.14641C54.3461 -0.0877537 56.5635 -0.344457 58.5057 0.468856L149.497 38.6354C150.048 38.8649 150.486 39.2759 150.751 39.7807C150.943 40.1386 151.046 40.5446 151.046 40.9679V62.4645C151.046 63.3667 150.132 63.9788 149.3 63.6308L57.9846 25.3286C56.3669 24.6511 54.5182 24.8646 53.0972 25.8939L1.99628 62.9162ZM14.5267 103.732C13.6467 103.334 13.5237 102.128 14.3055 101.558L31.5096 88.9999C32.2422 88.468 33.1961 88.368 34.0172 88.737L96.2153 116.686C96.8349 116.965 97.4937 117.11 98.1575 117.123C99.1163 117.144 100.075 116.891 100.911 116.373L128.642 99.1945C130.127 98.2738 131.032 96.6459 131.032 94.8922V70.1435C131.032 69.2401 131.946 68.6292 132.777 68.9772L149.628 76.0588C150.562 76.4513 151.171 77.3707 151.171 78.3902V106.001C151.171 107.679 150.34 109.248 148.958 110.189L103.616 140.96C101.88 142.137 99.6621 142.329 97.7494 141.465L14.5267 103.732ZM215.051 107H206.918V59.4511H215.051V107ZM206.259 46.8388C206.259 45.5205 206.662 44.4072 207.468 43.499C208.274 42.5908 209.468 42.1367 211.051 42.1367C212.633 42.1367 213.835 42.5908 214.655 43.499C215.476 44.4072 215.886 45.5205 215.886 46.8388C215.886 48.1572 215.476 49.2558 214.655 50.1347C213.835 51.0136 212.633 51.4531 211.051 51.4531C209.468 51.4531 208.274 51.0136 207.468 50.1347C206.662 49.2558 206.259 48.1572 206.259 46.8388ZM229.337 107V43.0156H250.262C257.207 43.0156 262.431 44.4511 265.933 47.3222C269.435 50.1933 271.186 54.4413 271.186 60.0663C271.186 63.0546 270.336 65.6986 268.636 67.9985C266.937 70.2983 264.622 72.078 261.691 73.3378C265.149 74.3046 267.882 76.143 269.889 78.853C271.897 81.5629 272.901 84.7929 272.901 88.5429C272.901 94.2851 271.04 98.7968 267.318 102.078C263.596 105.359 258.336 107 251.537 107H229.337ZM237.777 77.0732V100.1H251.712C255.639 100.1 258.738 99.0824 261.01 97.0463C263.281 95.0101 264.416 92.205 264.416 88.6308C264.416 80.9257 260.226 77.0732 251.844 77.0732H237.777ZM237.777 70.3056H250.526C254.218 70.3056 257.171 69.3827 259.383 67.537C261.596 65.6913 262.702 63.1865 262.702 60.0224C262.702 56.5068 261.676 53.9506 259.625 52.3539C257.574 50.7573 254.453 49.9589 250.262 49.9589H237.777V70.3056ZM307.1 66.746C305.869 66.5409 304.536 66.4384 303.1 66.4384C297.766 66.4384 294.147 68.7089 292.242 73.2499V107H284.11V59.4511H292.023L292.154 64.9443C294.821 60.6962 298.602 58.5722 303.496 58.5722C305.078 58.5722 306.28 58.7773 307.1 59.1874V66.746ZM323.409 107H315.277V59.4511H323.409V107ZM314.617 46.8388C314.617 45.5205 315.02 44.4072 315.826 43.499C316.632 42.5908 317.826 42.1367 319.409 42.1367C320.991 42.1367 322.193 42.5908 323.013 43.499C323.834 44.4072 324.244 45.5205 324.244 46.8388C324.244 48.1572 323.834 49.2558 323.013 50.1347C322.193 51.0136 320.991 51.4531 319.409 51.4531C317.826 51.4531 316.632 51.0136 315.826 50.1347C315.02 49.2558 314.617 48.1572 314.617 46.8388ZM355.499 101.243C358.4 101.243 360.935 100.364 363.104 98.6063C365.272 96.8485 366.474 94.6513 366.708 92.0146H374.401C374.255 94.7392 373.317 97.3319 371.588 99.7929C369.859 102.254 367.551 104.217 364.664 105.682C361.778 107.146 358.723 107.879 355.499 107.879C349.022 107.879 343.872 105.718 340.047 101.397C336.223 97.0756 334.311 91.165 334.311 83.6649V82.3026C334.311 77.6737 335.161 73.5576 336.86 69.954C338.56 66.3505 341 63.5527 344.18 61.5605C347.359 59.5683 351.118 58.5722 355.455 58.5722C360.789 58.5722 365.221 60.1689 368.752 63.3622C372.284 66.5556 374.167 70.7011 374.401 75.7988H366.708C366.474 72.7226 365.309 70.1957 363.214 68.2182C361.118 66.2406 358.532 65.2519 355.455 65.2519C351.323 65.2519 348.121 66.7387 345.85 69.7123C343.579 72.686 342.443 76.9852 342.443 82.6103V84.1483C342.443 89.6269 343.571 93.8456 345.828 96.8046C348.085 99.7636 351.308 101.243 355.499 101.243ZM396.82 84.9833L391.721 90.3007V107H383.589V39.5H391.721V80.3251L396.073 75.0956L410.887 59.4511H420.778L402.271 79.3144L422.932 107H413.392L396.82 84.9833ZM456.868 94.3876C456.868 92.1903 456.04 90.4838 454.384 89.268C452.728 88.0521 449.842 87.0048 445.724 86.1259C441.607 85.247 438.339 84.1923 435.921 82.9618C433.504 81.7313 431.716 80.2665 430.558 78.5673C429.401 76.8681 428.822 74.8466 428.822 72.5029C428.822 68.6064 430.47 65.3105 433.767 62.6152C437.064 59.9199 441.277 58.5722 446.406 58.5722C451.798 58.5722 456.172 59.9638 459.527 62.747C462.883 65.5302 464.56 69.0897 464.56 73.4257H456.384C456.384 71.1991 455.439 69.2802 453.549 67.6689C451.658 66.0575 449.277 65.2519 446.406 65.2519C443.446 65.2519 441.13 65.8964 439.46 67.1855C437.79 68.4745 436.954 70.1591 436.954 72.2392C436.954 74.2021 437.731 75.6816 439.284 76.6777C440.837 77.6738 443.643 78.6259 447.702 79.5341C451.761 80.4423 455.051 81.5263 457.571 82.786C460.091 84.0458 461.959 85.5619 463.176 87.3344C464.392 89.1068 465 91.2675 465 93.8163C465 98.0644 463.3 101.47 459.901 104.034C456.501 106.597 452.091 107.879 446.669 107.879C442.859 107.879 439.489 107.205 436.559 105.857C433.628 104.51 431.335 102.627 429.679 100.21C428.023 97.7933 427.196 95.1786 427.196 92.3661H435.328C435.474 95.0907 436.566 97.2514 438.603 98.848C440.64 100.445 443.328 101.243 446.669 101.243C449.746 101.243 452.215 100.621 454.076 99.3754C455.937 98.1303 456.868 96.4677 456.868 94.3876Z\" fill=\"#80B900\"/>\n</g>\n<defs>\n<clipPath id=\"clip0_230_6116\">\n<rect width=\"465\" height=\"142\" fill=\"white\"/>\n</clipPath>\n</defs>\n</svg>"
+  },
+  "lenses": [
+    {
+      "id": "marco",
+      "persona": {
+        "mark": "a",
+        "name": "Marco",
+        "lens": "Board member · northwind"
+      }
+    },
+    {
+      "id": "robin-vogt",
+      "persona": {
+        "mark": "b",
+        "name": "Robin Vogt",
+        "lens": "Board member · northwind"
+      }
+    },
+    {
+      "id": "alex-reiter",
+      "persona": {
+        "mark": "c",
+        "name": "Alex Reiter",
+        "lens": "CEO & Founder / Board member · northwind"
+      }
+    }
+  ]
+}

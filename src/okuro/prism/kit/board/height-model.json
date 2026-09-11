@@ -1,0 +1,2107 @@
+{
+  "kit_family": "board",
+  "version": "v4-w1",
+  "feature_recipe": {
+    "aspect": "height = c0 + c1*col_px",
+    "default": "rows=fixed_rows or ceil(items/cards_per_row); lines=text?max(1,ceil(chars*mult/chars_per_line)):1; eff=rows*lines; height=min(c0+c1*eff, cap_px)",
+    "cards_per_row": "grid:floor(col_px/min_card_px) grid3:3 columns2:2 wrap:floor(col_px/min_card_px) stack/fixed:1",
+    "chars_per_line": "min(container_w, max_width_ch*char_w)/char_w; char_w = per-brand @17px scaled by font_px/17",
+    "col_px": "round(col_span/12 * 1472)  (1600 canvas - 2*64 padding)"
+  },
+  "row_unit_px": 45.0,
+  "brands": [
+    "okuro",
+    "northwind",
+    "meridian"
+  ],
+  "viewports": [
+    1366,
+    1920,
+    3440
+  ],
+  "char_w_at_17px": {
+    "okuro": 10.285,
+    "northwind": 8.722,
+    "meridian": 8.316
+  },
+  "holdout_rule": "every 4th point in a stable (items,chars,colspan,viewport) sort",
+  "viewport_invariance_max_px": 0,
+  "exit_gate": {
+    "threshold": "p90(|error| / max(row_unit, 8% height)) <= 1.0 on held-out",
+    "p90_ratio_overall": 0.798,
+    "within_band_frac": 0.935,
+    "n_holdout": 1401,
+    "pass": true
+  },
+  "components": {
+    "arch-diagram": {
+      "layout": {
+        "layout": "grid",
+        "font_px": 13,
+        "text_inset": 32,
+        "text_mult": 1,
+        "min_card_px": 160,
+        "gap_px": 12
+      },
+      "text_bearing": false,
+      "per_brand": {
+        "okuro": {
+          "coeffs": [
+            -12.0,
+            85.0
+          ],
+          "char_w": 10.285,
+          "n_train": 27,
+          "n_holdout": 9,
+          "p90_abs_px": 0.0,
+          "max_abs_px": 0.0,
+          "p90_ratio": 0.0,
+          "within_band_frac": 1.0
+        },
+        "northwind": {
+          "coeffs": [
+            -12.0,
+            85.0
+          ],
+          "char_w": 8.722,
+          "n_train": 27,
+          "n_holdout": 9,
+          "p90_abs_px": 0.0,
+          "max_abs_px": 0.0,
+          "p90_ratio": 0.0,
+          "within_band_frac": 1.0
+        },
+        "meridian": {
+          "coeffs": [
+            -12.0,
+            85.0
+          ],
+          "char_w": 8.316,
+          "n_train": 27,
+          "n_holdout": 9,
+          "p90_abs_px": 0.0,
+          "max_abs_px": 0.0,
+          "p90_ratio": 0.0,
+          "within_band_frac": 1.0
+        }
+      },
+      "pooled": {
+        "coeffs": [
+          -12.0,
+          85.0
+        ]
+      },
+      "p90_ratio": 0.0,
+      "p90_abs_px": 0.0,
+      "pass": true
+    },
+    "ask-box": {
+      "layout": {
+        "layout": "stack",
+        "font_px": 15,
+        "text_inset": 48,
+        "text_mult": 1
+      },
+      "text_bearing": true,
+      "per_brand": {
+        "okuro": {
+          "coeffs": [
+            95.3044,
+            29.7705,
+            -0.0067
+          ],
+          "char_w": 10.285,
+          "n_train": 81,
+          "n_holdout": 27,
+          "p90_abs_px": 0.4,
+          "max_abs_px": 0.4,
+          "p90_ratio": 0.009,
+          "within_band_frac": 1.0
+        },
+        "northwind": {
+          "coeffs": [
+            95.3044,
+            29.7705,
+            -0.0067
+          ],
+          "char_w": 8.722,
+          "n_train": 81,
+          "n_holdout": 27,
+          "p90_abs_px": 0.4,
+          "max_abs_px": 0.4,
+          "p90_ratio": 0.009,
+          "within_band_frac": 1.0
+        },
+        "meridian": {
+          "coeffs": [
+            95.3044,
+            29.7705,
+            -0.0067
+          ],
+          "char_w": 8.316,
+          "n_train": 81,
+          "n_holdout": 27,
+          "p90_abs_px": 0.4,
+          "max_abs_px": 0.4,
+          "p90_ratio": 0.009,
+          "within_band_frac": 1.0
+        }
+      },
+      "pooled": {
+        "coeffs": [
+          95.3082,
+          29.7701,
+          -0.0119
+        ]
+      },
+      "p90_ratio": 0.009,
+      "p90_abs_px": 0.4,
+      "pass": true
+    },
+    "beat-list": {
+      "layout": {
+        "layout": "stack",
+        "font_px": 16,
+        "text_inset": 114,
+        "text_mult": 1
+      },
+      "text_bearing": true,
+      "per_brand": {
+        "okuro": {
+          "coeffs": [
+            0.591,
+            78.2138,
+            219.8972
+          ],
+          "char_w": 10.285,
+          "n_train": 81,
+          "n_holdout": 27,
+          "p90_abs_px": 75.2,
+          "max_abs_px": 106.3,
+          "p90_ratio": 0.994,
+          "within_band_frac": 0.889
+        },
+        "northwind": {
+          "coeffs": [
+            -5.5722,
+            75.3559,
+            202.998
+          ],
+          "char_w": 8.722,
+          "n_train": 81,
+          "n_holdout": 27,
+          "p90_abs_px": 101.1,
+          "max_abs_px": 128.2,
+          "p90_ratio": 1.794,
+          "within_band_frac": 0.778
+        },
+        "meridian": {
+          "coeffs": [
+            -5.5722,
+            75.3559,
+            202.998
+          ],
+          "char_w": 8.316,
+          "n_train": 81,
+          "n_holdout": 27,
+          "p90_abs_px": 101.1,
+          "max_abs_px": 128.2,
+          "p90_ratio": 1.794,
+          "within_band_frac": 0.778
+        }
+      },
+      "pooled": {
+        "coeffs": [
+          -3.345,
+          76.2051,
+          208.7453
+        ]
+      },
+      "p90_ratio": 1.554,
+      "p90_abs_px": 101.1,
+      "pass": false
+    },
+    "bias-check": {
+      "layout": {
+        "layout": "stack",
+        "font_px": 14,
+        "text_inset": 300,
+        "text_mult": 1
+      },
+      "text_bearing": true,
+      "per_brand": {
+        "okuro": {
+          "coeffs": [
+            -9.5813,
+            84.1126,
+            83.341
+          ],
+          "char_w": 10.285,
+          "n_train": 54,
+          "n_holdout": 18,
+          "p90_abs_px": 35.8,
+          "max_abs_px": 59.7,
+          "p90_ratio": 0.772,
+          "within_band_frac": 1.0
+        },
+        "northwind": {
+          "coeffs": [
+            -8.7848,
+            59.515,
+            98.6747
+          ],
+          "char_w": 8.722,
+          "n_train": 54,
+          "n_holdout": 18,
+          "p90_abs_px": 42.4,
+          "max_abs_px": 70.9,
+          "p90_ratio": 0.942,
+          "within_band_frac": 0.889
+        },
+        "meridian": {
+          "coeffs": [
+            -8.7848,
+            59.515,
+            98.6747
+          ],
+          "char_w": 8.316,
+          "n_train": 54,
+          "n_holdout": 18,
+          "p90_abs_px": 42.4,
+          "max_abs_px": 70.9,
+          "p90_ratio": 0.942,
+          "within_band_frac": 0.889
+        }
+      },
+      "pooled": {
+        "coeffs": [
+          -10.6819,
+          67.8898,
+          97.7261
+        ]
+      },
+      "p90_ratio": 0.894,
+      "p90_abs_px": 42.4,
+      "pass": true
+    },
+    "callout": {
+      "layout": {
+        "layout": "stack",
+        "font_px": 16,
+        "text_inset": 64,
+        "text_mult": 1,
+        "max_width_ch": 72
+      },
+      "text_bearing": true,
+      "per_brand": {
+        "okuro": {
+          "coeffs": [
+            88.3607,
+            88.3607,
+            271.5094
+          ],
+          "char_w": 10.285,
+          "n_train": 21,
+          "n_holdout": 6,
+          "p90_abs_px": 4.7,
+          "max_abs_px": 5.2,
+          "p90_ratio": 0.105,
+          "within_band_frac": 1.0
+        },
+        "northwind": {
+          "coeffs": [
+            86.9596,
+            86.9596,
+            125.2356
+          ],
+          "char_w": 8.722,
+          "n_train": 21,
+          "n_holdout": 6,
+          "p90_abs_px": 6.2,
+          "max_abs_px": 6.2,
+          "p90_ratio": 0.137,
+          "within_band_frac": 1.0
+        },
+        "meridian": {
+          "coeffs": [
+            86.9596,
+            86.9596,
+            119.3984
+          ],
+          "char_w": 8.316,
+          "n_train": 21,
+          "n_holdout": 6,
+          "p90_abs_px": 6.2,
+          "max_abs_px": 6.2,
+          "p90_ratio": 0.137,
+          "within_band_frac": 1.0
+        }
+      },
+      "pooled": {
+        "coeffs": [
+          87.1896,
+          87.1896,
+          170.835
+        ]
+      },
+      "p90_ratio": 0.137,
+      "p90_abs_px": 6.2,
+      "pass": true
+    },
+    "card-set": {
+      "layout": {
+        "layout": "grid",
+        "font_px": 16,
+        "text_inset": 64,
+        "text_mult": 1,
+        "min_card_px": 320,
+        "gap_px": 28
+      },
+      "text_bearing": true,
+      "per_brand": {
+        "okuro": {
+          "coeffs": [
+            -41.0429,
+            242.473,
+            243.1444
+          ],
+          "char_w": 10.285,
+          "n_train": 81,
+          "n_holdout": 27,
+          "p90_abs_px": 89.9,
+          "max_abs_px": 125.3,
+          "p90_ratio": 1.465,
+          "within_band_frac": 0.63
+        },
+        "northwind": {
+          "coeffs": [
+            -42.6077,
+            243.3882,
+            188.8826
+          ],
+          "char_w": 8.722,
+          "n_train": 81,
+          "n_holdout": 27,
+          "p90_abs_px": 66.8,
+          "max_abs_px": 102.1,
+          "p90_ratio": 1.294,
+          "within_band_frac": 0.852
+        },
+        "meridian": {
+          "coeffs": [
+            -38.588,
+            245.0671,
+            167.0037
+          ],
+          "char_w": 8.316,
+          "n_train": 81,
+          "n_holdout": 27,
+          "p90_abs_px": 93.7,
+          "max_abs_px": 146.7,
+          "p90_ratio": 1.51,
+          "within_band_frac": 0.741
+        }
+      },
+      "pooled": {
+        "coeffs": [
+          -40.4913,
+          243.4323,
+          199.1009
+        ]
+      },
+      "p90_ratio": 1.459,
+      "p90_abs_px": 93.7,
+      "pass": false
+    },
+    "chart": {
+      "layout": {
+        "layout": "aspect",
+        "font_px": 15,
+        "text_inset": 48,
+        "text_mult": 1
+      },
+      "text_bearing": false,
+      "per_brand": {
+        "okuro": {
+          "coeffs": [
+            104.5221,
+            0.4332
+          ],
+          "char_w": 10.285,
+          "n_train": 27,
+          "n_holdout": 9,
+          "p90_abs_px": 0.5,
+          "max_abs_px": 0.5,
+          "p90_ratio": 0.012,
+          "within_band_frac": 1.0
+        },
+        "northwind": {
+          "coeffs": [
+            104.5221,
+            0.4332
+          ],
+          "char_w": 8.722,
+          "n_train": 27,
+          "n_holdout": 9,
+          "p90_abs_px": 0.5,
+          "max_abs_px": 0.5,
+          "p90_ratio": 0.012,
+          "within_band_frac": 1.0
+        },
+        "meridian": {
+          "coeffs": [
+            104.5221,
+            0.4332
+          ],
+          "char_w": 8.316,
+          "n_train": 27,
+          "n_holdout": 9,
+          "p90_abs_px": 0.5,
+          "max_abs_px": 0.5,
+          "p90_ratio": 0.012,
+          "within_band_frac": 1.0
+        }
+      },
+      "pooled": {
+        "coeffs": [
+          104.5221,
+          0.4332
+        ]
+      },
+      "p90_ratio": 0.012,
+      "p90_abs_px": 0.5,
+      "pass": true
+    },
+    "cmp-table": {
+      "layout": {
+        "layout": "stack",
+        "font_px": 15,
+        "text_inset": 48,
+        "text_mult": 1
+      },
+      "text_bearing": true,
+      "per_brand": {
+        "okuro": {
+          "coeffs": [
+            38.6616,
+            41.1199,
+            0.0112
+          ],
+          "char_w": 10.285,
+          "n_train": 54,
+          "n_holdout": 18,
+          "p90_abs_px": 0.3,
+          "max_abs_px": 0.3,
+          "p90_ratio": 0.006,
+          "within_band_frac": 1.0
+        },
+        "northwind": {
+          "coeffs": [
+            38.6616,
+            41.1199,
+            0.0112
+          ],
+          "char_w": 8.722,
+          "n_train": 54,
+          "n_holdout": 18,
+          "p90_abs_px": 0.3,
+          "max_abs_px": 0.3,
+          "p90_ratio": 0.006,
+          "within_band_frac": 1.0
+        },
+        "meridian": {
+          "coeffs": [
+            38.6616,
+            41.1199,
+            0.0112
+          ],
+          "char_w": 8.316,
+          "n_train": 54,
+          "n_holdout": 18,
+          "p90_abs_px": 0.3,
+          "max_abs_px": 0.3,
+          "p90_ratio": 0.006,
+          "within_band_frac": 1.0
+        }
+      },
+      "pooled": {
+        "coeffs": [
+          38.6574,
+          41.1207,
+          0.0002
+        ]
+      },
+      "p90_ratio": 0.006,
+      "p90_abs_px": 0.3,
+      "pass": true
+    },
+    "dense-table": {
+      "layout": {
+        "layout": "stack",
+        "font_px": 13,
+        "text_inset": 80,
+        "text_mult": 1,
+        "cap_px": 620
+      },
+      "text_bearing": true,
+      "per_brand": {
+        "okuro": {
+          "coeffs": [
+            41.1429,
+            35.8571,
+            0.0
+          ],
+          "char_w": 10.285,
+          "n_train": 54,
+          "n_holdout": 18,
+          "p90_abs_px": 0.0,
+          "max_abs_px": 0.0,
+          "p90_ratio": 0.0,
+          "within_band_frac": 1.0
+        },
+        "northwind": {
+          "coeffs": [
+            41.1429,
+            35.8571,
+            0.0
+          ],
+          "char_w": 8.722,
+          "n_train": 54,
+          "n_holdout": 18,
+          "p90_abs_px": 0.0,
+          "max_abs_px": 0.0,
+          "p90_ratio": 0.0,
+          "within_band_frac": 1.0
+        },
+        "meridian": {
+          "coeffs": [
+            41.1429,
+            35.8571,
+            0.0
+          ],
+          "char_w": 8.316,
+          "n_train": 54,
+          "n_holdout": 18,
+          "p90_abs_px": 0.0,
+          "max_abs_px": 0.0,
+          "p90_ratio": 0.0,
+          "within_band_frac": 1.0
+        }
+      },
+      "pooled": {
+        "coeffs": [
+          41.1429,
+          35.8571,
+          0.0
+        ]
+      },
+      "p90_ratio": 0.0,
+      "p90_abs_px": 0.0,
+      "pass": true
+    },
+    "disclosure-list": {
+      "layout": {
+        "layout": "stack",
+        "font_px": 16,
+        "text_inset": 102,
+        "text_mult": 1
+      },
+      "text_bearing": true,
+      "per_brand": {
+        "okuro": {
+          "coeffs": [
+            84.9108,
+            98.9364,
+            52.7847
+          ],
+          "char_w": 10.285,
+          "n_train": 81,
+          "n_holdout": 27,
+          "p90_abs_px": 24.8,
+          "max_abs_px": 28.7,
+          "p90_ratio": 0.412,
+          "within_band_frac": 1.0
+        },
+        "northwind": {
+          "coeffs": [
+            74.0662,
+            100.4184,
+            41.3514
+          ],
+          "char_w": 8.722,
+          "n_train": 81,
+          "n_holdout": 27,
+          "p90_abs_px": 16.6,
+          "max_abs_px": 23.4,
+          "p90_ratio": 0.301,
+          "within_band_frac": 1.0
+        },
+        "meridian": {
+          "coeffs": [
+            72.315,
+            101.6891,
+            25.7655
+          ],
+          "char_w": 8.316,
+          "n_train": 81,
+          "n_holdout": 27,
+          "p90_abs_px": 13.1,
+          "max_abs_px": 15.9,
+          "p90_ratio": 0.238,
+          "within_band_frac": 1.0
+        }
+      },
+      "pooled": {
+        "coeffs": [
+          76.3037,
+          100.4513,
+          40.2112
+        ]
+      },
+      "p90_ratio": 0.35,
+      "p90_abs_px": 24.8,
+      "pass": true
+    },
+    "evidence-list": {
+      "layout": {
+        "layout": "stack",
+        "font_px": 15,
+        "text_inset": 260,
+        "text_mult": 1
+      },
+      "text_bearing": true,
+      "per_brand": {
+        "okuro": {
+          "coeffs": [
+            -11.6936,
+            58.471,
+            252.621
+          ],
+          "char_w": 10.285,
+          "n_train": 54,
+          "n_holdout": 18,
+          "p90_abs_px": 95.9,
+          "max_abs_px": 158.5,
+          "p90_ratio": 1.812,
+          "within_band_frac": 0.722
+        },
+        "northwind": {
+          "coeffs": [
+            -8.644,
+            59.4375,
+            119.0052
+          ],
+          "char_w": 8.722,
+          "n_train": 54,
+          "n_holdout": 18,
+          "p90_abs_px": 55.0,
+          "max_abs_px": 97.2,
+          "p90_ratio": 1.205,
+          "within_band_frac": 0.778
+        },
+        "meridian": {
+          "coeffs": [
+            -8.644,
+            59.4375,
+            119.0052
+          ],
+          "char_w": 8.316,
+          "n_train": 54,
+          "n_holdout": 18,
+          "p90_abs_px": 55.0,
+          "max_abs_px": 97.2,
+          "p90_ratio": 1.205,
+          "within_band_frac": 0.778
+        }
+      },
+      "pooled": {
+        "coeffs": [
+          -9.3373,
+          58.7676,
+          169.4997
+        ]
+      },
+      "p90_ratio": 1.446,
+      "p90_abs_px": 95.9,
+      "pass": false
+    },
+    "flow-embed": {
+      "layout": {
+        "layout": "fixed",
+        "font_px": 15,
+        "text_inset": 48,
+        "text_mult": 1,
+        "fixed_rows": 1
+      },
+      "text_bearing": true,
+      "per_brand": {
+        "okuro": {
+          "coeffs": [
+            185.5,
+            185.5,
+            0.0
+          ],
+          "char_w": 10.285,
+          "n_train": 21,
+          "n_holdout": 6,
+          "p90_abs_px": 0.0,
+          "max_abs_px": 0.0,
+          "p90_ratio": 0.0,
+          "within_band_frac": 1.0
+        },
+        "northwind": {
+          "coeffs": [
+            185.5,
+            185.5,
+            0.0
+          ],
+          "char_w": 8.722,
+          "n_train": 21,
+          "n_holdout": 6,
+          "p90_abs_px": 0.0,
+          "max_abs_px": 0.0,
+          "p90_ratio": 0.0,
+          "within_band_frac": 1.0
+        },
+        "meridian": {
+          "coeffs": [
+            185.5,
+            185.5,
+            0.0
+          ],
+          "char_w": 8.316,
+          "n_train": 21,
+          "n_holdout": 6,
+          "p90_abs_px": 0.0,
+          "max_abs_px": 0.0,
+          "p90_ratio": 0.0,
+          "within_band_frac": 1.0
+        }
+      },
+      "pooled": {
+        "coeffs": [
+          185.5,
+          185.5,
+          -0.0
+        ]
+      },
+      "p90_ratio": 0.0,
+      "p90_abs_px": 0.0,
+      "pass": true
+    },
+    "flow-steps": {
+      "layout": {
+        "layout": "stack",
+        "font_px": 15,
+        "text_inset": 140,
+        "text_mult": 1
+      },
+      "text_bearing": true,
+      "per_brand": {
+        "okuro": {
+          "coeffs": [
+            -2.5186,
+            44.9857,
+            167.5611
+          ],
+          "char_w": 10.285,
+          "n_train": 81,
+          "n_holdout": 27,
+          "p90_abs_px": 49.3,
+          "max_abs_px": 65.1,
+          "p90_ratio": 1.095,
+          "within_band_frac": 0.852
+        },
+        "northwind": {
+          "coeffs": [
+            -4.0261,
+            46.8345,
+            86.8562
+          ],
+          "char_w": 8.722,
+          "n_train": 81,
+          "n_holdout": 27,
+          "p90_abs_px": 47.3,
+          "max_abs_px": 56.2,
+          "p90_ratio": 1.051,
+          "within_band_frac": 0.852
+        },
+        "meridian": {
+          "coeffs": [
+            -4.0261,
+            46.8345,
+            86.8562
+          ],
+          "char_w": 8.316,
+          "n_train": 81,
+          "n_holdout": 27,
+          "p90_abs_px": 47.3,
+          "max_abs_px": 56.2,
+          "p90_ratio": 1.051,
+          "within_band_frac": 0.852
+        }
+      },
+      "pooled": {
+        "coeffs": [
+          -2.7342,
+          46.1868,
+          112.5487
+        ]
+      },
+      "p90_ratio": 1.058,
+      "p90_abs_px": 49.3,
+      "pass": false
+    },
+    "lede": {
+      "layout": {
+        "layout": "stack",
+        "font_px": 22,
+        "text_inset": 48,
+        "text_mult": 1,
+        "max_width_ch": 70
+      },
+      "text_bearing": true,
+      "per_brand": {
+        "okuro": {
+          "coeffs": [
+            14.4343,
+            14.4343,
+            386.3209
+          ],
+          "char_w": 10.285,
+          "n_train": 21,
+          "n_holdout": 6,
+          "p90_abs_px": 13.0,
+          "max_abs_px": 16.7,
+          "p90_ratio": 0.289,
+          "within_band_frac": 1.0
+        },
+        "northwind": {
+          "coeffs": [
+            10.942,
+            10.942,
+            265.3101
+          ],
+          "char_w": 8.722,
+          "n_train": 21,
+          "n_holdout": 6,
+          "p90_abs_px": 18.4,
+          "max_abs_px": 18.4,
+          "p90_ratio": 0.409,
+          "within_band_frac": 1.0
+        },
+        "meridian": {
+          "coeffs": [
+            9.2164,
+            9.2164,
+            258.7128
+          ],
+          "char_w": 8.316,
+          "n_train": 21,
+          "n_holdout": 6,
+          "p90_abs_px": 17.5,
+          "max_abs_px": 23.4,
+          "p90_ratio": 0.388,
+          "within_band_frac": 1.0
+        }
+      },
+      "pooled": {
+        "coeffs": [
+          10.9034,
+          10.9034,
+          311.2422
+        ]
+      },
+      "p90_ratio": 0.408,
+      "p90_abs_px": 18.4,
+      "pass": true
+    },
+    "lens-reframe": {
+      "layout": {
+        "layout": "fixed",
+        "font_px": 15,
+        "text_inset": 0,
+        "text_mult": 1,
+        "fixed_rows": 1
+      },
+      "text_bearing": true,
+      "per_brand": {
+        "okuro": {
+          "coeffs": [
+            59.7994,
+            59.7994,
+            232.0158
+          ],
+          "char_w": 10.285,
+          "n_train": 41,
+          "n_holdout": 13,
+          "p90_abs_px": 11.2,
+          "max_abs_px": 11.2,
+          "p90_ratio": 0.248,
+          "within_band_frac": 1.0
+        },
+        "northwind": {
+          "coeffs": [
+            59.6176,
+            59.6176,
+            179.9887
+          ],
+          "char_w": 8.722,
+          "n_train": 41,
+          "n_holdout": 13,
+          "p90_abs_px": 11.8,
+          "max_abs_px": 11.8,
+          "p90_ratio": 0.262,
+          "within_band_frac": 1.0
+        },
+        "meridian": {
+          "coeffs": [
+            59.6176,
+            59.6176,
+            179.9887
+          ],
+          "char_w": 8.316,
+          "n_train": 41,
+          "n_holdout": 13,
+          "p90_abs_px": 11.8,
+          "max_abs_px": 11.8,
+          "p90_ratio": 0.262,
+          "within_band_frac": 1.0
+        }
+      },
+      "pooled": {
+        "coeffs": [
+          59.7579,
+          59.7579,
+          190.3685
+        ]
+      },
+      "p90_ratio": 0.262,
+      "p90_abs_px": 11.8,
+      "pass": true
+    },
+    "matrix": {
+      "layout": {
+        "layout": "stack",
+        "font_px": 15,
+        "text_inset": 48,
+        "text_mult": 1
+      },
+      "text_bearing": true,
+      "per_brand": {
+        "okuro": {
+          "coeffs": [
+            45.4513,
+            46.7832,
+            -0.002
+          ],
+          "char_w": 10.285,
+          "n_train": 54,
+          "n_holdout": 18,
+          "p90_abs_px": 0.1,
+          "max_abs_px": 0.1,
+          "p90_ratio": 0.001,
+          "within_band_frac": 1.0
+        },
+        "northwind": {
+          "coeffs": [
+            45.4513,
+            46.7832,
+            -0.002
+          ],
+          "char_w": 8.722,
+          "n_train": 54,
+          "n_holdout": 18,
+          "p90_abs_px": 0.1,
+          "max_abs_px": 0.1,
+          "p90_ratio": 0.001,
+          "within_band_frac": 1.0
+        },
+        "meridian": {
+          "coeffs": [
+            45.4513,
+            46.7832,
+            -0.002
+          ],
+          "char_w": 8.316,
+          "n_train": 54,
+          "n_holdout": 18,
+          "p90_abs_px": 0.1,
+          "max_abs_px": 0.1,
+          "p90_ratio": 0.001,
+          "within_band_frac": 1.0
+        }
+      },
+      "pooled": {
+        "coeffs": [
+          45.4523,
+          46.783,
+          -0.0
+        ]
+      },
+      "p90_ratio": 0.002,
+      "p90_abs_px": 0.1,
+      "pass": true
+    },
+    "metric-tiles": {
+      "layout": {
+        "layout": "grid",
+        "font_px": 15,
+        "text_inset": 48,
+        "text_mult": 1,
+        "min_card_px": 320,
+        "gap_px": 28
+      },
+      "text_bearing": false,
+      "per_brand": {
+        "okuro": {
+          "coeffs": [
+            -28.0,
+            175.0
+          ],
+          "char_w": 10.285,
+          "n_train": 27,
+          "n_holdout": 9,
+          "p90_abs_px": 0.0,
+          "max_abs_px": 0.0,
+          "p90_ratio": 0.0,
+          "within_band_frac": 1.0
+        },
+        "northwind": {
+          "coeffs": [
+            -28.0,
+            175.0
+          ],
+          "char_w": 8.722,
+          "n_train": 27,
+          "n_holdout": 9,
+          "p90_abs_px": 0.0,
+          "max_abs_px": 0.0,
+          "p90_ratio": 0.0,
+          "within_band_frac": 1.0
+        },
+        "meridian": {
+          "coeffs": [
+            -28.0,
+            175.0
+          ],
+          "char_w": 8.316,
+          "n_train": 27,
+          "n_holdout": 9,
+          "p90_abs_px": 0.0,
+          "max_abs_px": 0.0,
+          "p90_ratio": 0.0,
+          "within_band_frac": 1.0
+        }
+      },
+      "pooled": {
+        "coeffs": [
+          -28.0,
+          175.0
+        ]
+      },
+      "p90_ratio": 0.0,
+      "p90_abs_px": 0.0,
+      "pass": true
+    },
+    "option-grid": {
+      "layout": {
+        "layout": "grid",
+        "font_px": 14,
+        "text_inset": 56,
+        "text_mult": 1,
+        "min_card_px": 260,
+        "gap_px": 24
+      },
+      "text_bearing": true,
+      "per_brand": {
+        "okuro": {
+          "coeffs": [
+            -37.0003,
+            369.9754,
+            0.0592
+          ],
+          "char_w": 10.285,
+          "n_train": 41,
+          "n_holdout": 13,
+          "p90_abs_px": 65.0,
+          "max_abs_px": 65.0,
+          "p90_ratio": 1.444,
+          "within_band_frac": 0.538
+        },
+        "northwind": {
+          "coeffs": [
+            -69.7703,
+            386.2928,
+            0.2208
+          ],
+          "char_w": 8.722,
+          "n_train": 41,
+          "n_holdout": 13,
+          "p90_abs_px": 67.4,
+          "max_abs_px": 67.5,
+          "p90_ratio": 1.497,
+          "within_band_frac": 0.308
+        },
+        "meridian": {
+          "coeffs": [
+            -90.5401,
+            396.6348,
+            0.3232
+          ],
+          "char_w": 8.316,
+          "n_train": 41,
+          "n_holdout": 13,
+          "p90_abs_px": 38.3,
+          "max_abs_px": 38.3,
+          "p90_ratio": 0.852,
+          "within_band_frac": 1.0
+        }
+      },
+      "pooled": {
+        "coeffs": [
+          -67.8254,
+          385.317,
+          0.2288
+        ]
+      },
+      "p90_ratio": 1.444,
+      "p90_abs_px": 67.4,
+      "pass": false
+    },
+    "persona-row": {
+      "layout": {
+        "layout": "wrap",
+        "font_px": 15,
+        "text_inset": 48,
+        "text_mult": 1,
+        "min_card_px": 180
+      },
+      "text_bearing": false,
+      "per_brand": {
+        "okuro": {
+          "coeffs": [
+            10.1053,
+            48.9474
+          ],
+          "char_w": 10.285,
+          "n_train": 21,
+          "n_holdout": 6,
+          "p90_abs_px": 48.9,
+          "max_abs_px": 48.9,
+          "p90_ratio": 1.088,
+          "within_band_frac": 0.667
+        },
+        "northwind": {
+          "coeffs": [
+            10.1053,
+            48.9474
+          ],
+          "char_w": 8.722,
+          "n_train": 21,
+          "n_holdout": 6,
+          "p90_abs_px": 48.9,
+          "max_abs_px": 48.9,
+          "p90_ratio": 1.088,
+          "within_band_frac": 0.667
+        },
+        "meridian": {
+          "coeffs": [
+            10.1053,
+            48.9474
+          ],
+          "char_w": 8.316,
+          "n_train": 21,
+          "n_holdout": 6,
+          "p90_abs_px": 48.9,
+          "max_abs_px": 48.9,
+          "p90_ratio": 1.088,
+          "within_band_frac": 0.667
+        }
+      },
+      "pooled": {
+        "coeffs": [
+          11.5556,
+          48.2222
+        ]
+      },
+      "p90_ratio": 1.088,
+      "p90_abs_px": 48.9,
+      "pass": false
+    },
+    "phase-row": {
+      "layout": {
+        "layout": "wrap",
+        "font_px": 15,
+        "text_inset": 48,
+        "text_mult": 1,
+        "min_card_px": 150
+      },
+      "text_bearing": false,
+      "per_brand": {
+        "okuro": {
+          "coeffs": [
+            34.0,
+            48.0
+          ],
+          "char_w": 10.285,
+          "n_train": 27,
+          "n_holdout": 9,
+          "p90_abs_px": 0.0,
+          "max_abs_px": 0.0,
+          "p90_ratio": 0.0,
+          "within_band_frac": 1.0
+        },
+        "northwind": {
+          "coeffs": [
+            34.0,
+            48.0
+          ],
+          "char_w": 8.722,
+          "n_train": 27,
+          "n_holdout": 9,
+          "p90_abs_px": 0.0,
+          "max_abs_px": 0.0,
+          "p90_ratio": 0.0,
+          "within_band_frac": 1.0
+        },
+        "meridian": {
+          "coeffs": [
+            34.0,
+            48.0
+          ],
+          "char_w": 8.316,
+          "n_train": 27,
+          "n_holdout": 9,
+          "p90_abs_px": 0.0,
+          "max_abs_px": 0.0,
+          "p90_ratio": 0.0,
+          "within_band_frac": 1.0
+        }
+      },
+      "pooled": {
+        "coeffs": [
+          34.0,
+          48.0
+        ]
+      },
+      "p90_ratio": 0.0,
+      "p90_abs_px": 0.0,
+      "pass": true
+    },
+    "pipeline-table": {
+      "layout": {
+        "layout": "stack",
+        "font_px": 15,
+        "text_inset": 48,
+        "text_mult": 1
+      },
+      "text_bearing": true,
+      "per_brand": {
+        "okuro": {
+          "coeffs": [
+            40.7663,
+            51.4979,
+            -0.0083
+          ],
+          "char_w": 10.285,
+          "n_train": 54,
+          "n_holdout": 18,
+          "p90_abs_px": 0.3,
+          "max_abs_px": 0.3,
+          "p90_ratio": 0.006,
+          "within_band_frac": 1.0
+        },
+        "northwind": {
+          "coeffs": [
+            40.7663,
+            51.4979,
+            -0.0083
+          ],
+          "char_w": 8.722,
+          "n_train": 54,
+          "n_holdout": 18,
+          "p90_abs_px": 0.3,
+          "max_abs_px": 0.3,
+          "p90_ratio": 0.006,
+          "within_band_frac": 1.0
+        },
+        "meridian": {
+          "coeffs": [
+            40.7663,
+            51.4979,
+            -0.0083
+          ],
+          "char_w": 8.316,
+          "n_train": 54,
+          "n_holdout": 18,
+          "p90_abs_px": 0.3,
+          "max_abs_px": 0.3,
+          "p90_ratio": 0.006,
+          "within_band_frac": 1.0
+        }
+      },
+      "pooled": {
+        "coeffs": [
+          40.7554,
+          51.4991,
+          -0.0001
+        ]
+      },
+      "p90_ratio": 0.006,
+      "p90_abs_px": 0.3,
+      "pass": true
+    },
+    "proportion-bars": {
+      "layout": {
+        "layout": "stack",
+        "font_px": 15,
+        "text_inset": 48,
+        "text_mult": 1
+      },
+      "text_bearing": false,
+      "per_brand": {
+        "okuro": {
+          "coeffs": [
+            -9.5079,
+            33.7024
+          ],
+          "char_w": 10.285,
+          "n_train": 27,
+          "n_holdout": 9,
+          "p90_abs_px": 0.3,
+          "max_abs_px": 0.3,
+          "p90_ratio": 0.007,
+          "within_band_frac": 1.0
+        },
+        "northwind": {
+          "coeffs": [
+            -9.5079,
+            33.7024
+          ],
+          "char_w": 8.722,
+          "n_train": 27,
+          "n_holdout": 9,
+          "p90_abs_px": 0.3,
+          "max_abs_px": 0.3,
+          "p90_ratio": 0.007,
+          "within_band_frac": 1.0
+        },
+        "meridian": {
+          "coeffs": [
+            -9.5079,
+            33.7024
+          ],
+          "char_w": 8.316,
+          "n_train": 27,
+          "n_holdout": 9,
+          "p90_abs_px": 0.3,
+          "max_abs_px": 0.3,
+          "p90_ratio": 0.007,
+          "within_band_frac": 1.0
+        }
+      },
+      "pooled": {
+        "coeffs": [
+          -9.4952,
+          33.6993
+        ]
+      },
+      "p90_ratio": 0.007,
+      "p90_abs_px": 0.3,
+      "pass": true
+    },
+    "prose": {
+      "layout": {
+        "layout": "stack",
+        "font_px": 17,
+        "text_inset": 0,
+        "text_mult": 3,
+        "max_width_ch": 72
+      },
+      "text_bearing": true,
+      "per_brand": {
+        "okuro": {
+          "coeffs": [
+            60.2126,
+            60.2126,
+            313.4941
+          ],
+          "char_w": 10.285,
+          "n_train": 21,
+          "n_holdout": 6,
+          "p90_abs_px": 16.9,
+          "max_abs_px": 17.1,
+          "p90_ratio": 0.374,
+          "within_band_frac": 1.0
+        },
+        "northwind": {
+          "coeffs": [
+            56.5561,
+            56.5561,
+            186.9802
+          ],
+          "char_w": 8.722,
+          "n_train": 21,
+          "n_holdout": 6,
+          "p90_abs_px": 8.4,
+          "max_abs_px": 8.4,
+          "p90_ratio": 0.187,
+          "within_band_frac": 1.0
+        },
+        "meridian": {
+          "coeffs": [
+            56.5561,
+            56.5561,
+            178.2651
+          ],
+          "char_w": 8.316,
+          "n_train": 21,
+          "n_holdout": 6,
+          "p90_abs_px": 8.4,
+          "max_abs_px": 8.4,
+          "p90_ratio": 0.187,
+          "within_band_frac": 1.0
+        }
+      },
+      "pooled": {
+        "coeffs": [
+          57.1802,
+          57.1802,
+          225.0854
+        ]
+      },
+      "p90_ratio": 0.28,
+      "p90_abs_px": 16.9,
+      "pass": true
+    },
+    "pull-quote": {
+      "layout": {
+        "layout": "stack",
+        "font_px": 28,
+        "text_inset": 48,
+        "text_mult": 1,
+        "max_width_ch": 40
+      },
+      "text_bearing": true,
+      "per_brand": {
+        "okuro": {
+          "coeffs": [
+            29.9305,
+            29.9305,
+            797.8141
+          ],
+          "char_w": 10.285,
+          "n_train": 21,
+          "n_holdout": 6,
+          "p90_abs_px": 10.6,
+          "max_abs_px": 10.6,
+          "p90_ratio": 0.236,
+          "within_band_frac": 1.0
+        },
+        "northwind": {
+          "coeffs": [
+            36.4888,
+            36.4888,
+            500.7168
+          ],
+          "char_w": 8.722,
+          "n_train": 21,
+          "n_holdout": 6,
+          "p90_abs_px": 1.7,
+          "max_abs_px": 1.7,
+          "p90_ratio": 0.038,
+          "within_band_frac": 1.0
+        },
+        "meridian": {
+          "coeffs": [
+            36.4888,
+            36.4888,
+            477.3785
+          ],
+          "char_w": 8.316,
+          "n_train": 21,
+          "n_holdout": 6,
+          "p90_abs_px": 1.7,
+          "max_abs_px": 1.7,
+          "p90_ratio": 0.038,
+          "within_band_frac": 1.0
+        }
+      },
+      "pooled": {
+        "coeffs": [
+          34.2601,
+          34.2601,
+          586.5332
+        ]
+      },
+      "p90_ratio": 0.178,
+      "p90_abs_px": 10.6,
+      "pass": true
+    },
+    "stat-row": {
+      "layout": {
+        "layout": "fixed",
+        "font_px": 15,
+        "text_inset": 48,
+        "text_mult": 1,
+        "fixed_rows": 1
+      },
+      "text_bearing": false,
+      "per_brand": {
+        "okuro": {
+          "coeffs": [
+            47.0,
+            47.0
+          ],
+          "char_w": 10.285,
+          "n_train": 21,
+          "n_holdout": 6,
+          "p90_abs_px": 0.0,
+          "max_abs_px": 0.0,
+          "p90_ratio": 0.0,
+          "within_band_frac": 1.0
+        },
+        "northwind": {
+          "coeffs": [
+            47.0,
+            47.0
+          ],
+          "char_w": 8.722,
+          "n_train": 21,
+          "n_holdout": 6,
+          "p90_abs_px": 0.0,
+          "max_abs_px": 0.0,
+          "p90_ratio": 0.0,
+          "within_band_frac": 1.0
+        },
+        "meridian": {
+          "coeffs": [
+            47.0,
+            47.0
+          ],
+          "char_w": 8.316,
+          "n_train": 21,
+          "n_holdout": 6,
+          "p90_abs_px": 0.0,
+          "max_abs_px": 0.0,
+          "p90_ratio": 0.0,
+          "within_band_frac": 1.0
+        }
+      },
+      "pooled": {
+        "coeffs": [
+          47.0,
+          47.0
+        ]
+      },
+      "p90_ratio": 0.0,
+      "p90_abs_px": 0.0,
+      "pass": true
+    },
+    "statement": {
+      "layout": {
+        "layout": "stack",
+        "font_px": 52,
+        "text_inset": 48,
+        "text_mult": 1,
+        "max_width_ch": 20
+      },
+      "text_bearing": true,
+      "per_brand": {
+        "okuro": {
+          "coeffs": [
+            49.213,
+            49.213,
+            1827.2013
+          ],
+          "char_w": 10.285,
+          "n_train": 14,
+          "n_holdout": 4,
+          "p90_abs_px": 21.5,
+          "max_abs_px": 21.5,
+          "p90_ratio": 0.477,
+          "within_band_frac": 1.0
+        },
+        "northwind": {
+          "coeffs": [
+            44.7012,
+            44.7012,
+            1150.3948
+          ],
+          "char_w": 8.722,
+          "n_train": 14,
+          "n_holdout": 4,
+          "p90_abs_px": 30.6,
+          "max_abs_px": 30.6,
+          "p90_ratio": 0.681,
+          "within_band_frac": 1.0
+        },
+        "meridian": {
+          "coeffs": [
+            37.9096,
+            37.9096,
+            1512.9205
+          ],
+          "char_w": 8.316,
+          "n_train": 14,
+          "n_holdout": 4,
+          "p90_abs_px": 18.9,
+          "max_abs_px": 18.9,
+          "p90_ratio": 0.421,
+          "within_band_frac": 1.0
+        }
+      },
+      "pooled": {
+        "coeffs": [
+          45.0646,
+          45.0646,
+          1477.9216
+        ]
+      },
+      "p90_ratio": 0.661,
+      "p90_abs_px": 30.6,
+      "pass": true
+    },
+    "statement-title": {
+      "layout": {
+        "layout": "stack",
+        "font_px": 56,
+        "text_inset": 48,
+        "text_mult": 1,
+        "max_width_ch": 22
+      },
+      "text_bearing": true,
+      "per_brand": {
+        "okuro": {
+          "coeffs": [
+            17.0795,
+            17.0795,
+            2330.8801
+          ],
+          "char_w": 10.285,
+          "n_train": 21,
+          "n_holdout": 6,
+          "p90_abs_px": 27.2,
+          "max_abs_px": 32.1,
+          "p90_ratio": 0.603,
+          "within_band_frac": 1.0
+        },
+        "northwind": {
+          "coeffs": [
+            31.0737,
+            31.0737,
+            1256.7685
+          ],
+          "char_w": 8.722,
+          "n_train": 21,
+          "n_holdout": 6,
+          "p90_abs_px": 35.5,
+          "max_abs_px": 50.7,
+          "p90_ratio": 0.789,
+          "within_band_frac": 0.833
+        },
+        "meridian": {
+          "coeffs": [
+            23.7466,
+            23.7466,
+            1404.2514
+          ],
+          "char_w": 8.316,
+          "n_train": 21,
+          "n_holdout": 6,
+          "p90_abs_px": 30.3,
+          "max_abs_px": 30.3,
+          "p90_ratio": 0.673,
+          "within_band_frac": 1.0
+        }
+      },
+      "pooled": {
+        "coeffs": [
+          23.0541,
+          23.0541,
+          1677.4716
+        ]
+      },
+      "p90_ratio": 0.685,
+      "p90_abs_px": 35.5,
+      "pass": true
+    },
+    "story-grid": {
+      "layout": {
+        "layout": "grid",
+        "font_px": 14,
+        "text_inset": 48,
+        "text_mult": 1,
+        "min_card_px": 260,
+        "gap_px": 20
+      },
+      "text_bearing": true,
+      "per_brand": {
+        "okuro": {
+          "coeffs": [
+            -51.265,
+            216.6119,
+            132.9091
+          ],
+          "char_w": 10.285,
+          "n_train": 61,
+          "n_holdout": 20,
+          "p90_abs_px": 46.9,
+          "max_abs_px": 79.4,
+          "p90_ratio": 1.043,
+          "within_band_frac": 0.85
+        },
+        "northwind": {
+          "coeffs": [
+            -36.269,
+            199.0955,
+            101.1173
+          ],
+          "char_w": 8.722,
+          "n_train": 61,
+          "n_holdout": 20,
+          "p90_abs_px": 25.7,
+          "max_abs_px": 35.4,
+          "p90_ratio": 0.571,
+          "within_band_frac": 1.0
+        },
+        "meridian": {
+          "coeffs": [
+            -33.9655,
+            194.9401,
+            103.0445
+          ],
+          "char_w": 8.316,
+          "n_train": 61,
+          "n_holdout": 20,
+          "p90_abs_px": 16.9,
+          "max_abs_px": 38.5,
+          "p90_ratio": 0.375,
+          "within_band_frac": 1.0
+        }
+      },
+      "pooled": {
+        "coeffs": [
+          -41.2349,
+          204.1919,
+          113.0419
+        ]
+      },
+      "p90_ratio": 0.779,
+      "p90_abs_px": 46.9,
+      "pass": true
+    },
+    "tag-wall": {
+      "layout": {
+        "layout": "wrap",
+        "font_px": 15,
+        "text_inset": 48,
+        "text_mult": 1,
+        "min_card_px": 110
+      },
+      "text_bearing": false,
+      "per_brand": {
+        "okuro": {
+          "coeffs": [
+            11.0595,
+            44.2639
+          ],
+          "char_w": 10.285,
+          "n_train": 27,
+          "n_holdout": 9,
+          "p90_abs_px": 32.9,
+          "max_abs_px": 46.4,
+          "p90_ratio": 0.732,
+          "within_band_frac": 0.889
+        },
+        "northwind": {
+          "coeffs": [
+            -3.9145,
+            39.7669
+          ],
+          "char_w": 8.722,
+          "n_train": 27,
+          "n_holdout": 9,
+          "p90_abs_px": 14.8,
+          "max_abs_px": 29.3,
+          "p90_ratio": 0.33,
+          "within_band_frac": 1.0
+        },
+        "meridian": {
+          "coeffs": [
+            -3.9145,
+            39.7669
+          ],
+          "char_w": 8.316,
+          "n_train": 27,
+          "n_holdout": 9,
+          "p90_abs_px": 14.8,
+          "max_abs_px": 29.3,
+          "p90_ratio": 0.33,
+          "within_band_frac": 1.0
+        }
+      },
+      "pooled": {
+        "coeffs": [
+          -0.0237,
+          41.4787
+        ]
+      },
+      "p90_ratio": 0.651,
+      "p90_abs_px": 32.9,
+      "pass": true
+    },
+    "transform-grid": {
+      "layout": {
+        "layout": "grid",
+        "font_px": 11,
+        "text_inset": 32,
+        "text_mult": 1,
+        "min_card_px": 280,
+        "gap_px": 14
+      },
+      "text_bearing": true,
+      "per_brand": {
+        "okuro": {
+          "coeffs": [
+            -37.0303,
+            168.5734,
+            -0.1693
+          ],
+          "char_w": 10.285,
+          "n_train": 54,
+          "n_holdout": 18,
+          "p90_abs_px": 11.5,
+          "max_abs_px": 11.6,
+          "p90_ratio": 0.256,
+          "within_band_frac": 1.0
+        },
+        "northwind": {
+          "coeffs": [
+            -37.0303,
+            168.5734,
+            -0.1693
+          ],
+          "char_w": 8.722,
+          "n_train": 54,
+          "n_holdout": 18,
+          "p90_abs_px": 11.5,
+          "max_abs_px": 11.6,
+          "p90_ratio": 0.256,
+          "within_band_frac": 1.0
+        },
+        "meridian": {
+          "coeffs": [
+            -37.0303,
+            168.5734,
+            -0.1693
+          ],
+          "char_w": 8.316,
+          "n_train": 54,
+          "n_holdout": 18,
+          "p90_abs_px": 11.5,
+          "max_abs_px": 11.6,
+          "p90_ratio": 0.256,
+          "within_band_frac": 1.0
+        }
+      },
+      "pooled": {
+        "coeffs": [
+          -36.5744,
+          168.2754,
+          0.0344
+        ]
+      },
+      "p90_ratio": 0.257,
+      "p90_abs_px": 11.5,
+      "pass": true
+    },
+    "two-column-list": {
+      "layout": {
+        "layout": "columns2",
+        "font_px": 15,
+        "text_inset": 40,
+        "text_mult": 1
+      },
+      "text_bearing": true,
+      "per_brand": {
+        "okuro": {
+          "coeffs": [
+            -0.2745,
+            62.8514,
+            -0.0051
+          ],
+          "char_w": 10.285,
+          "n_train": 54,
+          "n_holdout": 18,
+          "p90_abs_px": 0.3,
+          "max_abs_px": 0.3,
+          "p90_ratio": 0.007,
+          "within_band_frac": 1.0
+        },
+        "northwind": {
+          "coeffs": [
+            -0.2745,
+            62.8514,
+            -0.0051
+          ],
+          "char_w": 8.722,
+          "n_train": 54,
+          "n_holdout": 18,
+          "p90_abs_px": 0.3,
+          "max_abs_px": 0.3,
+          "p90_ratio": 0.007,
+          "within_band_frac": 1.0
+        },
+        "meridian": {
+          "coeffs": [
+            -0.2745,
+            62.8514,
+            -0.0051
+          ],
+          "char_w": 8.316,
+          "n_train": 54,
+          "n_holdout": 18,
+          "p90_abs_px": 0.3,
+          "max_abs_px": 0.3,
+          "p90_ratio": 0.007,
+          "within_band_frac": 1.0
+        }
+      },
+      "pooled": {
+        "coeffs": [
+          -0.2685,
+          62.8505,
+          -0.0001
+        ]
+      },
+      "p90_ratio": 0.007,
+      "p90_abs_px": 0.3,
+      "pass": true
+    },
+    "verb-grid": {
+      "layout": {
+        "layout": "grid3",
+        "font_px": 13,
+        "text_inset": 40,
+        "text_mult": 1
+      },
+      "text_bearing": true,
+      "per_brand": {
+        "okuro": {
+          "coeffs": [
+            -18.114,
+            174.6527,
+            154.0102
+          ],
+          "char_w": 10.285,
+          "n_train": 54,
+          "n_holdout": 18,
+          "p90_abs_px": 15.5,
+          "max_abs_px": 16.5,
+          "p90_ratio": 0.346,
+          "within_band_frac": 1.0
+        },
+        "northwind": {
+          "coeffs": [
+            -16.5768,
+            175.3846,
+            118.4131
+          ],
+          "char_w": 8.722,
+          "n_train": 54,
+          "n_holdout": 18,
+          "p90_abs_px": 14.0,
+          "max_abs_px": 14.0,
+          "p90_ratio": 0.31,
+          "within_band_frac": 1.0
+        },
+        "meridian": {
+          "coeffs": [
+            -16.5563,
+            170.3501,
+            126.8924
+          ],
+          "char_w": 8.316,
+          "n_train": 54,
+          "n_holdout": 18,
+          "p90_abs_px": 17.7,
+          "max_abs_px": 17.7,
+          "p90_ratio": 0.393,
+          "within_band_frac": 1.0
+        }
+      },
+      "pooled": {
+        "coeffs": [
+          -16.8541,
+          173.3646,
+          134.0961
+        ]
+      },
+      "p90_ratio": 0.346,
+      "p90_abs_px": 17.7,
+      "pass": true
+    },
+    "verdict-callout": {
+      "layout": {
+        "layout": "wrap",
+        "font_px": 15,
+        "text_inset": 48,
+        "text_mult": 1,
+        "min_card_px": 150
+      },
+      "text_bearing": true,
+      "per_brand": {
+        "okuro": {
+          "coeffs": [
+            28.0,
+            28.0
+          ],
+          "char_w": 10.285,
+          "n_train": 54,
+          "n_holdout": 18,
+          "p90_abs_px": 0.0,
+          "max_abs_px": 0.0,
+          "p90_ratio": 0.0,
+          "within_band_frac": 1.0
+        },
+        "northwind": {
+          "coeffs": [
+            28.0,
+            28.0
+          ],
+          "char_w": 8.722,
+          "n_train": 54,
+          "n_holdout": 18,
+          "p90_abs_px": 0.0,
+          "max_abs_px": 0.0,
+          "p90_ratio": 0.0,
+          "within_band_frac": 1.0
+        },
+        "meridian": {
+          "coeffs": [
+            28.0,
+            28.0
+          ],
+          "char_w": 8.316,
+          "n_train": 54,
+          "n_holdout": 18,
+          "p90_abs_px": 0.0,
+          "max_abs_px": 0.0,
+          "p90_ratio": 0.0,
+          "within_band_frac": 1.0
+        }
+      },
+      "pooled": {
+        "coeffs": [
+          28.0,
+          28.0
+        ]
+      },
+      "p90_ratio": 0.0,
+      "p90_abs_px": 0.0,
+      "pass": true
+    }
+  }
+}

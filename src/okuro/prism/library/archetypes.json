@@ -1,0 +1,290 @@
+{
+  "type": "archetypes",
+  "version": 1,
+  "summary": "The 12 FIXED full-slide templates the deck2 viewer renders (SlideView switch in deck2/archetypes.tsx). An archetype is a whole-slide layout with a fixed slot geometry and one recognizable rhetorical shape (a hero, a binary choice, a decision matrix, an ask/CTA, ...). Contrast: a component-based layout is a FREE composition of kit components solved per-slide. Pick an archetype when the content IS one of these known patterns; compose freely when it is not.",
+  "selection_guide": "Pick an archetype in three ordered checks, then fall back to free composition if none clears them.\n\n1. SHAPE — take the slide's dominant claim shape and read its best-fit archetype off SHAPE_AFFINITY (compiler/archetypes.py): metric->card-set/framework-tiles/hero; delta->framework-tiles/classification-table/binary-choice; comparison->decision-matrix/binary-choice/classification-table/framework-tiles; sequence->flow-sequence/scenario-beats; relationship->ask-cta/flow-sequence/scenario-beats; proportion->proportion-bars/framework-tiles; quote->disclosure-list/hero; set->card-set/disclosure-list/lens-reframe; trend->proportion-bars/flow-sequence; narrative->hero/disclosure-list/binary-choice; verdict->classification-table/ask-cta/disclosure-list. A data-bearing archetype only FAITHFULLY renders the shapes in its `carries` (ARCHETYPE_SHAPES) — a mismatched shape draws empty bars / overflowing cards. hero, ask-cta, disclosure-list and lens-reframe are shape-AGNOSTIC and safe for any dominant shape (the feasibility fallback).\n\n2. CARDINALITY — the dominant claim's collection size must fit the archetype's primary-slot band (PRIMARY_ARRAY_SLOT + capacity). A 6-option comparison will NOT fit binary-choice (exactly 2) or decision-matrix (max 5); a 3-item roadmap will NOT fit flow-sequence (min 4). Outside the band -> different archetype or free composition.\n\n3. DEPTH/DENSITY — respect the level band (LEVEL_POOL): L0 overview = sparse cover only (hero, ask-cta); L1 structured = density_rank >= 2; L2 detail = density_rank >= 3. Density must not DECREASE as depth increases (vertical monotonicity), and two dense archetypes must not sit adjacent at L1 (dense-adjacent-dense ban).\n\nIf all three clear -> use the archetype (fixed, pixel-faithful, instantly legible). If the shape is heterogeneous, the cardinality overflows every band, or the slide needs a bespoke arrangement of mixed parts -> drop to a free component composition (see archetype_vs_component_guide).",
+  "entries": [
+    {
+      "id": "hero",
+      "name": "Hero",
+      "one_liner": "The deck/topic opener — big title, lede, and optional persona + meta strip.",
+      "carries": "The cover statement. Shape-agnostic; built for a narrative/quote scalar claim that sets up the whole deck or topic. No data collection — it frames, it does not itemize.",
+      "when_to_use": [
+        "Slide 1 of a deck, or the L0 overview cell of a topic",
+        "You need a strong title + one-line lede and nothing dense yet",
+        "You want to introduce the audiences (persona pills) or key facts (meta strip) up front"
+      ],
+      "avoid_when": [
+        "The slide has real itemized data to show (list, table, steps, bars) — a hero has no body slot for it",
+        "You are past the opening and need density (hero is sparse cover, L0 only)"
+      ],
+      "info_depths": ["L0"],
+      "capacity": "personas <= 4, meta <= 5. No primary data collection.",
+      "density": "sparse",
+      "pairs_with": ["disclosure-list", "framework-tiles", "flow-sequence", "ask-cta"],
+      "source_ref": "deck2/archetypes.tsx Hero(); compiler/archetypes.py SLOTS['hero'] + FILL_SCHEMAS['hero']; kit board/archetypes/01-hero.html"
+    },
+    {
+      "id": "lens-reframe",
+      "name": "Lens Reframe",
+      "one_liner": "The same content seen through 2-4 switchable audience lenses (interactive tabs).",
+      "carries": "One set of points re-told per audience. Shape-agnostic; built for a `set` claim where the SAME material must be reframed for different personas (each tab = one persona, each pane = that persona's bullet rows).",
+      "when_to_use": [
+        "The message changes by audience and you want the reader to toggle perspectives",
+        "You have 2-4 personas, each with up to ~7 disclosure rows",
+        "Multi-stakeholder decks where 'what this means for YOU' is the point"
+      ],
+      "avoid_when": [
+        "There is only one audience / one framing (use disclosure-list)",
+        "The content differs in KIND per tab rather than in framing — that is separate slides",
+        "A static export where interactivity is lost (only the active pane shows)"
+      ],
+      "info_depths": ["L1"],
+      "capacity": "2-4 lenses; each pane <= 7 rows.",
+      "density": "medium",
+      "pairs_with": ["hero", "disclosure-list", "decision-matrix"],
+      "source_ref": "deck2/archetypes.tsx LensReframe(); compiler/archetypes.py SLOTS['lens-reframe'] + FILL_SCHEMAS['lens-reframe']; kit board/archetypes/02-lens-reframe.html"
+    },
+    {
+      "id": "disclosure-list",
+      "name": "Disclosure List",
+      "one_liner": "A ranked list of 3-7 points, each optionally expandable to a detail body.",
+      "carries": "A progressive list. Shape-agnostic default carrier — narrative/quote/set/verdict all downcast here safely. Each row = a titled point with optional sub, and an expand-on-click detail. The universal fallback when no data-viz archetype fits.",
+      "when_to_use": [
+        "3-7 discrete points that share no common metric/axis",
+        "You want headline-first reading with detail on demand (click to expand)",
+        "The safe choice when the claim shape has no dedicated visualization"
+      ],
+      "avoid_when": [
+        "Items compare on the same criteria (use decision-matrix / classification-table)",
+        "Items are ordered steps (use flow-sequence) or magnitudes (use proportion-bars)",
+        "Fewer than 3 points — too thin for a full slide"
+      ],
+      "info_depths": ["L1", "L2"],
+      "capacity": "rows 3-7.",
+      "density": "dense",
+      "pairs_with": ["hero", "card-set", "framework-tiles", "ask-cta"],
+      "source_ref": "deck2/archetypes.tsx DisclosureList()/BulletList(); compiler/archetypes.py SLOTS['disclosure-list'] + FILL_SCHEMAS['disclosure-list']; kit board/archetypes/03-disclosure-list.html"
+    },
+    {
+      "id": "scenario-beats",
+      "name": "Scenario Beats",
+      "one_liner": "A chronological walkthrough — 3-10 time/marker-stamped beats + optional callout.",
+      "carries": "A narrated sequence or story. Built for `sequence` (and `quote`) claims: each beat is a moment (mark + body + optional who), read top-to-bottom as a timeline of events, with a summary callout.",
+      "when_to_use": [
+        "A story, day-in-the-life, or event timeline told as beats",
+        "You want prose-y moments (who did what) rather than a rigid tool/step chain",
+        "3-10 beats plus a closing takeaway callout"
+      ],
+      "avoid_when": [
+        "The sequence is a mechanical process with actors/tools/timing (use flow-sequence)",
+        "Items are not ordered in time (use disclosure-list / card-set)"
+      ],
+      "info_depths": ["L1", "L2"],
+      "capacity": "beats 3-10; optional callout (info|warn).",
+      "density": "medium",
+      "pairs_with": ["hero", "flow-sequence", "binary-choice"],
+      "source_ref": "deck2/archetypes.tsx ScenarioBeats(); compiler/archetypes.py SLOTS['scenario-beats'] + FILL_SCHEMAS['scenario-beats']; kit board/archetypes/04-scenario-beats.html"
+    },
+    {
+      "id": "decision-matrix",
+      "name": "Decision Matrix",
+      "one_liner": "3-5 competing options compared on the same criteria, one marked recommended.",
+      "carries": "A `comparison` claim with 3-5 options. Each option is a card of key/value criteria lines; the recommended one is highlighted. The canonical 'which option do we pick' slide.",
+      "when_to_use": [
+        "3-5 alternatives evaluated on shared criteria (cost, risk, effort...)",
+        "You want to steer to a recommendation while showing the trade-offs",
+        "Vendor / architecture / approach selection"
+      ],
+      "avoid_when": [
+        "Exactly 2 options — use binary-choice (cleaner this-vs-that)",
+        "More than 5 options — overflows; use classification-table",
+        "Options do NOT share criteria (use card-set)"
+      ],
+      "info_depths": ["L1", "L2"],
+      "capacity": "options 3-5; each with key/value lines.",
+      "density": "dense",
+      "pairs_with": ["binary-choice", "framework-tiles", "ask-cta"],
+      "source_ref": "deck2/archetypes.tsx DecisionMatrix(); compiler/archetypes.py SLOTS['decision-matrix'] + FILL_SCHEMAS['decision-matrix']; kit board/archetypes/05-decision-matrix.html"
+    },
+    {
+      "id": "framework-tiles",
+      "name": "Framework Tiles",
+      "one_liner": "3-5 KPI/definition tiles (value + label + desc) plus an optional support table.",
+      "carries": "`metric`/`proportion`/`delta`/`comparison` claims as headline tiles. Each tile foregrounds a big value with a label; an optional table carries the backing detail. The 'here are the numbers/pillars' slide.",
+      "when_to_use": [
+        "3-5 headline metrics, pillars, or definitions to show at a glance",
+        "You want big values front-and-centre with an optional detail table below",
+        "Framework / model with named components"
+      ],
+      "avoid_when": [
+        "Values are parts of one whole / ranked magnitudes (use proportion-bars)",
+        "Items are ordered steps (use flow-sequence)",
+        "Only 2 things and they oppose each other (use binary-choice)"
+      ],
+      "info_depths": ["L1", "L2"],
+      "capacity": "tiles 3-5; optional table (headers + rows).",
+      "density": "dense",
+      "pairs_with": ["hero", "card-set", "decision-matrix", "disclosure-list"],
+      "source_ref": "deck2/archetypes.tsx FrameworkTiles(); compiler/archetypes.py SLOTS['framework-tiles'] + FILL_SCHEMAS['framework-tiles']; kit board/archetypes/06-framework-tiles.html"
+    },
+    {
+      "id": "binary-choice",
+      "name": "Binary Choice",
+      "one_liner": "Exactly two mutually-exclusive paths (this vs that) + a verdict callout.",
+      "carries": "A `comparison`/`delta` claim with EXACTLY 2 sides. Each path is a toned card (warn vs recommend/accent) with eyebrow, title, body, footer; the callout delivers the verdict. Built for the fork-in-the-road decision.",
+      "when_to_use": [
+        "A true either/or: two options, one usually preferred",
+        "You want maximum contrast and a clear steer between them",
+        "Build vs buy, migrate vs stay, risk vs safe path"
+      ],
+      "avoid_when": [
+        "There are 3+ options (use decision-matrix or classification-table)",
+        "The two things are complementary, not exclusive (use card-set / framework-tiles)"
+      ],
+      "info_depths": ["L1"],
+      "capacity": "paths exactly 2; optional verdict callout.",
+      "density": "medium",
+      "pairs_with": ["decision-matrix", "scenario-beats", "ask-cta"],
+      "source_ref": "deck2/archetypes.tsx BinaryChoice(); compiler/archetypes.py SLOTS['binary-choice'] + FILL_SCHEMAS['binary-choice']; kit board/archetypes/07-binary-choice.html"
+    },
+    {
+      "id": "classification-table",
+      "name": "Classification Table",
+      "one_liner": "A per-row verdict table with method/verdict badges + a summary stat callout.",
+      "carries": "A `verdict`/`comparison`/`set` claim as a scannable table. Rows carry a verdict class (essential/nogo/redesign/redundant), method and verdict columns render as coloured badges, and a summary callout tallies the counts. The 'audit / triage / go-no-go' slide.",
+      "when_to_use": [
+        "Many rows each needing a labelled verdict or category (keep/kill, pass/fail)",
+        "An audit, triage, or classification with a headline tally",
+        "More options than a decision-matrix can hold, evaluated categorically"
+      ],
+      "avoid_when": [
+        "Only 2-5 options weighed on criteria (use binary-choice / decision-matrix)",
+        "No per-row verdict/category — it is just a list (use disclosure-list)"
+      ],
+      "info_depths": ["L1", "L2"],
+      "capacity": "open-ended table rows; summary callout with stat tally.",
+      "density": "dense",
+      "pairs_with": ["decision-matrix", "ask-cta", "disclosure-list"],
+      "source_ref": "deck2/archetypes.tsx ClassificationTable(); compiler/archetypes.py SLOTS['classification-table'] + FILL_SCHEMAS['classification-table']; kit board/archetypes/08-classification-table.html"
+    },
+    {
+      "id": "flow-sequence",
+      "name": "Flow Sequence",
+      "one_liner": "A 4-8 step ordered process, each step tagged with actor / tool / timing.",
+      "carries": "A `sequence` claim as a mechanical pipeline. Each step is auto-numbered and coloured by actor (user/edge/cloud/process) with optional tool + ms label. The 'how the system works, step by step' slide.",
+      "when_to_use": [
+        "An ordered process / pipeline / request lifecycle of 4-8 steps",
+        "You want to show WHO does each step (actor) and with what tool/latency",
+        "Onboarding flows, request paths, data pipelines"
+      ],
+      "avoid_when": [
+        "Fewer than 4 steps or the order does not matter (use card-set / disclosure-list)",
+        "The narrative is story-like moments, not tooled steps (use scenario-beats)"
+      ],
+      "info_depths": ["L1", "L2"],
+      "capacity": "steps 4-8 (ordinal auto-numbered).",
+      "density": "dense",
+      "pairs_with": ["hero", "scenario-beats", "framework-tiles"],
+      "source_ref": "deck2/archetypes.tsx FlowSequence(); compiler/archetypes.py SLOTS['flow-sequence'] + FILL_SCHEMAS['flow-sequence'] + ORDINAL_SLOTS; kit board/archetypes/09-flow-sequence.html"
+    },
+    {
+      "id": "proportion-bars",
+      "name": "Proportion Bars",
+      "one_liner": "2-8 labelled magnitudes as horizontal bars (part-to-whole or ranking).",
+      "carries": "A `proportion`/`trend` claim. Each row is a stage label + a percent-width bar (state-coloured safe/caution/danger) + a value. Built to make relative size or a distribution instantly visible.",
+      "when_to_use": [
+        "Parts of a whole, a ranking, or a distribution with real percentages",
+        "You want the reader to SEE relative magnitude, not read numbers",
+        "Budget split, latency breakdown, share-of-X"
+      ],
+      "avoid_when": [
+        "The values are not comparable magnitudes (use framework-tiles / card-set)",
+        "Fewer than 2 rows, or no parseable numbers (bars render empty)"
+      ],
+      "info_depths": ["L1", "L2"],
+      "capacity": "rows 2-8; pct 0-100 each.",
+      "density": "dense",
+      "pairs_with": ["framework-tiles", "flow-sequence", "hero"],
+      "source_ref": "deck2/archetypes.tsx ProportionBars(); compiler/archetypes.py SLOTS['proportion-bars'] + FILL_SCHEMAS['proportion-bars']; kit board/archetypes/10-proportion-bars.html"
+    },
+    {
+      "id": "card-set",
+      "name": "Card Set",
+      "one_liner": "3-5 peer items as a card grid, with an optional stat row above.",
+      "carries": "A `set`/`metric` claim of sibling items with no shared axis. Each card is an icon + name + desc; an optional stat row surfaces headline numbers. The 'here are the N things' grid when they don't compare or sequence.",
+      "when_to_use": [
+        "3-5 peer items (features, capabilities, team, products) shown side by side",
+        "Items are equals — no ranking, no shared criteria, no order",
+        "You want an optional headline stat row above the grid"
+      ],
+      "avoid_when": [
+        "Items compare on criteria (use decision-matrix) or are ordered (use flow-sequence)",
+        "Items are magnitudes of one whole (use proportion-bars)"
+      ],
+      "info_depths": ["L1"],
+      "capacity": "cards 3-5; stats <= 4.",
+      "density": "medium",
+      "pairs_with": ["hero", "framework-tiles", "disclosure-list"],
+      "source_ref": "deck2/archetypes.tsx CardSet(); compiler/archetypes.py SLOTS['card-set'] + FILL_SCHEMAS['card-set']; kit board/archetypes/11-card-set.html"
+    },
+    {
+      "id": "ask-cta",
+      "name": "Ask / CTA",
+      "one_liner": "The closing ask — a titled ask list + optional architecture diagram.",
+      "carries": "A `relationship`/`verdict` claim as a call to action. The ask box lists what you want; the optional arch diagram shows the target state (label/value items, ok/broken). The closer of a deck.",
+      "when_to_use": [
+        "The final slide: what you want the audience to do / decide / fund",
+        "A concrete ask list, optionally paired with a target-state diagram",
+        "Pitch close, decision request, next-steps"
+      ],
+      "avoid_when": [
+        "You are not closing / not asking for anything (use hero or a content archetype)",
+        "The content is dense data (ask-cta is sparse cover, L0)"
+      ],
+      "info_depths": ["L0"],
+      "capacity": "ask items >= 1; arch <= 4.",
+      "density": "sparse",
+      "pairs_with": ["decision-matrix", "binary-choice", "classification-table", "hero"],
+      "source_ref": "deck2/archetypes.tsx AskCta(); compiler/archetypes.py SLOTS['ask-cta'] + FILL_SCHEMAS['ask-cta']; kit board/archetypes/12-ask-cta.html"
+    }
+  ],
+  "archetype_vs_component_guide": {
+    "principle": "An ARCHETYPE is a fixed, whole-slide template with one baked-in rhetorical shape and a fixed slot geometry; a COMPONENT-BASED LAYOUT is a free composition of kit components solved per slide. Both render through the same kit CSS. The single question that decides between them: does this slide's content collapse cleanly to ONE known pattern, or is it a heterogeneous mix that needs a bespoke arrangement? A known pattern -> archetype (clarity, recognizability, pixel-faithful reliability, no solve). A mix -> free composition. In the pipeline this is literal: build_deck_doc composes real kit HTML per cell and the viewer PREFERS the composed fragment, falling back to the fixed archetype downcast (to_deckdoc._archetype_for) only when composition is absent or fails.",
+    "pick_fixed_archetype_when": [
+      "The slide IS a recognizable pattern the audience decodes instantly: a hero opener, a binary choice, a decision matrix, a proportion breakdown, an ordered process, an ask/CTA.",
+      "There is ONE dominant claim shape and the items are HOMOGENEOUS — all peers with the same structure (all options share criteria, all steps are steps, all bars are magnitudes).",
+      "The collection size FITS an archetype's primary-slot band (2 for binary-choice, 3-5 for decision-matrix/tiles/cards, 4-8 for flow-sequence, 2-8 for bars).",
+      "You want the rhetorical FORCE of a named pattern — the layout itself carries the argument (this-vs-that tension, one-recommended-option, part-of-whole).",
+      "You want deterministic, pixel-faithful output with no layout solve (fixed templates never overflow or need measuring).",
+      "The depth/density band wants a canonical cover: L0 overview -> hero or ask-cta."
+    ],
+    "pick_component_composition_when": [
+      "The slide is HETEROGENEOUS — it mixes claim shapes: a stat AND a bullet list AND a quote, or a chart beside a callout beside a table. No single archetype's slot geometry holds all of it.",
+      "Cardinality OVERFLOWS every archetype band: 6+ comparison options, a 3-phase roadmap (below flow-sequence's min 4), 10+ classified rows past a table's comfortable read.",
+      "The content needs a BESPOKE arrangement — a specific spatial relationship (side-by-side chart+prose, nested groupings, an annotated diagram) no fixed template exposes.",
+      "The dominant shape has NO faithful archetype carrier for this content, so a downcast would render empty/overflowing junk (a non-proportion claim in proportion-bars = empty bars; a 6-option comparison crammed into binary-choice).",
+      "The material is genuinely one-off — not a repeatable pattern — and forcing it into a template would distort the meaning to fit the slots.",
+      "You need finer density control than the archetype's fixed load allows (e.g. a slide that must sit between two density bands)."
+    ],
+    "concrete_triggers": {
+      "archetype": [
+        "Exactly two options that oppose -> binary-choice",
+        "3-5 options on shared criteria, one to recommend -> decision-matrix",
+        "Real percentages that sum toward a whole -> proportion-bars",
+        "A 4-8 step tooled pipeline with actors -> flow-sequence",
+        "3-5 equal peer items, no order/criteria -> card-set",
+        "Opening a deck / topic with a title + lede -> hero",
+        "Closing with a concrete request -> ask-cta"
+      ],
+      "composition": [
+        "'A KPI, then three risks, then a quote' on one slide -> mixed shapes, compose",
+        "'Seven vendors across five criteria' -> overflows decision-matrix (max 5), compose a table+badges layout",
+        "'A diagram on the left, bullet commentary on the right' -> spatial pairing no archetype exposes, compose",
+        "'A 3-phase roadmap' -> below flow-sequence min (4), compose a 3-column layout",
+        "'A chart plus its own caption plus a warning callout' -> heterogeneous stack, compose"
+      ]
+    },
+    "rule_of_thumb": "If you can name the slide's pattern in two words (a binary choice, a decision matrix, a process flow, an ask) and the item count fits the band -> reach for the fixed ARCHETYPE for its clarity and reliability. The moment you find yourself saying 'and also...' about a DIFFERENT kind of content on the same slide, or the count won't fit -> drop the archetype and COMPOSE from components."
+  }
+}

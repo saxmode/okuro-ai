@@ -1,0 +1,749 @@
+# Tech stack registry — source of truth.
+#
+# Structure:
+#   layers:   taxonomy of stack decisions (IDs are dot-paths: "fe.framework")
+#   entries:  concrete choices (IDs extend a layer: "fe.framework.react")
+#   profiles: opinionated compositions that pick one entry per layer
+#
+# Lifecycle: trial → approved → deprecated → banned.
+# Seeded idempotently via INSERT OR REPLACE; hand-edit here, not in DB.
+
+layers:
+  - id: runtime
+    name: Runtime
+    description: Language interpreter / runtime engine.
+    category: runtime
+    cardinality: multi
+    sort_order: 10
+
+  - id: lang
+    name: Language
+    description: Programming language + strictness profile.
+    category: runtime
+    cardinality: multi
+    sort_order: 20
+
+  - id: fe.framework
+    name: Frontend Framework
+    description: UI rendering engine.
+    category: frontend
+    cardinality: single
+    sort_order: 100
+
+  - id: fe.styling
+    name: Frontend Styling
+    description: How styles are authored and applied.
+    category: frontend
+    cardinality: single
+    sort_order: 110
+
+  - id: fe.state
+    name: Frontend State
+    description: Client-side state + server-state management.
+    category: frontend
+    cardinality: multi
+    sort_order: 120
+
+  - id: fe.build
+    name: Frontend Build
+    description: Bundler / dev server.
+    category: frontend
+    cardinality: single
+    sort_order: 130
+
+  - id: fe.ui
+    name: Frontend UI Kit
+    description: Component primitives / design-system bridge.
+    category: frontend
+    cardinality: single
+    sort_order: 140
+
+  - id: fe.router
+    name: Frontend Router
+    description: Client-side routing library.
+    category: frontend
+    cardinality: single
+    sort_order: 150
+
+  - id: be.framework
+    name: Backend Framework
+    description: HTTP server / API framework.
+    category: backend
+    cardinality: single
+    sort_order: 200
+
+  - id: be.server
+    name: Backend Server
+    description: ASGI/WSGI server.
+    category: backend
+    cardinality: single
+    sort_order: 210
+
+  - id: be.db
+    name: Database
+    description: Primary persistence layer.
+    category: backend
+    cardinality: single
+    sort_order: 220
+
+  - id: be.queue
+    name: Job Queue
+    description: Async job / background task runner.
+    category: backend
+    cardinality: single
+    sort_order: 230
+
+  - id: api.protocol
+    name: API Protocol
+    description: Contract style between agents/clients and services.
+    category: api
+    cardinality: multi
+    sort_order: 300
+
+  - id: api.schema
+    name: API Schema
+    description: Schema / validation source of truth.
+    category: api
+    cardinality: single
+    sort_order: 310
+
+  - id: mcp
+    name: MCP Readiness
+    description: How this service exposes itself to MCP clients.
+    category: api
+    cardinality: single
+    sort_order: 320
+
+  - id: secrets
+    name: Secrets
+    description: Credential access pattern.
+    category: ops
+    cardinality: single
+    sort_order: 400
+
+  - id: test
+    name: Testing
+    description: Test framework / runner.
+    category: ops
+    cardinality: multi
+    sort_order: 410
+
+  - id: deploy
+    name: Deployment
+    description: Process supervisor / runtime host.
+    category: ops
+    cardinality: single
+    sort_order: 420
+
+  - id: obs
+    name: Observability
+    description: Logging / tracing / telemetry.
+    category: ops
+    cardinality: multi
+    sort_order: 430
+
+
+entries:
+  # -- Runtime
+  - id: runtime.python-3.12
+    layer: runtime
+    name: Python 3.12
+    version: ">=3.12,<3.13"
+    status: approved
+    rationale: "Required by okuro and most tm-* projects. 3.12 gives us PEP 695 typing + per-interpreter GIL progress."
+    use_when: ["agent tooling", "ML glue", "CLI utilities"]
+    owner: system
+
+  - id: runtime.node-20
+    layer: runtime
+    name: Node 20 LTS
+    version: ">=20,<21"
+    status: approved
+    rationale: "Vite + TS toolchain baseline. Matches pnpm lockfile."
+    use_when: ["frontend build", "MCP SDK hosts written in TS"]
+    owner: system
+
+  - id: runtime.node-22
+    layer: runtime
+    name: Node 22 LTS
+    version: ">=22,<23"
+    status: approved
+    rationale: "What the host actually runs (v22.20). Next.js 16 requires >=20.9; the installed toolchain is 22, so pinning a stack to 20 would describe a runtime nobody has."
+    use_when: ["new frontend stacks", "Next.js 16+"]
+    owner: system
+
+  - id: runtime.bun-1
+    layer: runtime
+    name: Bun 1.x
+    version: "^1.1"
+    status: trial
+    rationale: "Faster install + runtime; evaluating for scripts + test harnesses."
+    use_when: ["one-off TS scripts", "speed-critical JS tooling"]
+    avoid_when: ["production web apps until ecosystem matures"]
+    owner: system
+
+  # -- Language
+  - id: lang.python-typed
+    layer: lang
+    name: Python (typed, pyright)
+    status: approved
+    rationale: "Type annotations mandatory on public APIs; pyright for editor diagnostics."
+    depends_on: [runtime.python-3.12]
+    use_when: ["all new Python code"]
+
+  - id: lang.typescript-strict
+    layer: lang
+    name: TypeScript (strict)
+    version: "^5.6"
+    status: approved
+    rationale: "Catch shape drift at compile time; tsconfig.strict = true."
+    depends_on: [runtime.node-20]
+    use_when: ["all new frontend / TS code"]
+
+  # -- Frontend framework
+  - id: fe.framework.react-19
+    layer: fe.framework
+    name: React 19
+    version: "^19"
+    status: approved
+    rationale: "Existing okuro SPA is React; ecosystem + team familiarity."
+    depends_on: [lang.typescript-strict, fe.build.vite]
+    use_when: ["long-lived UI with complex state", "dashboards", "editors"]
+    avoid_when: ["static marketing pages", "simple CLI companion UIs"]
+
+  - id: fe.framework.nextjs
+    layer: fe.framework
+    name: Next.js 16
+    version: "^16"
+    status: trial
+    rationale: "Meta-framework atop React with SSR/SSG/RSC. Reach for this when a project is public-facing or marketing-shaped — not for internal dashboards. Installed and verified at 16.2 in the nextjs-shadcn stack (Turbopack build)."
+    depends_on: [lang.typescript-strict, fe.framework.react-19]
+    use_when: ["public marketing sites", "SEO-critical surfaces", "multi-route content sites"]
+    avoid_when: ["internal dashboards (Vite + React is lighter)"]
+
+  - id: fe.framework.alpine
+    layer: fe.framework
+    name: Alpine.js
+    version: "^3"
+    status: deprecated
+    rationale: "Fine for sprinkles, too thin for complex okuro UIs. Keep for tiny tools only."
+    use_when: ["landing pages", "read-only dashboards"]
+    avoid_when: ["anything with nested client state"]
+
+  - id: fe.framework.svelte
+    layer: fe.framework
+    name: Svelte
+    status: banned
+    rationale: "Not taken — smaller ecosystem, no in-house expertise. Re-evaluate in 2027."
+
+  # -- Styling
+  - id: fe.styling.tailwind-4
+    layer: fe.styling
+    name: Tailwind CSS 4
+    version: "^4"
+    status: approved
+    rationale: "Utility-first, design-token bridge via okuro.design CSS variables."
+    depends_on: [fe.build.vite]
+    use_when: ["any okuro SPA"]
+
+  - id: fe.styling.css-modules
+    layer: fe.styling
+    name: CSS Modules
+    status: deprecated
+    rationale: "Superseded by Tailwind + design tokens in okuro SPA."
+
+  # -- State
+  - id: fe.state.tanstack-query
+    layer: fe.state
+    name: TanStack Query
+    version: "^5"
+    status: approved
+    rationale: "Server-state cache + background refetch. Pairs with REST/MCP endpoints."
+    depends_on: [fe.framework.react-19]
+
+  - id: fe.state.zustand
+    layer: fe.state
+    name: Zustand
+    version: "^5"
+    status: trial
+    rationale: "Lightweight client-state store. Evaluate against useReducer + context."
+    depends_on: [fe.framework.react-19]
+
+  # -- Build
+  - id: fe.build.vite
+    layer: fe.build
+    name: Vite
+    version: "^6"
+    status: approved
+    rationale: "Fast dev server + rollup production build. HMR is critical for SPA work."
+    depends_on: [runtime.node-20]
+
+  # -- UI kit
+  - id: fe.ui.shadcn
+    layer: fe.ui
+    name: shadcn/ui + Radix primitives
+    status: approved
+    rationale: "Unstyled Radix primitives + Tailwind = matches okuro.design tokens directly."
+    depends_on: [fe.styling.tailwind-4, fe.framework.react-19]
+
+  # -- Router
+  - id: fe.router.react-router
+    layer: fe.router
+    name: React Router v7
+    version: "^7"
+    status: approved
+    rationale: "Standard SPA routing; data APIs optional."
+    depends_on: [fe.framework.react-19]
+
+  # -- Backend framework
+  - id: be.framework.fastapi
+    layer: be.framework
+    name: FastAPI
+    version: "^0.115"
+    status: approved
+    rationale: "Type-driven, pydantic-native, async. Matches okuro's Python stack."
+    depends_on: [runtime.python-3.12, api.schema.pydantic]
+
+  # -- Server
+  - id: be.server.uvicorn
+    layer: be.server
+    name: Uvicorn
+    version: "^0.30"
+    status: approved
+    rationale: "ASGI server for FastAPI; systemd-friendly."
+    depends_on: [be.framework.fastapi]
+
+  # -- DB
+  - id: be.db.sqlite-vec
+    layer: be.db
+    name: SQLite + sqlite-vec
+    status: approved
+    rationale: "Single-user, embedded, vector-capable. No external DB process to babysit."
+    use_when: ["single-user services", "local-first agents"]
+    avoid_when: ["multi-writer concurrent services"]
+
+  - id: be.db.postgres
+    layer: be.db
+    name: Postgres (via local_supabase)
+    version: ">=15"
+    status: trial
+    rationale: "Reserved for shared multi-user services (a local Supabase/Postgres)."
+    avoid_when: ["anything single-user — SQLite is cheaper"]
+
+  # -- Queue
+  - id: be.queue.sqlite-wal
+    layer: be.queue
+    name: SQLite-backed jobs
+    status: trial
+    rationale: "In-process queue backed by SQLite WAL. Good enough for okuro scale."
+
+  # -- API protocol
+  - id: api.protocol.mcp
+    layer: api.protocol
+    name: Model Context Protocol
+    status: approved
+    rationale: "Primary surface for agent-facing tools. Every okuro module exposes MCP tools."
+    use_when: ["agent tooling", "tool-to-tool composition"]
+
+  - id: api.protocol.rest
+    layer: api.protocol
+    name: REST (JSON)
+    status: approved
+    rationale: "Secondary surface for the web UI. Thin wrappers over the same Python functions."
+    use_when: ["web UI", "ad-hoc curl"]
+
+  - id: api.protocol.graphql
+    layer: api.protocol
+    name: GraphQL
+    status: banned
+    rationale: "Complexity does not earn its keep at okuro scale. Re-visit if we ship a public API."
+
+  # -- API schema
+  - id: api.schema.pydantic
+    layer: api.schema
+    name: Pydantic v2
+    version: "^2"
+    status: approved
+    rationale: "Request/response schemas + validation. Generates JSON Schema for MCP tool inputs."
+    depends_on: [runtime.python-3.12]
+
+  # -- MCP
+  - id: mcp.stdio-server
+    layer: mcp
+    name: stdio MCP server (python-sdk)
+    status: approved
+    rationale: "Unified okuro MCP server at src/okuro/mcp/server.py. Stdio-first, http bridge optional."
+    depends_on: [api.protocol.mcp, runtime.python-3.12]
+
+  # -- Secrets
+  - id: secrets.tm-keyring
+    layer: secrets
+    name: tm-keyring (okuro.keyring)
+    status: approved
+    rationale: "Encrypted vault. No .env files, no hardcoded creds."
+
+  # -- Testing
+  - id: test.pytest
+    layer: test
+    name: pytest
+    version: "^8"
+    status: approved
+    rationale: "Standard Python test runner. Fixtures + parametrize."
+    depends_on: [runtime.python-3.12]
+
+  - id: test.playwright
+    layer: test
+    name: Playwright
+    version: "^1.49"
+    status: approved
+    rationale: "E2E browser tests for the SPA."
+    depends_on: [runtime.node-20]
+
+  - id: test.vitest
+    layer: test
+    name: Vitest
+    version: "^2"
+    status: trial
+    rationale: "Unit tests for frontend code. Reuses Vite config."
+    depends_on: [fe.build.vite]
+
+  # -- Deploy
+  - id: deploy.systemd-user
+    layer: deploy
+    name: systemd user units
+    status: approved
+    rationale: "Per-user services in ~/.config/systemd/user. No root, no Docker overhead for local services."
+
+  - id: deploy.docker
+    layer: deploy
+    name: Docker
+    status: trial
+    rationale: "Used for heavier services (tm-inference, tm-supabase). Prefer systemd-user for lightweight."
+
+  # -- Observability
+  - id: obs.python-logging
+    layer: obs
+    name: stdlib logging
+    status: approved
+    rationale: "Structured logs via `logging.getLogger('okuro.*')`. Good enough for local services."
+
+  - id: obs.otel
+    layer: obs
+    name: OpenTelemetry
+    status: trial
+    rationale: "Reserved for when we need cross-service traces. Not yet."
+
+
+# Profiles are opinionated compositions. Each project picks one (or none).
+# `scope` marks the surface area a profile covers, so brand slots can restrict
+# picks: a brand's `fe_stack` slot only accepts scope=frontend profiles.
+# Scopes: frontend | backend | fullstack | agent | other.
+profiles:
+  - name: okuro-web-prod
+    label: Okuro Web (prod)
+    description: "The stack okuro itself ships on — FastAPI + React + SQLite + MCP-first."
+    scope: fullstack
+    status: active
+    entries:
+      - { id: runtime.python-3.12,     role: primary }
+      - { id: runtime.node-20,         role: primary }
+      - { id: lang.python-typed,       role: primary }
+      - { id: lang.typescript-strict,  role: primary }
+      - { id: fe.framework.react-19,   role: primary }
+      - { id: fe.styling.tailwind-4,   role: primary }
+      - { id: fe.state.tanstack-query, role: primary }
+      - { id: fe.build.vite,           role: primary }
+      - { id: fe.ui.shadcn,            role: primary }
+      - { id: fe.router.react-router,  role: primary }
+      - { id: be.framework.fastapi,    role: primary }
+      - { id: be.server.uvicorn,       role: primary }
+      - { id: be.db.sqlite-vec,        role: primary }
+      - { id: api.protocol.mcp,        role: primary }
+      - { id: api.protocol.rest,       role: secondary }
+      - { id: api.schema.pydantic,     role: primary }
+      - { id: mcp.stdio-server,        role: primary }
+      - { id: secrets.tm-keyring,      role: primary }
+      - { id: test.pytest,             role: primary }
+      - { id: test.playwright,         role: primary }
+      - { id: deploy.systemd-user,     role: primary }
+      - { id: obs.python-logging,      role: primary }
+
+  - name: agent-cli
+    label: Agent CLI tool
+    description: "Thin Python CLI that talks MCP — no frontend."
+    scope: agent
+    status: active
+    entries:
+      - { id: runtime.python-3.12,    role: primary }
+      - { id: lang.python-typed,      role: primary }
+      - { id: api.protocol.mcp,       role: primary }
+      - { id: api.schema.pydantic,    role: primary }
+      - { id: mcp.stdio-server,       role: primary }
+      - { id: secrets.tm-keyring,     role: primary }
+      - { id: test.pytest,            role: primary }
+      - { id: deploy.systemd-user,    role: primary }
+      - { id: obs.python-logging,     role: primary }
+
+  - name: prototype-spa
+    label: Prototype SPA
+    description: "Fast throwaway — React + Tailwind, no backend constraints."
+    scope: frontend
+    status: draft
+    entries:
+      - { id: runtime.node-20,         role: primary }
+      - { id: lang.typescript-strict,  role: primary }
+      - { id: fe.framework.react-19,   role: primary }
+      - { id: fe.styling.tailwind-4,   role: primary }
+      - { id: fe.build.vite,           role: primary }
+      - { id: fe.ui.shadcn,            role: primary }
+
+  # ── Scoped profiles (the building blocks brands compose) ────────────────
+  - name: okuro-fe-professional
+    label: Okuro Frontend (professional)
+    description: "React 19 + Vite + Tailwind + shadcn for okuro-shaped SPAs. Pairs with okuro-be-professional."
+    scope: frontend
+    status: active
+    entries:
+      - { id: runtime.node-20,         role: primary }
+      - { id: lang.typescript-strict,  role: primary }
+      - { id: fe.framework.react-19,   role: primary }
+      - { id: fe.build.vite,           role: primary }
+      - { id: fe.styling.tailwind-4,   role: primary }
+      - { id: fe.ui.shadcn,            role: primary }
+      - { id: fe.state.tanstack-query, role: primary }
+      - { id: fe.router.react-router,  role: primary }
+      - { id: test.playwright,         role: primary }
+
+  - name: okuro-be-professional
+    label: Okuro Backend (professional)
+    description: "FastAPI + SQLite + MCP-first Python service. Pairs with okuro-fe-professional."
+    scope: backend
+    status: active
+    entries:
+      - { id: runtime.python-3.12,  role: primary }
+      - { id: lang.python-typed,    role: primary }
+      - { id: be.framework.fastapi, role: primary }
+      - { id: be.server.uvicorn,    role: primary }
+      - { id: be.db.sqlite-vec,     role: primary }
+      - { id: api.protocol.mcp,     role: primary }
+      - { id: api.protocol.rest,    role: secondary }
+      - { id: api.schema.pydantic,  role: primary }
+      - { id: mcp.stdio-server,     role: primary }
+      - { id: secrets.tm-keyring,   role: primary }
+      - { id: test.pytest,          role: primary }
+      - { id: deploy.systemd-user,  role: primary }
+      - { id: obs.python-logging,   role: primary }
+
+  # Physically installed at ~/.okuro/stacks/nextjs-shadcn — this profile
+  # describes a real tree, not an intention. Its inventory (components,
+  # imports, when-to-use) lives in that tree's stack.manifest.json, kept
+  # honest against disk by `npm run lint:manifest`. Brands theme it live via
+  # GET /tokens.css; see its app/globals.css okuro brand bridge.
+  - name: nextjs-shadcn
+    label: Next.js + shadcn
+    description: "Public-facing marketing / content sites. Next.js 16 + shadcn/ui on Radix + Tailwind 4, brand-themed from okuro design profiles. Installed at ~/.okuro/stacks/nextjs-shadcn with a live component gallery at /gallery."
+    scope: frontend
+    status: active
+    entries:
+      - { id: runtime.node-22,        role: primary }
+      - { id: lang.typescript-strict, role: primary }
+      - { id: fe.framework.nextjs,    role: primary }
+      - { id: fe.styling.tailwind-4,  role: primary }
+      - { id: fe.ui.shadcn,           role: primary }
+
+
+# ── Brand slot kinds ──────────────────────────────────────────────────────
+# Each kind names a plug point on a brand and which registry it draws from.
+# Add a new kind (e.g. mobile_stack, content_cms) by appending a row — no
+# schema or code change required elsewhere.
+brand_slot_kinds:
+  - kind: design
+    registry: design_profile
+    required: false
+    cardinality: single
+    sort_order: 10
+    description: "Visual language — tokens, typography, constraints."
+
+  - kind: fe_stack
+    registry: stack_profile
+    required: false
+    cardinality: single
+    scope_filter: frontend
+    sort_order: 20
+    description: "Frontend profile (framework, styling, UI kit, router, state)."
+
+  - kind: be_stack
+    registry: stack_profile
+    required: false
+    cardinality: single
+    scope_filter: backend
+    sort_order: 30
+    description: "Backend profile (framework, database, API, testing, deploy)."
+
+  - kind: principles
+    registry: principle_set
+    required: false
+    cardinality: single
+    sort_order: 40
+    description: "Engineering constraints — which decision principles apply to work under this brand."
+
+  - kind: assets
+    registry: asset_profile
+    required: false
+    cardinality: single
+    sort_order: 50
+    description: "Asset language — icon/illustration provider, allowed sets, license tier, delivery."
+
+  # VOICE IS A BRAND CONCERN, NOT A DESIGN ONE. It lived inside the design
+  # profile's `language` block until 2026-09-03 — tone, casing, locale and
+  # terminology in the same file as the palette — because that was the file
+  # that existed. The owner: "language belongs to the brand not the design."
+  # Note the `design` kind above still says "Visual language — tokens,
+  # typography, constraints"; the constraints half moves here.
+  - kind: voice
+    registry: voice_profile
+    required: false
+    cardinality: single
+    sort_order: 60
+    description: "Voice — how the brand talks: tone, casing, locale, terminology, copy constraints."
+
+
+# ── Asset profiles ──────────────────────────────────────────────────────────
+# The "assets" brand leg. An asset_profile names the icon provider, the icon
+# SETS a brand may draw from, the license tier, and how an icon is delivered
+# into generated code. The icon LIBRARY (35k SVGs + vectors) is a separate,
+# licensed, data-dir SQLite file — never seeded from here, never in the repo.
+#   delivery: npm-name (import from stack icon pkg) | inline-svg | sprite
+#   license_tier: permissive (MIT — safe to ship anywhere)
+#                 | licensed-seat (e.g. Streamline — internal/licensed use only)
+asset_profiles:
+  - id: architecture-noir-assets
+    name: "Architecture Noir — Assets"
+    description: "Monochrome stroke icons for The Machine's dark internal tooling. Lucide + Tabler only (MIT, safe to ship); excludes colorful licensed sets to honor the noir 'restrained UI' constraint."
+    icon_provider: okuro-assets.icons
+    license_tier: permissive
+    delivery: npm-name
+    status: active
+    allowed_sets:
+      - lucide
+      - tabler
+
+
+# ── Voice profiles ────────────────────────────────────────────────────────
+# A brand's VOICE — how it talks. "language belongs to the brand not the
+# design" (the owner, 2026-09-03): tone, casing, locale, terminology and copy
+# constraints used to live inside the design profile because that was the file
+# that existed. They are a slot of their own now.
+#
+# SEEDED HERE BECAUSE MIGRATION 146 CREATES THE TABLES AND FILLS NOTHING.
+# The one shipped voice was written into one machine's store by a one-off data
+# migration that is not in this repo, so a fresh install got the tables empty
+# and any brand naming a voice slot had a dangling ref. Measured 2026-09-05:
+# `architecture-noir-voice` appeared nowhere in the tree.
+#
+# TWO RULE SHAPES, told apart by TYPE rather than by a list of kind names:
+#   a MAP  → (key, value) rows — a substitution, or a format for a thing
+#   a LIST → (key, null) rows  — the key is the whole statement
+# A sixth kind is a block here, not a migration.
+voice_profiles:
+  - id: architecture-noir-voice
+    name: "Architecture Noir — Voice"
+    description: "Split out of the architecture-noir design profile 2026-09-03: language and brand identity are a brand concern, not a design one."
+    status: active
+    tone: "technical, precise, minimal — like a well-designed terminal"
+    sentences: "short, declarative, front-load the point — no hedging, no windup"
+    casing: "UPPERCASE for section headers and labels, lowercase for body text"
+    locale: en
+    reference: "okuro brain writing — terse systems prose, tables over paragraphs, evidence over adjectives"
+    owner: "THE MACHINE"
+    domain: "internal tools, dashboards, developer UIs, system interfaces"
+    rules:
+      # say the VALUE, not the key
+      prefer:
+        artifact: item
+        collection: group
+        deploy: ship
+        dashboard: console
+      avoid:
+        - click here
+        - please
+        - welcome
+        - getting started
+      banned_phrase:
+        - cutting-edge
+        - leverage
+        - synergy
+        - seamless
+        - game-changer
+        - game changer
+        - revolutionary
+        - world-class
+        - best-in-class
+        - unlock
+        - empower
+        - "in today's fast-paced world"
+      formatting:
+        dates: "YYYY-MM-DD"
+        times: "HH:MM:SS (24h)"
+        numbers: "dot-separated, aligned columns"
+        labels: "LABEL..........: value  (padded dot notation for metadata)"
+        file_sizes: "human-readable (1.2 GB, 450 MB)"
+      # About the INTERFACE, not about prose — `language_view` leaves these out
+      # of the writing directive and the bootstrap voice lines still show them.
+      constraint:
+        - "Dark mode only — no light mode variant"
+        - "color-scheme: dark on html element"
+        - "Reduced motion support required (prefers-reduced-motion)"
+
+
+# ── Brands ────────────────────────────────────────────────────────────────
+# A brand is a named composition of registry picks. Projects bind to a brand;
+# bootstrap surfaces the resolved triad (design tokens + fe + be + principles).
+brands:
+  - id: the-machine-internal
+    name: "The Machine — Internal"
+    description: "Dark monospace dashboards for internal tooling. okuro itself + tm-* dashboards ship on this."
+    status: active
+    slots:
+      # THE ENGINE'S KIT, not the v0 profile. The owner, 2026-09-05: "everything
+      # should rely on the new okuro design system." `okuro-ds` resolves through
+      # design_engine.profile_view; `architecture-noir` resolved through the v0
+      # fallback in stack/registry.py and logged a repoint warning every time.
+      design:     okuro-ds
+      fe_stack:   okuro-fe-professional
+      be_stack:   okuro-be-professional
+      principles: foundation
+      assets:     architecture-noir-assets
+      # THE OTHER HALF OF THE SAME SPLIT. The kit carries no `language`, so
+      # without this slot the repoint above would have taken the brand's tone,
+      # casing and banned phrases with it — silently, in prism and in bootstrap.
+      voice:      architecture-noir-voice
+
+  - id: professional-marketing
+    name: "Professional — Marketing"
+    description: "Public-facing sites: Next.js + shadcn on a brand design. Draft — pending brand design selection per customer."
+    status: draft
+    slots:
+      fe_stack:   nextjs-shadcn
+      principles: public-api
+
+  # okuro's own brand — Architecture Noir identity, canonical name "okuro".
+  # Aliases the (now v2-enriched) architecture-noir design so the-machine-internal
+  # is left untouched (non-breaking); the brand carries the okuro stacks.
+  - id: okuro
+    name: "okuro"
+    description: "okuro's own brand — dark, JetBrains Mono, the engine's own colour. Canonical deck brand for okuro-authored decks."
+    status: active
+    slots:
+      design:     okuro-ds
+      fe_stack:   okuro-fe-professional
+      be_stack:   okuro-be-professional
+      principles: foundation
+      assets:     architecture-noir-assets
+      voice:      architecture-noir-voice
+
+  # Customer brands are NOT seeded here. okuro ships the base design system and
+  # okuro-ds; a brand is the user's own data and is registered in their own
+  # instance. Two were seeded here until 2026-08-05 — they carried real
+  # palettes and typefaces in a repo that is public, and a brand with no design
+  # slot falls back to architecture-noir anyway, so seeding bought nothing.

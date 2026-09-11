@@ -1,0 +1,54 @@
+# <!-- AGENT_HEADER
+# role: config
+# purpose: Consumer registry entry — ChatGPT Desktop (pure MCP consumer, desktop app).
+# index: tool_id | short_name | provider_id | capabilities
+# AGENT_HEADER_END -->
+#
+# Desktop app: no okuro install, no auth probe. Config path is OS-specific and
+# experimental; None on Linux (no canonical location) — resolved by
+# okuro.canon.consumers to match mcp_config._chatgpt_desktop_path exactly.
+#
+# NOTE (plan P2): external research says Codex CLI and ChatGPT Desktop share
+# ~/.codex/config.toml since 2026-07-09; okuro's repo does not corroborate,
+# so this stays a SEPARATE consumer with its own mcp.json this phase. Verify
+# before any collapse.
+tool_id: chatgpt-desktop
+name: "ChatGPT Desktop"
+type: desktop_app
+category: consumer
+version: "latest"
+
+description: >
+  OpenAI's desktop app. MCP consumer only; config schema is not formally
+  documented and there is no canonical Linux location (None on Linux).
+
+provider_id: chatgpt-desktop
+short_name: chatgpt_desktop
+
+capabilities:
+  kind: desktop
+  mcp:
+    # Per-OS map. linux: null mirrors _chatgpt_desktop_path returning None
+    # for every non-darwin/win32 platform.
+    path:
+      darwin: "Library/Application Support/ChatGPT/mcp.json"
+      win32: "AppData/Roaming/ChatGPT/mcp.json"
+      linux: null
+    format: json
+    root_key: mcpServers
+    remote_field: null
+    transports: [stdio]
+    preferred_transport: stdio
+  instructions:
+    path: null
+  hooks:
+    supported: false
+  probe: none
+
+metadata:
+  author: okuro
+  created: "2026-07-17"
+  tags: [mcp-consumer, desktop, openai]
+
+enabled: true
+recommended: false

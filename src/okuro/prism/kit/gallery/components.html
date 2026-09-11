@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en" data-theme="okuro">
+<head>
+<meta charset="utf-8">
+<title>prism · board kit — components</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../board/tokens.css">
+<link rel="stylesheet" href="../board/theme.css">
+<link rel="stylesheet" href="../board/components.css">
+<link rel="stylesheet" href="../board/zoom-stage.css">
+<link rel="stylesheet" href="gallery.css">
+<script src="../board/zoom-stage.js" defer></script>
+<script src="../board/reveal.js" defer></script>
+<script src="gallery.js" defer></script>
+</head>
+<body>
+<div class="gallery-wrap">
+  <div class="gallery-head">
+    <div><h1>Components</h1><div class="sub">every shared + bespoke module · brand <span data-brand-label></span></div></div>
+    <div class="grow"></div>
+    <span class="viewport-readout"></span>
+    <div class="brand-switch" role="group" aria-label="brand">
+      <button data-brand="okuro">okuro · dark</button>
+      <button data-brand="northwind">Northwind · dark</button>
+      <button data-brand="meridian">Meridian · light</button>
+    </div>
+    <div class="gallery-links">
+      <a href="index.html">Overview</a>
+      <a href="design-language.html">Design language</a>
+      <a href="components.html" class="active">Components</a>
+      <a href="components-ext.html">Ports + high-card</a>
+      <a href="archetypes.html">Archetypes</a>
+      <a href="reflow.html">L3 reflow</a>
+    </div>
+  </div>
+
+  <!-- TOKENS -->
+  <div class="spec-section">
+    <h2>Tokens · background elevation ramp</h2>
+    <p class="spec-note">Monotonic lightness climb from --bg-base toward mid-gray (dark); inverts in light. Resolved values update live per brand.</p>
+    <div class="swatch-grid">
+      <div class="swatch" data-var="--bg-base"><div class="chip"></div><div class="meta"><div class="name">--bg-base</div><div class="val"></div></div></div>
+      <div class="swatch" data-var="--bg-elev"><div class="chip"></div><div class="meta"><div class="name">--bg-elev</div><div class="val"></div></div></div>
+      <div class="swatch" data-var="--bg-card"><div class="chip"></div><div class="meta"><div class="name">--bg-card</div><div class="val"></div></div></div>
+      <div class="swatch" data-var="--bg-subtle"><div class="chip"></div><div class="meta"><div class="name">--bg-subtle</div><div class="val"></div></div></div>
+    </div>
+  </div>
+
+  <div class="spec-section">
+    <h2>Tokens · foreground contrast ladder</h2>
+    <p class="spec-note">5-step ladder, roles fixed by rank: primary=titles … muted=de-emphasis. Tertiary/muted are ≥14px or decorative only (a11y floor).</p>
+    <div class="swatch-grid">
+      <div class="swatch" data-var="--fg-primary"><div class="chip"></div><div class="meta"><div class="name">--fg-primary</div><div class="val"></div></div></div>
+      <div class="swatch" data-var="--fg-body"><div class="chip"></div><div class="meta"><div class="name">--fg-body</div><div class="val"></div></div></div>
+      <div class="swatch" data-var="--fg-secondary"><div class="chip"></div><div class="meta"><div class="name">--fg-secondary</div><div class="val"></div></div></div>
+      <div class="swatch" data-var="--fg-tertiary"><div class="chip"></div><div class="meta"><div class="name">--fg-tertiary</div><div class="val"></div></div></div>
+      <div class="swatch" data-var="--fg-muted"><div class="chip"></div><div class="meta"><div class="name">--fg-muted</div><div class="val"></div></div></div>
+    </div>
+  </div>
+
+  <div class="spec-section">
+    <h2>Tokens · accent, semantic, chart, border</h2>
+    <div class="swatch-grid">
+      <div class="swatch" data-var="--accent"><div class="chip"></div><div class="meta"><div class="name">--accent</div><div class="val"></div></div></div>
+      <div class="swatch" data-var="--accent-hover"><div class="chip"></div><div class="meta"><div class="name">--accent-hover</div><div class="val"></div></div></div>
+      <div class="swatch" data-var="--accent-dim"><div class="chip"></div><div class="meta"><div class="name">--accent-dim</div><div class="val"></div></div></div>
+      <div class="swatch" data-var="--accent-soft"><div class="chip"></div><div class="meta"><div class="name">--accent-soft</div><div class="val"></div></div></div>
+      <div class="swatch" data-var="--warn"><div class="chip"></div><div class="meta"><div class="name">--warn</div><div class="val"></div></div></div>
+      <div class="swatch" data-var="--ok"><div class="chip"></div><div class="meta"><div class="name">--ok</div><div class="val"></div></div></div>
+      <div class="swatch" data-var="--info"><div class="chip"></div><div class="meta"><div class="name">--info</div><div class="val"></div></div></div>
+      <div class="swatch" data-var="--gold"><div class="chip"></div><div class="meta"><div class="name">--gold</div><div class="val"></div></div></div>
+      <div class="swatch" data-var="--violet"><div class="chip"></div><div class="meta"><div class="name">--violet</div><div class="val"></div></div></div>
+      <div class="swatch" data-var="--chart-1"><div class="chip"></div><div class="meta"><div class="name">--chart-1</div><div class="val"></div></div></div>
+      <div class="swatch" data-var="--chart-2"><div class="chip"></div><div class="meta"><div class="name">--chart-2</div><div class="val"></div></div></div>
+      <div class="swatch" data-var="--chart-3"><div class="chip"></div><div class="meta"><div class="name">--chart-3</div><div class="val"></div></div></div>
+      <div class="swatch" data-var="--chart-4"><div class="chip"></div><div class="meta"><div class="name">--chart-4</div><div class="val"></div></div></div>
+      <div class="swatch" data-var="--border"><div class="chip"></div><div class="meta"><div class="name">--border</div><div class="val"></div></div></div>
+      <div class="swatch" data-var="--border-strong"><div class="chip"></div><div class="meta"><div class="name">--border-strong</div><div class="val"></div></div></div>
+    </div>
+  </div>
+
+  <!-- TYPE SCALE -->
+  <div class="spec-section">
+    <h2>Type scale</h2>
+    <div class="spec-block">
+      <div class="type-row"><span class="type-meta">eyebrow 11/700</span><div class="slide-eyebrow" style="margin:0"><span class="slide-num">01</span> Eyebrow kicker</div></div>
+      <div class="type-row"><span class="type-meta">slide-title 56/700</span><div class="slide-title" style="margin:0">Title with an <span class="accent">accent</span></div></div>
+      <div class="type-row"><span class="type-meta">lede 22/400</span><p class="slide-lede" style="margin:0">Supporting sub-headline, one sentence, ≤70ch.</p></div>
+      <div class="type-row"><span class="type-meta">prose h2 28/600</span><div style="font-size:28px;font-weight:600;color:var(--fg-primary)">Section heading</div></div>
+      <div class="type-row"><span class="type-meta">body 17/400</span><div style="max-width:72ch">Body copy at 17px, line-height 1.7 — the readable default for prose blocks.</div></div>
+      <div class="type-row"><span class="type-meta">label h4 14/600</span><div style="font-size:14px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--fg-tertiary)">Uppercase label</div></div>
+    </div>
+  </div>
+
+  <!-- NAV -->
+  <div class="spec-section">
+    <h2>Navigation</h2>
+    <div class="spec-block"><div class="spec-label">.site-nav</div>
+      <nav class="site-nav" style="position:relative">
+        <a class="nav-brand" href="#"><span class="mark"></span> Northwind <span class="sub">board</span></a>
+        <div class="nav-links"><a href="#" class="active">Overview</a><a href="#">Architecture</a><a href="#">Roadmap</a></div>
+        <div class="lang-switch"><a href="#" class="active">EN</a><a href="#">DE</a></div>
+      </nav>
+    </div>
+  </div>
+
+  <!-- LENS TABS -->
+  <div class="spec-section">
+    <h2>Lens tabs · persona reframe</h2>
+    <div class="spec-block slide"><div class="spec-label">.lens-tabs / .lens-pane</div>
+      <div class="lens-tabs">
+        <button class="lens-tab active"><span class="persona-mark a"></span><span class="lens-label"><span class="lens-name">Marco</span><span class="lens-frame">CEO</span></span></button>
+        <button class="lens-tab"><span class="persona-mark b"></span><span class="lens-label"><span class="lens-name">Milo</span><span class="lens-frame">CPO</span></span></button>
+        <button class="lens-tab"><span class="persona-mark c"></span><span class="lens-label"><span class="lens-name">Alex</span><span class="lens-frame">CTO</span></span></button>
+      </div>
+      <div class="lens-pane active"><p style="color:var(--fg-body)">Pane one — click a tab to switch. Content is the same claim, reframed per reader.</p></div>
+      <div class="lens-pane"><p style="color:var(--fg-body)">Pane two — delivery framing.</p></div>
+      <div class="lens-pane"><p style="color:var(--fg-body)">Pane three — safety framing.</p></div>
+    </div>
+  </div>
+
+  <!-- DISCLOSURE -->
+  <div class="spec-section">
+    <h2>Expandable disclosure list</h2>
+    <div class="spec-block"><div class="spec-label">.bullet-list / .bullet-row</div>
+      <ul class="bullet-list">
+        <li class="bullet-row open"><div class="bullet-head"><span class="bullet-mark">1</span><div><p class="bullet-title">Click a row to expand</p><div class="bullet-sub">Chevron rotates, body reveals</div></div><span class="bullet-toggle">Detail <span class="chevron">▾</span></span></div><div class="bullet-body"><p>Body supports prose, tables and <code>code</code>. Severity via chips: <span class="bullet-tag critical">critical</span><span class="bullet-tag major">major</span><span class="bullet-tag moderate">moderate</span></p></div></li>
+        <li class="bullet-row"><div class="bullet-head"><span class="bullet-mark warn">2</span><div><p class="bullet-title">Warn-marked row</p><div class="bullet-sub">Uses --warn-dim mark</div></div><span class="bullet-toggle">Detail <span class="chevron">▾</span></span></div><div class="bullet-body"><p>Collapsed by default.</p></div></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- CARDS -->
+  <div class="spec-section">
+    <h2>Cards · content / metric / capability</h2>
+    <div class="spec-block"><div class="spec-label">.card-grid / .card / .cap-card</div>
+      <div class="card-grid" style="grid-template-columns:repeat(3,1fr)">
+        <div class="card"><div class="card-eyebrow">Content card</div><h3>Recipient-fit</h3><p>Shape context to the reader who must act on it.</p><div class="card-footer">okuro · charter</div></div>
+        <div class="card"><div class="card-label">Metric tile</div><div class="card-value">−92%</div><div class="card-desc">re-explain cost</div></div>
+        <div class="cap-card"><div class="cap-card-icon">🧠</div><div class="cap-card-name">Reason</div><div class="cap-card-desc">Local LLMs, routed by capability</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CALLOUTS -->
+  <div class="spec-section">
+    <h2>Callouts / emphasis boxes</h2>
+    <div class="spec-block"><div class="spec-label">.callout / .insight / .warn-box</div>
+      <div class="callout"><div class="callout-label">Note</div><h3>Accent callout</h3><p>Left-accent-bar highlight box.</p></div>
+      <div class="callout info"><div class="callout-label">Info</div><p>Info variant.</p></div>
+      <div class="callout warn"><div class="callout-label">Warn</div><p>Warn variant.</p></div>
+      <div class="insight">Insight box — accent-dim background.</div>
+      <div class="warn-box">Warn box — warn-dim background.</div>
+    </div>
+  </div>
+
+  <!-- PERSONA / OPTION / BEATS -->
+  <div class="spec-section">
+    <h2>Persona pills · option grid · scenario beats</h2>
+    <div class="spec-block"><div class="spec-label">.persona-row</div>
+      <div class="persona-row" style="margin:0">
+        <div class="persona-pill"><span class="persona-mark a"></span><span class="persona-name">Marco</span><span class="persona-lens">outcomes</span></div>
+        <div class="persona-pill"><span class="persona-mark b"></span><span class="persona-name">Milo</span><span class="persona-lens">delivery</span></div>
+        <div class="persona-pill"><span class="persona-mark c"></span><span class="persona-name">Alex</span><span class="persona-lens">safety</span></div>
+      </div>
+    </div>
+    <div class="spec-block"><div class="spec-label">.option-grid</div>
+      <div class="option-grid" style="margin:0;grid-template-columns:repeat(3,1fr)">
+        <div class="option-card"><div class="option-label">A</div><h3>Cloud</h3><div class="option-line"><span class="k">Cost</span><span class="v">Scales</span></div><div class="option-line"><span class="k">Privacy</span><span class="v">Off-LAN</span></div></div>
+        <div class="option-card recommended"><div class="option-label">B · pick</div><h3>Local</h3><div class="option-line"><span class="k">Cost</span><span class="v">Flat</span></div><div class="option-line"><span class="k">Privacy</span><span class="v">On-LAN</span></div></div>
+        <div class="option-card"><div class="option-label">C</div><h3>Hybrid</h3><div class="option-line"><span class="k">Cost</span><span class="v">Mixed</span></div><div class="option-line"><span class="k">Privacy</span><span class="v">Partial</span></div></div>
+      </div>
+    </div>
+    <div class="spec-block"><div class="spec-label">.beat-list</div>
+      <ul class="beat-list" style="margin:0">
+        <li><span class="t-mark">T+0s</span><div class="t-body">Presence detected<span class="who">sensor</span></div></li>
+        <li><span class="t-mark">T+3s</span><div class="t-body">Lift called<span class="who">engine</span></div></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- STAT ROW / SPEC HERO -->
+  <div class="spec-section">
+    <h2>Stat row · spec-hero stats</h2>
+    <div class="spec-block"><div class="spec-label">.stat-row</div>
+      <div class="stat-row" style="margin:0">
+        <div class="stat-cell"><div class="stat-num ok">4</div><div class="stat-lbl">modalities</div></div>
+        <div class="stat-cell"><div class="stat-num">48GB</div><div class="stat-lbl">VRAM</div></div>
+        <div class="stat-cell"><div class="stat-num warn">5</div><div class="stat-lbl">no-go</div></div>
+        <div class="stat-cell"><div class="stat-num info">3</div><div class="stat-lbl">tiers</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BESPOKE: aurora -->
+  <div class="spec-section">
+    <h2>Bespoke · aurora-voice modules</h2>
+    <div class="spec-block"><div class="spec-label">.pipeline-header / .pipeline-row · .latency-bar</div>
+      <div class="pipeline-header"><span>Layer</span><span>Edge</span><span>Cloud</span><span>Cost</span></div>
+      <div class="pipeline-row"><span class="layer-name">STT</span><span class="edge-cell">whisper.cpp</span><span class="cloud-cell">—</span><span class="cost-cell">$0</span></div>
+      <div class="pipeline-row"><span class="layer-name">Intent</span><span class="edge-cell">llama-local</span><span class="cloud-cell">fallback</span><span class="cost-cell">$0.02</span></div>
+      <div style="margin-top:20px" class="latency-bar-wrap"><span class="latency-bar" style="width:120px"></span><span class="latency-val">42 ms</span></div>
+    </div>
+    <div class="spec-block"><div class="spec-label">.tier-badge · .flow-step · .mcp-tool</div>
+      <div style="display:flex;gap:10px;margin-bottom:16px"><span class="tier-badge tier-edge">edge</span><span class="tier-badge tier-hybrid">hybrid</span><span class="tier-badge tier-cloud">cloud</span></div>
+      <div class="flow-step"><span class="flow-num">1</span><span class="flow-what">Transcribe on-device</span><span class="flow-tool">whisper.cpp</span></div>
+      <div class="flow-step"><span class="flow-num">2</span><span class="flow-what">Resolve intent locally</span><span class="flow-tool">llama-local</span></div>
+      <div class="mcp-tool" style="margin-top:16px"><div class="tool-name">room.set_scene</div><div class="tool-desc">Activate a lighting + audio scene by name.</div><div class="tool-params">scene:string · fade_ms:int</div></div>
+    </div>
+  </div>
+
+  <!-- BESPOKE: mcp -->
+  <div class="spec-section">
+    <h2>Bespoke · mcp-scale modules</h2>
+    <div class="spec-block"><div class="spec-label">.token-bar · .verb-grid · .ceo-step · .fmt-card</div>
+      <div class="token-bar-wrap" style="margin-bottom:8px"><span class="token-bar safe" style="width:180px"></span><span class="token-val safe">2.8k</span></div>
+      <div class="token-bar-wrap" style="margin-bottom:8px"><span class="token-bar caution" style="width:320px"></span><span class="token-val caution">8.1k</span></div>
+      <div class="token-bar-wrap" style="margin-bottom:20px"><span class="token-bar danger" style="width:420px"></span><span class="token-val danger">11.2k</span></div>
+      <div class="verb-grid">
+        <div class="verb-card"><div class="verb-name">list</div><div class="verb-desc">Read-only enumeration.</div><div class="verb-params">filter?:string</div><div class="verb-ack"><span>ack</span><span class="ack-val">sync</span></div></div>
+        <div class="verb-card"><div class="verb-name">act</div><div class="verb-desc">Side-effecting call.</div><div class="verb-params">target:id</div><div class="verb-ack"><span>ack</span><span class="ack-val">2-phase</span></div></div>
+        <div class="verb-card"><div class="verb-name">watch</div><div class="verb-desc">Subscribe to events.</div><div class="verb-params">topic:string</div><div class="verb-ack"><span>ack</span><span class="ack-val">stream</span></div></div>
+      </div>
+      <div style="margin-top:20px">
+        <div class="ceo-step"><span class="ceo-num edge">1</span><div class="ceo-what">Local step</div><span class="ceo-tool">llama-local</span><span class="ceo-ms">42 ms</span></div>
+        <div class="ceo-step"><span class="ceo-num cloud">2</span><div class="ceo-what">Cloud escalate</div><span class="ceo-tool">bridge</span><span class="ceo-ms">210 ms</span></div>
+      </div>
+      <div style="max-width:320px;margin-top:20px"><div class="fmt-card winner"><div class="fmt-name">JSON-lines</div><div class="fmt-tokens" style="color:var(--accent-text)">2.8k tok</div><div class="fmt-pro">+ streamable</div><div class="fmt-con">− verbose keys</div></div></div>
+    </div>
+  </div>
+
+  <!-- BESPOKE: meridian -->
+  <div class="spec-section">
+    <h2>Bespoke · meridian modules (verdict, workflow, transform, ask)</h2>
+    <div class="spec-block"><div class="spec-label">.verdict-callout · .verdict-table · badges</div>
+      <div class="verdict-callout"><span>19 endpoints</span><span class="vc-stat"><span class="vc-dot" style="background:var(--ok)"></span>8 essential</span><span class="vc-stat"><span class="vc-dot" style="background:var(--warn)"></span>5 no-go</span></div>
+      <div class="verdict-table-wrap"><table class="verdict-table"><thead><tr><th>Endpoint</th><th>Method</th><th>Verdict</th></tr></thead><tbody>
+        <tr class="essential"><td class="ep-path">/inbox/list</td><td><span class="method-badge get">GET</span></td><td><span class="verdict-badge essential">Essential</span></td></tr>
+        <tr class="nogo"><td class="ep-path">/legacy/sync</td><td><span class="method-badge post">POST</span></td><td><span class="verdict-badge nogo">No-go</span></td></tr>
+        <tr class="redesign"><td class="ep-path">/doc/render</td><td><span class="method-badge put">PUT</span></td><td><span class="verdict-badge redesign">Redesign</span></td></tr>
+      </tbody></table></div>
+    </div>
+    <div class="spec-block"><div class="spec-label">.workflow-block · .tag</div>
+      <div class="workflow-block"><div class="workflow-title">Checkout</div><div class="workflow-steps"><span class="workflow-step">cart</span><span class="workflow-arrow">→</span><span class="workflow-step broken">legacy-pay</span><span class="workflow-arrow">→</span><span class="workflow-step">confirm</span></div></div>
+      <div style="display:flex;gap:8px;margin-top:12px"><span class="tag broken">broken</span><span class="tag partial">partial</span><span class="tag full">full</span><span class="tag new">new</span><span class="tag removed">removed</span></div>
+    </div>
+    <div class="spec-block"><div class="spec-label">.phase-row · .transform-grid</div>
+      <div class="phase-row" style="margin-bottom:16px"><span class="phase-item done">v1 audit</span><span class="phase-arrow">→</span><span class="phase-item next">v2 rewrite</span><span class="phase-arrow">→</span><span class="phase-item">v3 ship</span></div>
+      <div class="transform-grid"><div class="transform-card"><div class="transform-header">Rename</div><div class="transform-body"><div class="transform-before">GET /sync</div><div class="transform-arrow-cell">→</div><div class="transform-after">GET /events</div></div><div class="transform-label">clearer intent</div></div></div>
+    </div>
+    <div class="spec-block"><div class="spec-label">.ask-box · .arch-diagram</div>
+      <div class="ask-box"><div class="ask-box-title">We ask the board to approve:</div><ul><li>Green-light the core</li><li>Fund one GPU</li></ul></div>
+      <div class="arch-diagram"><div class="arch-item ok"><div class="arch-item-label">Now</div><div class="arch-item-value">Shipped</div></div><div class="arch-item broken"><div class="arch-item-label">Gap</div><div class="arch-item-value">Pipeline</div></div></div>
+    </div>
+  </div>
+
+  <!-- STORY GRID -->
+  <div class="spec-section">
+    <h2>Story grid</h2>
+    <div class="spec-block"><div class="spec-label">.story-grid / .story-card</div>
+      <div class="story-grid" style="margin:0">
+        <a class="story-card" href="#"><div class="chap-num">01</div><div class="chap-title">Chapter one</div><div class="chap-desc">Overview landing card.</div><div class="chap-links"><span class="chap-go">Read →</span></div></a>
+        <a class="story-card" href="#"><div class="chap-num">02</div><div class="chap-title">Chapter two</div><div class="chap-desc">Another chapter.</div><div class="chap-links"><span class="chap-go">Read →</span></div></a>
+      </div>
+    </div>
+  </div>
+
+  <footer class="site-footer"><span class="accent">prism board kit</span><span class="footer-meta"><span>components specimen</span></span></footer>
+</div>
+</body>
+</html>

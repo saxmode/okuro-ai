@@ -1,0 +1,190 @@
+[build-system]
+requires = ["hatchling", "huggingface_hub>=0.20"]
+build-backend = "hatchling.build"
+
+[project]
+name = "okuro"
+version = "3.0.0"
+description = "Okuro — personal AI agent infrastructure"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+authors = [
+    { name = "Nicolas Python", email = "npython@gmail.com" },
+]
+
+dependencies = [
+    "click>=8.1",
+    "rich>=13.0",
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "httpx>=0.27",
+    "psutil>=5.9",
+    "pyyaml>=6.0",
+    "pydantic>=2.0",
+    "watchdog>=4.0",
+    "setproctitle>=1.3",
+    "sqlite-vec>=0.1",
+    "mcp>=1.0",
+    "cryptography>=41.0",
+    "keyring>=25.0",
+    "tomlkit>=0.12",
+    "croniter>=1.3",
+    "pathspec>=0.11",
+    "pywebview>=6.2",
+    "pdfplumber>=0.11",
+    # Cold trace archive (sense/distill/archive.py). The archive is the ONLY
+    # remaining copy of an agent_events session once the retention gate has
+    # deleted it, so the codec is a durability decision, not a size one:
+    # zstd's framing lets a truncated file fail loudly on decompress instead
+    # of yielding a short-but-parseable prefix, which is what the gate's
+    # round-trip verification relies on to catch a half-written archive.
+    # Python 3.12 has no stdlib zstd (that arrives as compression.zstd in
+    # 3.14), so it is a real dependency until the floor moves.
+    "zstandard>=0.22",
+    # LLM-JSON repair (okuro.prism.generate outline parsing): pure-Python,
+    # zero transitive deps, handles malformation classes ad hoc regex can't
+    # (missing commas mid-object, mismatched quotes) alongside our own
+    # trailing-comma/bracket-balance tiers.
+    "json-repair>=0.30",
+    # Podcast delivery channel (peer/delivery/channels/podcast.py): Kokoro-82M
+    # ONNX TTS runs on CPU (no GPU, no API key) so EVERY install can produce
+    # audio "for free". kokoro-onnx pulls onnxruntime + a bundled phonemizer.
+    # The code ships here; the ~338 MB fp32 weights lazy-download to
+    # ~/.okuro/models/kokoro on first synth (see peer/delivery/tts.py), so the
+    # wheel stays small. soundfile writes the mixed WAV.
+    "kokoro-onnx>=0.4",
+    "soundfile>=0.12",
+    # RETIRED 2026-07-16 — Orpheus is unreachable by any route (active_engine
+    # rejects the pin, synth remaps to Kokoro, role_voice no longer resolves
+    # its ids). It was never "the primary" in practice: auto-selecting it on
+    # mere importability, with no GPU check, is what made podcasts hang —
+    # Orpheus-3B is a 3B LLM doing TTS CPU-bound via llama.cpp, minutes per
+    # line. The roster is Qwen3-TTS (pro) + Kokoro (universal floor).
+    # DEAD WEIGHT: this dep only still exists because peer/delivery/
+    # tts_orpheus.py imports it. Drop both together — pending an owner's call,
+    # since removing a dependency changes every install.
+    "orpheus-cpp>=0.0.3",
+    # AST-aware code chunking (cAST, audit F10) makes tree-sitter a CORE
+    # chunking dependency, so the parser stack is PROMOTED from the
+    # [project.optional-dependencies] code-graph extra into core deps. okuro
+    # deliberately pins the OLD stack: tree-sitter 0.25's method-API broke the
+    # bindings and tree-sitter-language-pack lags, so cortex.codegraph (and now
+    # cAST) stay on tree-sitter 0.21 + tree-sitter-languages 1.10. Promoting
+    # these makes `pip install -e .` (run by both scripts/update.sh and
+    # install.sh) install them for every update client AND fresh install.
+    #
+    # python_version < "3.13": tree-sitter-languages 1.10.2 is UNMAINTAINED and
+    # ships no cp313 wheel (and 1.10.2 won't build from sdist on 3.13), so a
+    # Python 3.13 install hard-failed with "no matching distribution". Gate the
+    # old stack to <3.13 — cortex.cast/codegraph import get_parser lazily and
+    # degrade gracefully when it's absent (code-graph off on 3.13). The real
+    # fix is migrating to tree-sitter-language-pack (tree-sitter 0.25 API);
+    # tracked as a follow-up so 3.13 regains code-graph.
+    "tree-sitter==0.21.3; python_version < '3.13'",
+    "tree-sitter-languages==1.10.2; python_version < '3.13'",
+    # pywebview on macOS drives WKWebView via these pyobjc frameworks. pywebview
+    # lists them as extras rather than hard deps, so a clean pip install can
+    # land without them and crash at window creation. Gated on Darwin so Linux
+    # installs don't pull ~20MB of Apple-only wheels.
+    "pyobjc-framework-cocoa>=10.0; platform_system=='Darwin'",
+    "pyobjc-framework-webkit>=10.0; platform_system=='Darwin'",
+    # pywebview's Windows backend (edgechromium) drives the Microsoft Edge
+    # WebView2 control via .NET interop, which needs pythonnet. Without it
+    # pywebview silently falls back to the legacy mshtml (IE) engine. Gated
+    # on Windows so Linux/macOS don't pull a .NET bridge. The WebView2
+    # *runtime* itself is ensured by the Windows installer (winget
+    # Microsoft.EdgeWebView2), not pip.
+    "pythonnet>=3.0; platform_system=='Windows'",
+    # Read a GGUF's embedded KV metadata (chat template, context length, stop
+    # token, tool support) for model-knowledge ingestion — okuro.ai_models.ingest
+    # builds each bundle's okuro.prompting/v1 block offline from the weights we
+    # already downloaded. Pure-python, numpy-only; no native build.
+    "gguf>=0.9",
+    # Relay okuro's coupled ComfyUI live step-progress (its /ws websocket) into
+    # the Studio's progress bar (inference.comfy._pump_progress, Gap C). Tiny
+    # pure-python client; the relay degrades gracefully (generation still
+    # completes via /history polling) if it's ever absent.
+    "websocket-client>=1.7",
+]
+# sentence-transformers + torch are NOT core deps — they add ~2 GB and most
+# users don't need semantic search until onboarding completes. Base install is
+# deliberately lean; the "Semantic search engine" step in the wizard detects
+# hardware and installs the right embed-* extra via pip in a subprocess.
+
+[project.optional-dependencies]
+# Hardware-specific semantic-search extras. Each pulls sentence-transformers
+# and its torch dependency; users pass --index-url to pick the matching torch
+# wheel (CUDA / ROCm / CPU-only). Onboarding does this for them.
+embed-cuda  = ["sentence-transformers>=2.7", "torch>=2.1"]  # --index-url https://download.pytorch.org/whl/cu121
+embed-rocm  = ["sentence-transformers>=2.7", "torch>=2.1"]  # --index-url https://download.pytorch.org/whl/rocm6.0
+embed-cpu   = ["sentence-transformers>=2.7", "torch>=2.1"]  # --index-url https://download.pytorch.org/whl/cpu
+embed-apple = ["sentence-transformers>=2.7", "torch>=2.1"]  # MPS built-in on macOS arm64
+embed-cpu-fast = ["onnxruntime>=1.18", "optimum>=1.16"]     # ONNX int8 (pair with embed-cpu for CPU-only boxes that want speed)
+browser     = ["playwright>=1.58"]                          # URL scraper, visual evaluation, output review
+tui         = ["textual>=0.50"]                             # terminal UIs — not used in core, optional
+voice       = ["faster-whisper>=1.0"]                       # local CPU STT (faster-whisper int8) for okuro-notes dictation — no GPU, no cloud
+# Tree-sitter parsers for the code-graph ingestor (cortex.codegraph) AND the
+# cAST chunker (cortex.cast). Pinned to the 0.21 API + tree-sitter-languages
+# 1.10 bundle — TS 0.25 broke everything into methods and
+# tree-sitter-language-pack lags. These are ALSO core deps now (cAST needs them
+# for chunking); the extra is kept as a back-compat alias so existing
+# `pip install okuro[code-graph]` invocations keep resolving the same pins.
+code-graph  = ["tree-sitter==0.21.3; python_version < '3.13'", "tree-sitter-languages==1.10.2; python_version < '3.13'"]
+# SMART / disk-health MIT-licensed fallback collector (system.smart). Pure-python,
+# zero-dep, cross-platform. Optional: the primary path shells out to smartctl
+# (smartmontools) as a separate program — no GPL is bundled either way.
+health      = ["smartie>=4.0"]
+# The test toolchain. It was previously UNDECLARED — pytest, pytest-timeout and
+# pytest-xdist lived only in whichever venv someone had built by hand, so a
+# rebuilt venv silently lost them and any measurement taken with them. Declared
+# 2026-08-29 when the design_engine parallel floor was measured with xdist and
+# the numbers were worth more than the note saying which flags produced them.
+#
+# pytest-xdist is what makes `-n <workers>` exist; the design_engine browser
+# suite is 23m16s serial and 6m20s on 4 workers, and that gap is the whole
+# reason the impact gate's per-directory budget is under discussion.
+# pytest-timeout backs --timeout=, which every gate invocation passes.
+dev         = ["pytest>=9.0", "pytest-timeout>=2.4", "pytest-xdist>=3.8"]
+
+[project.scripts]
+okuro = "okuro.cli.main:cli"
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+    "docs/",
+    "scripts/",
+    ".claude/",
+    ".venv/",
+    "=*",
+    "*.db",
+    "*.db-journal",
+    "*.enc",
+    ".env*",
+    "src/okuro/web/frontend/node_modules",
+    # Model is re-vendored by the build hook during wheel build; no reason to
+    # ship 130 MB of weights in the source tarball.
+    "src/okuro/embed/models",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/okuro"]
+# Only the built SPA ships in the wheel — the whole frontend source tree
+# stays in the sdist for devs but bloats the wheel by 29+ MB of node_modules
+# and 100+ .tsx files we don't need at runtime.
+exclude = [
+    "src/okuro/web/frontend",
+]
+# The build hook writes the embedding model here; listing it as an artifact
+# overrides .gitignore so the files get packaged into the wheel.
+artifacts = [
+    "src/okuro/embed/models/**",
+]
+
+[tool.hatch.build.targets.wheel.hooks.custom]
+path = "hatch_build.py"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-ra --strict-markers"

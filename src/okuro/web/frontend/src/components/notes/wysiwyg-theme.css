@@ -1,0 +1,34 @@
+/* Re-skin Milkdown Crepe (nord-dark) to okuro's tokens so the WYSIWYG editor
+   inherits the normal notes background and typography instead of the theme's
+   own palette/fonts. Higher specificity (.milkdown-host .milkdown) beats the
+   theme's `.milkdown` var block regardless of import order. */
+.milkdown-host .milkdown {
+  /* Typography → okuro base font (the app-wide --font-mono) everywhere. */
+  --crepe-font-default: var(--font-mono);
+  --crepe-font-title: var(--font-mono);
+  --crepe-font-code: var(--font-mono);
+
+  /* Background → transparent so the pane's normal surface shows through. */
+  --crepe-color-background: transparent;
+  --crepe-color-on-background: var(--color-fg-primary);
+  --crepe-color-surface: var(--color-surface-elevated);
+  --crepe-color-surface-low: var(--color-surface-elevated);
+  --crepe-color-on-surface: var(--color-fg-primary);
+  --crepe-color-on-surface-variant: var(--color-fg-muted);
+  --crepe-color-outline: var(--color-border);
+  --crepe-color-primary: var(--color-accent);
+  --crepe-color-secondary: var(--color-surface-elevated);
+  --crepe-color-on-secondary: var(--color-fg-primary);
+  --crepe-color-inverse: var(--color-fg-primary);
+  --crepe-color-on-inverse: var(--color-surface);
+  --crepe-color-hover: var(--color-surface-elevated);
+  --crepe-color-selected: var(--color-accent-subtle);
+  --crepe-color-inline-code: var(--color-fg-primary);
+  --crepe-color-inline-area: var(--color-surface-elevated);
+}
+
+/* Match the read-only viewer's padding (p-4) instead of Crepe's 60px 120px;
+   double the left inset so text clears a left-docked toolbar. */
+.milkdown-host .milkdown .ProseMirror {
+  padding: 2rem 2rem 2rem 4rem;
+}

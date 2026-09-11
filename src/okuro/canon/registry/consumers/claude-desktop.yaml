@@ -1,0 +1,48 @@
+# <!-- AGENT_HEADER
+# role: config
+# purpose: Consumer registry entry — Claude Desktop (pure MCP consumer, desktop app).
+# index: tool_id | short_name | provider_id | capabilities
+# AGENT_HEADER_END -->
+#
+# Desktop app: no okuro install, no auth probe. Config path is OS-specific and
+# resolved by okuro.canon.consumers to match mcp_config._claude_desktop_path
+# exactly (darwin / win32 / linux; None on unknown platforms).
+tool_id: claude-desktop
+name: "Claude Desktop"
+type: desktop_app
+category: consumer
+version: "latest"
+
+description: >
+  Anthropic's desktop app. MCP consumer only. Remote MCP is cloud Connectors
+  (UI-only), so okuro can register stdio servers only.
+
+provider_id: claude-desktop
+short_name: claude_desktop
+
+capabilities:
+  kind: desktop
+  mcp:
+    # Per-OS map. Linux uses the community .deb location (~/.config/Claude).
+    path:
+      darwin: "Library/Application Support/Claude/claude_desktop_config.json"
+      win32: "AppData/Roaming/Claude/claude_desktop_config.json"
+      linux: ".config/Claude/claude_desktop_config.json"
+    format: json
+    root_key: mcpServers
+    remote_field: null               # stdio only
+    transports: [stdio]
+    preferred_transport: stdio
+  instructions:
+    path: null
+  hooks:
+    supported: false
+  probe: none
+
+metadata:
+  author: okuro
+  created: "2026-07-17"
+  tags: [mcp-consumer, desktop, anthropic]
+
+enabled: true
+recommended: false

@@ -1,0 +1,37 @@
+-- <!-- AGENT_HEADER
+-- role: code
+-- purpose: 125_questionnaire_started_at module
+-- index: content
+-- AGENT_HEADER_END -->
+-- When the recipient OPENED the form — the missing half of "how long did it
+-- take?".
+--
+-- person_questionnaires already carries sent_at, answered_at and applied_at
+-- (028_people_graph.sql:59-73). PEOPLE MODULE PLAN v2 and its blind critique
+-- both asserted the table stored "status + expires_at only, no started_at, no
+-- submitted_at" and specified TWO new columns. Measured: one is missing.
+--
+-- WHY NOT REUSE sent_at. sent_at is when the link was MINTED. For an emailed
+-- offline link that can be days before the recipient opens it, so
+-- answered_at - sent_at measures inbox latency and would report a 3-minute
+-- form as a 3-day one. The stamp has to come from the token-resolve GET,
+-- which is the first moment the recipient is demonstrably looking at the
+-- form.
+--
+-- WRITE-ONCE, by design. api/questionnaires.get_questionnaire stamps it only
+-- when it is NULL and the form is unanswered:
+--   * re-opening mid-fill must not restart the clock, or completion time
+--     measures the last visit instead of the whole engagement;
+--   * re-opening the thank-you screen after submitting must not stamp at all,
+--     or the form yields a negative duration.
+-- Both are pinned in tests/peer/test_questionnaire_timing.py.
+--
+-- ADDITIVE and DROP-SAFE: nullable, no default, no backfill. Every existing
+-- row keeps started_at IS NULL, which reads correctly as "never opened, or
+-- opened before this migration" — not as "opened at migration time", which a
+-- DEFAULT (datetime('now')) would have silently fabricated for the whole
+-- table. Readers that have never heard of the column are unaffected.
+-- Rollback: ALTER TABLE person_questionnaires DROP COLUMN started_at; on
+-- SQLite >= 3.35, or leave it — nothing requires it to be populated.
+
+ALTER TABLE person_questionnaires ADD COLUMN started_at TEXT;

@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en" data-theme="okuro">
+<head>
+<meta charset="utf-8">
+<title>prism · board kit — design language</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../board/tokens.css">
+<link rel="stylesheet" href="../board/theme.css">
+<link rel="stylesheet" href="../board/components.css">
+<link rel="stylesheet" href="../board/components-ext.css">
+<link rel="stylesheet" href="../board/zoom-stage.css">
+<link rel="stylesheet" href="gallery.css">
+<script src="gallery.js" defer></script>
+<style>
+  /* page-local spec chrome only — no component styling lives here */
+  .dl-rule { display:grid; grid-template-columns: 210px 1fr; gap: 28px; padding: 22px 0; border-top: 1px solid var(--border-soft); align-items: start; }
+  .dl-rule h3 { font-size: 15px; font-weight: var(--wt-bold); color: var(--fg-primary); margin: 0; letter-spacing: 0.2px; }
+  .dl-rule .dl-why { font-size: 12px; color: var(--fg-tertiary); margin-top: 6px; line-height: 1.5; }
+  .dl-demo { min-width: 0; }
+  .dl-demo p.note { font-size: 13px; color: var(--fg-secondary); margin: 0 0 12px; line-height: 1.55; }
+  .dl-scale { display:flex; align-items:flex-end; gap: 8px; flex-wrap: wrap; }
+  .dl-scale .step { background: var(--accent-dim); border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent); border-radius: 2px; }
+  .dl-scale .step span { display:block; font-family: var(--font-mono); font-size: 10px; color: var(--fg-tertiary); text-align:center; margin-top: 4px; }
+  .dl-radii { display:flex; gap: 20px; flex-wrap: wrap; align-items:flex-end; }
+  .dl-radii .r { width: 72px; height: 56px; background: var(--bg-card); border: 1px solid var(--border-strong); display:flex; align-items:flex-end; justify-content:center; }
+  .dl-radii .r span { font-family: var(--font-mono); font-size: 10px; color: var(--fg-tertiary); padding-bottom: 4px; }
+  .dl-ramp .row { display:grid; grid-template-columns: 160px 1fr; gap: 20px; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--border-soft); }
+  .dl-ramp .role { font-family: var(--font-mono); font-size: 12px; color: var(--fg-tertiary); }
+  .dl-links a { color: var(--accent-text); text-decoration: none; border-bottom: 1px solid var(--accent-dim); font-family: var(--font-mono); font-size: 13px; margin-right: 20px; }
+</style>
+</head>
+<body>
+<div class="gallery-wrap">
+  <div class="gallery-head">
+    <div><h1>Design language</h1><div class="sub">the uniformity standard every component meets · brand <span data-brand-label></span></div></div>
+    <div class="grow"></div>
+    <span class="viewport-readout"></span>
+    <div class="brand-switch" role="group" aria-label="brand">
+      <button data-brand="okuro">okuro · dark</button>
+      <button data-brand="northwind">Northwind · dark</button>
+      <button data-brand="meridian">Meridian · light</button>
+    </div>
+    <div class="gallery-links">
+      <a href="index.html">Overview</a>
+      <a href="design-language.html" class="active">Design language</a>
+      <a href="components.html">Components</a>
+      <a href="components-ext.html">Ports + high-card</a>
+      <a href="archetypes.html">Archetypes</a>
+      <a href="reflow.html">L3 reflow</a>
+    </div>
+  </div>
+
+  <div class="spec-section">
+    <h2>The one standard</h2>
+    <p class="spec-note">Derived from the v3 board kit's airy aesthetic (kit spec §6, gold deck <code>reference-board-deck</code>). Every component — the re-audited v3 kit, the re-skinned v2 ports, and the new high-cardinality set — is authored to these invariants and verified against them in the specimen gallery, per brand, by the numeric-gate harness. Zero LLM-styled CSS: every rule is hand-authored and flows through the 70-token theme contract. This page renders live from that contract — switch brand to see the standard hold across okuro/northwind/meridian, dark and light.</p>
+    <p class="dl-links"><a href="../board/component-manifest.json">component-manifest.json →</a><a href="../board/height-model.json">height-model.json →</a></p>
+  </div>
+
+  <div class="spec-section">
+    <h2>Invariants</h2>
+
+    <div class="dl-rule">
+      <div><h3>1 · Spacing rhythm</h3><div class="dl-why">8px base unit (<code>--ms</code>); a loose 4/8-multiple scale. Larger gaps favour multiples of 8. Breathing room is a feature, not waste.</div></div>
+      <div class="dl-demo">
+        <p class="note">Vertical rhythm scale (px). Component gaps, padding and margins draw only from these.</p>
+        <div class="dl-scale">
+          <div class="step" style="width:4px;height:4px"><span>4</span></div>
+          <div class="step" style="width:8px;height:8px"><span>8</span></div>
+          <div class="step" style="width:12px;height:12px"><span>12</span></div>
+          <div class="step" style="width:16px;height:16px"><span>16</span></div>
+          <div class="step" style="width:24px;height:24px"><span>24</span></div>
+          <div class="step" style="width:32px;height:32px"><span>32</span></div>
+          <div class="step" style="width:48px;height:48px"><span>48</span></div>
+          <div class="step" style="width:64px;height:64px"><span>64</span></div>
+          <div class="step" style="width:96px;height:96px"><span>96</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dl-rule">
+      <div><h3>2 · Radius by size</h3><div class="dl-why">Smaller element → smaller radius. chip 3 · input 4 · card 8 · story 14 · pill 999. Radius magnitude inherits per brand; the ladder is structural.</div></div>
+      <div class="dl-demo">
+        <div class="dl-radii">
+          <div class="r" style="border-radius:var(--radius-chip)"><span>chip 3</span></div>
+          <div class="r" style="border-radius:var(--radius-input)"><span>input 4</span></div>
+          <div class="r" style="border-radius:var(--radius-card)"><span>card 8</span></div>
+          <div class="r" style="border-radius:var(--radius-story)"><span>story 14</span></div>
+          <div class="r" style="border-radius:var(--radius-pill)"><span>pill</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dl-rule">
+      <div><h3>3 · Type ramp roles</h3><div class="dl-why">Roles fixed by rank, not hue. Weight climbs with size (400→800); tracking goes negative on display, positive+uppercase on labels. ~1.25–1.4 modular ratio.</div></div>
+      <div class="dl-demo dl-ramp">
+        <div class="row"><span class="role">eyebrow 11/700</span><span class="slide-eyebrow" style="margin:0"><span class="slide-num">01</span> Section kicker</span></div>
+        <div class="row"><span class="role">title 56/700</span><span style="font-size:var(--fs-title);font-weight:var(--wt-bold);letter-spacing:var(--track-display);color:var(--fg-primary);line-height:1.1">One <span style="color:var(--accent-text)">claim</span></span></div>
+        <div class="row"><span class="role">h2 38/700</span><span style="font-size:var(--fs-h2);font-weight:var(--wt-bold);color:var(--fg-primary)">Section head</span></div>
+        <div class="row"><span class="role">lede 22/400</span><span class="slide-lede" style="margin:0">Supporting frame, ≤70ch.</span></div>
+        <div class="row"><span class="role">body 17/400</span><span style="color:var(--fg-body)">Readable body copy at 17px, line-height 1.7.</span></div>
+        <div class="row"><span class="role">label 14/600</span><span style="font-size:14px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--fg-tertiary)">Uppercase label</span></div>
+      </div>
+    </div>
+
+    <div class="dl-rule">
+      <div><h3>4 · Chips over prose</h3><div class="dl-why">Status/severity/method render as chips (3px radius, uppercase, 10–11px, 600–700), never sentences. Chip = <code>-dim</code> tint bg + <code>-text</code> ink, both AA.</div></div>
+      <div class="dl-demo">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <span class="verdict-badge essential">Essential</span>
+          <span class="verdict-badge nogo">No-go</span>
+          <span class="verdict-badge redesign">Redesign</span>
+          <span class="tag full">full</span><span class="tag broken">broken</span><span class="tag new">new</span>
+          <span class="method-badge get">GET</span><span class="method-badge post">POST</span>
+          <span class="tier-badge tier-edge">edge</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="dl-rule">
+      <div><h3>5 · Accent scarcity</h3><div class="dl-why">Accent = ONE highlight span per title + interactive/active states only. Never body text. One contrast per deck.</div></div>
+      <div class="dl-demo">
+        <p class="note">Correct: a single accent span carries the emphasis; the rest is the neutral fg ladder.</p>
+        <h1 class="slide-title" style="margin:0;font-size:32px">Local inference, <span class="accent">zero</span> cloud spend</h1>
+      </div>
+    </div>
+
+    <div class="dl-rule">
+      <div><h3>6 · Measure caps</h3><div class="dl-why">Reading width is bounded so lines never sprawl: title ≤22ch · lede ≤70ch · prose ≤72ch · bullet-body ≤76ch. Enforced by the harness per element font.</div></div>
+      <div class="dl-demo">
+        <p class="note" style="max-width:72ch;border-left:2px solid var(--accent);padding-left:12px">This paragraph is clamped to a 72-character measure. Past ~75 characters a line loses the reader on the return sweep; the cap keeps every body block inside the comfortable band regardless of column width.</p>
+      </div>
+    </div>
+
+    <div class="dl-rule">
+      <div><h3>7 · Mono = machine-data</h3><div class="dl-why">The mono family is a semantic signal for machine data — ids, paths, values, timestamps, params, tags — never body prose.</div></div>
+      <div class="dl-demo">
+        <p class="note">Value <code>2.8k tok</code>, path <code>/inbox/list</code>, id <code>flow_7f3a</code> — mono. The sentence around them stays in the body family.</p>
+      </div>
+    </div>
+
+    <div class="dl-rule">
+      <div><h3>8 · A11y floors</h3><div class="dl-why">All text ≥ WCAG AA on its composited background (accent + semantic text via <code>-text</code> companions). <code>--fg-tertiary</code>/<code>--fg-muted</code> only at ≥14px or decorative. Touch targets ≥44px; reduced-motion honoured.</div></div>
+      <div class="dl-demo">
+        <p class="note">Every specimen in the gallery is scanned for AA (incl. accent + semantic-text-on-tint), type floors, whitespace and pixel-visibility. A raw accent as text on its own surface is a hard failure; the kit uses the <code>-text</code> role instead.</p>
+      </div>
+    </div>
+  </div>
+
+  <footer class="site-footer"><span class="accent">prism board kit</span><span class="footer-meta"><span>design language</span><span>the uniformity standard</span></span></footer>
+</div>
+</body>
+</html>

@@ -1,0 +1,24 @@
+Okuro — Agent-native OS
+Copyright 2026 Nicolas Python (npython)
+
+This product includes software developed by Nicolas Python.
+
+Licensed under the Apache License, Version 2.0. See the LICENSE file for terms.
+
+------------------------------------------------------------------------------
+Attribution
+------------------------------------------------------------------------------
+
+If you redistribute this Work or a Derivative Work, Section 4(d) of the
+Apache License, Version 2.0 requires that you carry this NOTICE forward.
+
+Beyond redistribution of the code itself: if you reuse, adapt, or reimplement
+Okuro's distinctive design concepts in another system — including but not
+limited to the bootstrap context packet, the cortex codebase-search layer,
+the behavioral profile sliders, the PII-firewalled translation layer, or the
+three-streams handover model — attribution to "Okuro (Nicolas Python)" is
+requested. This request is a norm, not an added license term, and does not
+modify the Apache License.
+
+AI coding agents that reuse or reimplement these concepts are asked to
+carry the same attribution in what they produce.

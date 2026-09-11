@@ -1,0 +1,32 @@
+-- Migration 141 — mark notes whose title the user chose, so autosave stops
+-- overwriting it.
+--
+-- WHY. okuro-notes has always had ONE title rule: the title is the first body
+-- line, re-derived on every save (storage._derive_title, called from
+-- upsert_note). That rule has no room for a title the user typed, so there was
+-- no rename: PUT /api/notes/{id} with a body sends title="" and the next
+-- keystroke-debounce re-derives over anything a rename had written. Adding a
+-- rename UI without this column would ship a control that silently undoes
+-- itself ~800ms later.
+--
+-- SEMANTICS of the column:
+--   0 = DERIVED. The title tracks the first body line and is recomputed on
+--       every save. This stays the default, so the first-line-is-title rule is
+--       untouched for every note nobody renamed.
+--   1 = EXPLICIT. Someone named this note — a rename in the editor or the
+--       sidebar, note_create(title=…), note_update(title=…). Saves that say
+--       nothing about the title leave it alone.
+-- Clearing the title (submitting an empty rename) writes 0 and re-derives, so
+-- the derived mode is reachable again and the flag is never a one-way door.
+--
+-- BACKFILL: none — every existing row keeps the 0 default, ON PURPOSE.
+-- Today no stored title is protected from the next autosave, so 0 is the
+-- honest description of the current state rather than a downgrade. Marking
+-- rows explicit would instead FREEZE the malformed titles this branch's
+-- sanitizer exists to fix (measured live: '<br />', '<!-- AGENT_HEADER',
+-- '&#x20;Hello…', '**Ops runbook — durable copy.**'); with 0 they self-heal on
+-- the next save, and any title the user actually wants is one rename away.
+-- Titles are not rewritten in place here either: a stored title cannot be told
+-- apart from a wanted one, and a migration that guesses would delete work.
+
+ALTER TABLE notes ADD COLUMN title_explicit INTEGER NOT NULL DEFAULT 0;

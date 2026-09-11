@@ -1,0 +1,804 @@
+/* ===========================================================================
+ * /design-engine — THE CHROME CONTRACT. The only file that authors a number.
+ * ===========================================================================
+ *
+ * THE UNIT RULE, and it is the line that kills the 7px page:
+ *
+ *     The system's OUTPUT is `rem` (= factor = grid unit, register rule 10).
+ *     The page's CHROME is `px`. A hand-authored `rem` anywhere in
+ *     components/design-engine/** is a defect.
+ *
+ * Why, in one line: `html { font-size: 50% }` is correct and ratified, so a
+ * chrome length written in `rem` renders at half its intended size — measured,
+ * 216 leaf nodes at 7px. Chrome is not a brand's output and must not scale with
+ * the reader's font size the way the EMITTED SHEET INSIDE THE IFRAME does. The
+ * precedent is already in this directory: `shell.tsx` reasoned exactly this way
+ * about rail widths and was right; this generalises it from widths to
+ * everything the chrome draws.
+ *
+ * The scale is nonetheless expressed in the ENGINE's own factor vocabulary so
+ * the two cannot drift conceptually: `px = factor × 8` (BASE), resolved at
+ * author time. `chrome.ts` mirrors these numbers for the places TypeScript
+ * needs one.
+ *
+ * COLOUR: nine names, every one of them pointed at okuro's own canonical
+ * vocabulary — the names the app's sheet declares at `:root`. That sheet is
+ * `/engine.css` alone since 2026-09-03; it was `/tokens.css` first and
+ * `/engine.css` second before, and every `--color-*` this file reads was
+ * verified present in the engine's emission before the v1 dump was unlinked.
+ * NOT at the
+ * `@theme inline` aliases (`--color-fg`, `--color-border`): `inline` means
+ * Tailwind pastes the value into a utility instead of publishing the variable,
+ * so `var(--color-fg)` from hand-written CSS resolves to nothing. Zero
+ * `sky-*` / `amber-*` / any Tailwind palette colour appears in this directory.
+ */
+
+[data-page="design-engine"] {
+  /* ── spacing — px = factor × 8 (BASE). Chrome is px; see the header. ──────
+     THE RATIO IS THE RULE, NOT THE NUMBERS: inter-group = 2 × intra-group.
+     Measured before: 96 % of gaps ≤ 8px and both rhythms at 11–12px, which is
+     what "the arrangement is catastrophic" is measuring. */
+  --ce-f05: 4px;   /* icon↔label, swatch↔value — never between two controls */
+  --ce-f1: 8px;    /* inside one control row */
+  --ce-f15: 12px;  /* a control ↔ its help slot */
+  --ce-f2: 16px;   /* INTRA-GROUP — the only gap between two controls */
+  --ce-f3: 24px;   /* block padding in the rail; scene padding */
+  --ce-f4: 32px;   /* INTER-GROUP — the only gap between two groups */
+  --ce-f6: 48px;   /* block padding in full-width regions */
+
+  /* ── type — five sizes, floor 12px ──────────────────────────────────────
+     Geist's 48px block is measured on a 960px document column. In a 320px rail
+     it leaves 224px of content, narrower than the controls need — so f6 blocks
+     in full-width regions, f3 blocks in the rail, f4 separation everywhere.
+     A stated deviation with the arithmetic shown, not a dilution. */
+  --ce-title-size: 20px;   --ce-title-line: 28px;
+  --ce-display-size: 36px; --ce-display-line: 40px;
+  --ce-h2-size: 16px;      --ce-h2-line: 24px;
+  --ce-body-size: 14px;    --ce-body-line: 20px;
+  --ce-label-size: 13px;   --ce-label-line: 18px;
+  --ce-micro-size: 12px;   --ce-micro-line: 16px;
+
+  /* ── geometry — three heights, one radius per family ─────────────────── */
+  --ce-h-primary: 40px;
+  --ce-h-control: 32px;
+  --ce-h-chip: 24px;
+  --ce-r-control: 6px;
+  --ce-r-surface: 8px;
+
+  /* ── structure ───────────────────────────────────────────────────────── */
+  --ce-rail: 400px;
+  --ce-inspector: 400px;
+  --ce-measure: 880px;
+
+  /* ── colour — nine names, zero raw palette ───────────────────────────── */
+  --ce-fg: var(--color-foreground-primary, #e0e0e0);
+  --ce-fg-2: var(--color-foreground-secondary, #b0b0b0);
+  --ce-border: var(--color-borders-default, #2a2a2a);
+  --ce-surface: var(--color-background-base, #0a0a0a);
+  --ce-surface-2: var(--color-background-subtle, #141414);
+  --ce-danger: var(--color-status-error, #f92f77);
+  --ce-danger-soft: var(--color-status-error-subtle, #431c1c);
+  --ce-notice: var(--color-status-warning, #c52998);
+  --ce-positive: var(--color-status-success, #11d425);
+
+  color: var(--ce-fg);
+  background: var(--ce-surface);
+  font-size: var(--ce-body-size);
+  line-height: var(--ce-body-line);
+}
+
+/* ---------------------------------------------------------------------------
+ * The five type roles, as classes. Five sizes on the page, floor 12px.
+ * ------------------------------------------------------------------------ */
+
+[data-page="design-engine"] .ce-title {
+  font-size: var(--ce-title-size);
+  line-height: var(--ce-title-line);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+[data-page="design-engine"] .ce-display {
+  max-width: 18ch;
+  margin: 0;
+  font-size: var(--ce-display-size);
+  line-height: var(--ce-display-line);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+}
+[data-page="design-engine"] .ce-kicker {
+  color: var(--ce-fg-2);
+  font-size: var(--ce-micro-size);
+  line-height: var(--ce-micro-line);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+[data-page="design-engine"] .ce-h2 {
+  font-size: var(--ce-h2-size);
+  line-height: var(--ce-h2-line);
+  font-weight: 600;
+  letter-spacing: 0;
+  /* HEADINGS CARRY `margin: 0` AND THE STACK OWNS RHYTHM. A margin on a
+     heading is a second, invisible spacing system that only fires when the
+     heading is present — which is how 58 distinct left edges and two rhythms
+     happened. */
+  margin: 0;
+}
+[data-page="design-engine"] .ce-body {
+  font-size: var(--ce-body-size);
+  line-height: var(--ce-body-line);
+  font-weight: 400;
+  margin: 0;
+}
+[data-page="design-engine"] .ce-label {
+  font-size: var(--ce-label-size);
+  line-height: var(--ce-label-line);
+  font-weight: 500;
+  /* SENTENCE CASE, not uppercase. An uppercase 7px label was unreadable twice
+     over; the case change is what a person actually parses. */
+  text-transform: none;
+  letter-spacing: 0;
+  margin: 0;
+}
+[data-page="design-engine"] .ce-micro {
+  font-size: var(--ce-micro-size);
+  line-height: var(--ce-micro-line);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  margin: 0;
+}
+[data-page="design-engine"] .ce-value {
+  font-size: var(--ce-body-size);
+  line-height: var(--ce-body-line);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--ce-fg);
+}
+[data-page="design-engine"] .ce-2 {
+  color: var(--ce-fg-2);
+}
+
+/* ---------------------------------------------------------------------------
+ * THE FLOOR, enforced rather than hoped for.
+ *
+ * The vendored primitives (Button, Input, Select, Segmented, Switch) are out of
+ * this change's file scope and several of them carry `text-xs`. Under the 50 %
+ * root that class is 12px — the floor exactly — but a nested `text-[10px]` or a
+ * `text-[11px]` inside one is not. Rather than edit a shared primitive from a
+ * page, this scope raises anything the page renders below the floor back to it.
+ * ------------------------------------------------------------------------ */
+
+[data-page="design-engine"][data-page] * {
+  /* EVERY size on this page comes from one of the five roles above. Anything
+     that does not carry a role inherits 14px, so a `text-[10px]` smuggled in by
+     a vendored component cannot put a 7px string on the page.
+     The attribute is repeated to raise specificity to (0,2,0) — a single
+     Tailwind utility class is (0,1,0) and would otherwise win on source order,
+     which is a coin flip decided by bundler ordering. */
+  font-size: inherit;
+  line-height: inherit;
+}
+[data-page="design-engine"][data-page] .ce-title { font-size: var(--ce-title-size); line-height: var(--ce-title-line); }
+[data-page="design-engine"][data-page] .ce-display { font-size: var(--ce-display-size); line-height: var(--ce-display-line); }
+[data-page="design-engine"][data-page] .ce-kicker { font-size: var(--ce-micro-size); line-height: var(--ce-micro-line); }
+[data-page="design-engine"][data-page] .ce-h2 { font-size: var(--ce-h2-size); line-height: var(--ce-h2-line); }
+[data-page="design-engine"][data-page] .ce-body,
+[data-page="design-engine"][data-page] .ce-value { font-size: var(--ce-body-size); line-height: var(--ce-body-line); }
+[data-page="design-engine"][data-page] .ce-label { font-size: var(--ce-label-size); line-height: var(--ce-label-line); }
+[data-page="design-engine"][data-page] .ce-micro { font-size: var(--ce-micro-size); line-height: var(--ce-micro-line); }
+[data-page="design-engine"][data-page] [data-help] { font-size: var(--ce-body-size); line-height: var(--ce-body-line); }
+
+/* ---------------------------------------------------------------------------
+ * Structure primitives — one padding per region, one rhythm per stack.
+ * ------------------------------------------------------------------------ */
+
+[data-page="design-engine"] .ce-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ce-f2);
+}
+[data-page="design-engine"] .ce-stack-tight {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ce-f1);
+}
+[data-page="design-engine"] .ce-groups {
+  display: flex;
+  flex-direction: column;
+  /* f4 AND a hairline. The rule is what makes 32px read as a boundary rather
+     than as a slightly larger gap. */
+  gap: var(--ce-f4);
+}
+[data-page="design-engine"] .ce-groups > * + * {
+  /* f4 AND a hairline. The 32px is the flex GAP and the rule is drawn on the
+     next group's own top edge, so the measured distance between two groups is
+     32 and the distance between two controls inside one is 16 — the 2:1 ratio,
+     readable by a browser and not only by a reader.
+     `gap` + `padding-top` would be 64 and make the ratio 4:1 while costing
+     256px of a 624px rail; a negative margin makes the boxes touch and the
+     measured gap zero. Neither is what "inter = 2 x intra" means. */
+  border-top: 1px solid var(--ce-border);
+}
+[data-page="design-engine"] .ce-row {
+  display: flex;
+  align-items: center;
+  gap: var(--ce-f1);
+}
+[data-page="design-engine"] .ce-hairline {
+  border: 0;
+  border-top: 1px solid var(--ce-border);
+  margin: 0;
+}
+
+/* ---------------------------------------------------------------------------
+ * Controls — three heights, one radius per family, everything ≥ 24×24.
+ * ------------------------------------------------------------------------ */
+
+[data-page="design-engine"] .ce-control {
+  height: var(--ce-h-control);
+  min-height: var(--ce-h-control);
+  border-radius: var(--ce-r-control);
+  border: 1px solid var(--ce-border);
+  /* TRANSPARENT, not surface. A control painted with the page's own colour is
+     still a NON-TRANSPARENT background to anything measuring salience, and the
+     page is allowed exactly one filled button. It also lets a control sit on a
+     panel without carrying a second, slightly different ground. */
+  background: transparent;
+  color: var(--ce-fg);
+  font: inherit;
+  font-size: var(--ce-body-size);
+  line-height: var(--ce-body-line);
+  padding: 0 var(--ce-f1);
+  outline: none;
+}
+[data-page="design-engine"] .ce-control:focus-visible {
+  box-shadow: 0 0 0 1px var(--ce-fg), 0 0 0 4px var(--ce-border);
+}
+
+/* THE ERROR STATE IS A RING PLUS A HALO, NOT A BORDER-COLOUR SWAP. A swap
+   changes the box and the layout jumps under the reader's eye at the exact
+   moment they need to read a sentence. */
+[data-page="design-engine"] .ce-control[aria-invalid="true"] {
+  box-shadow:
+    0 0 0 1px var(--ce-danger),
+    0 0 0 4px var(--ce-danger-soft);
+}
+
+[data-page="design-engine"] .ce-chip {
+  height: var(--ce-h-chip);
+  min-height: var(--ce-h-chip);
+  min-width: var(--ce-h-chip);
+  border-radius: var(--ce-r-control);
+  border: 1px solid var(--ce-border);
+  background: transparent;
+  color: var(--ce-fg);
+  font: inherit;
+  font-size: var(--ce-micro-size);
+  line-height: var(--ce-micro-line);
+  letter-spacing: 0.02em;
+  padding: 0 var(--ce-f1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ce-f05);
+  cursor: pointer;
+}
+[data-page="design-engine"] .ce-chip:hover {
+  border-color: var(--ce-fg-2);
+}
+[data-page="design-engine"] .ce-chip[aria-pressed="true"] {
+  border-color: var(--ce-fg);
+  color: var(--ce-fg);
+}
+
+/* EXACTLY ONE FILLED BUTTON PER VIEW. Measured before: 74 of 82 buttons were
+   transparent and the single filled one was filled with the page background —
+   so the page had no primary action at all. */
+[data-page="design-engine"] .ce-primary {
+  height: var(--ce-h-primary);
+  min-width: var(--ce-h-primary);
+  border-radius: var(--ce-r-control);
+  border: 1px solid transparent;
+  background: var(--ce-fg);
+  color: var(--ce-surface);
+  font: inherit;
+  font-size: var(--ce-body-size);
+  font-weight: 500;
+  padding: 0 var(--ce-f2);
+  cursor: pointer;
+}
+[data-page="design-engine"] .ce-primary:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+[data-page="design-engine"] .ce-quiet {
+  height: var(--ce-h-chip);
+  min-height: var(--ce-h-chip);
+  min-width: var(--ce-h-chip);
+  border-radius: var(--ce-r-control);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ce-fg-2);
+  font: inherit;
+  font-size: var(--ce-micro-size);
+  padding: 0 var(--ce-f1);
+  cursor: pointer;
+}
+[data-page="design-engine"] .ce-quiet:hover {
+  color: var(--ce-fg);
+  border-color: var(--ce-border);
+}
+
+[data-page="design-engine"] .ce-swatch {
+  width: var(--ce-h-chip);
+  height: var(--ce-h-chip);
+  border-radius: 4px;
+  /* An INSET ring rather than an outer border, so a pale value still reads as a
+     shape and the swatch's own box is exactly 24×24. */
+  box-shadow: inset 0 0 0 1px var(--ce-border);
+  display: inline-block;
+  flex: none;
+}
+
+/* Surfaces use the 8px radius; nothing on this page is a pill except a status
+   chip, and there is no status chip. */
+[data-page="design-engine"] .ce-surface {
+  border: 1px solid var(--ce-border);
+  border-radius: var(--ce-r-surface);
+  background: var(--ce-surface);
+}
+
+/* ---------------------------------------------------------------------------
+ * The help slot — ONE reserved line under every control.
+ *
+ * Reserved WHETHER OR NOT it currently holds text, so an error swaps in with no
+ * layout jump. The description and the error share the slot and carry the same
+ * essential information, so nothing is lost when one replaces the other.
+ * ------------------------------------------------------------------------ */
+
+[data-page="design-engine"] [data-help] {
+  display: block;
+  /* f05 ON TOP OF THE STACK'S OWN f1, which totals the f15 this gap is
+     specified as. It was `margin-top: f15` INSIDE a `ce-stack-tight` whose gap
+     is already f1 — 20px where the scale says 12, on every one of the eight
+     help slots, and off the scale in a rail that is measured against its own
+     height. */
+  margin-top: var(--ce-f05);
+  font-size: var(--ce-body-size);
+  line-height: var(--ce-body-line);
+  /* TWO LINES, RESERVED, and the number is measured rather than chosen. The
+     rail's control column is 272px and the face is monospace, so 14px buys
+     about 32 characters a line: one sentence about a setting is two lines, and
+     so is a message that names a fix. Reserving one line and writing to fit it
+     would mean 30-character help — and any error longer than that would grow
+     the slot, which is the layout jump this reservation exists to prevent.
+     The COPY is what keeps two lines enough; the full derivation is never in
+     this slot anyway — it is one click away in the inspector. */
+  min-height: calc(var(--ce-body-line) * 2);
+  color: var(--ce-fg-2);
+}
+[data-page="design-engine"] [data-help][data-state="error"] {
+  color: var(--ce-danger);
+}
+/* An error over a control that also has a finding keeps the height the finding
+   had. Both live in the SAME grid cell, so the row takes the taller of the two
+   and the slot cannot shrink when the error swaps in. `min-height` above still
+   governs the calm and unflagged cases. */
+[data-page="design-engine"] [data-help][data-state="error"][data-reserved] {
+  display: grid;
+}
+[data-page="design-engine"] [data-help][data-state="error"][data-reserved] > * {
+  grid-area: 1 / 1;
+}
+[data-page="design-engine"] [data-help] > [data-help-reserve] {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* ---------------------------------------------------------------------------
+ * Severity — colour AND a glyph, every time.
+ *
+ * "the icon exists to help those with color vision deficiency discern the
+ * message tone". Severity is never signalled by colour alone anywhere on this
+ * page, so the glyph is part of the token rather than a decoration beside it.
+ * ------------------------------------------------------------------------ */
+
+[data-page="design-engine"] [data-severity="must-fix"] {
+  --ce-severity: var(--ce-danger);
+}
+[data-page="design-engine"] [data-severity="decide"] {
+  --ce-severity: var(--ce-notice);
+}
+[data-page="design-engine"] [data-severity="note"] {
+  --ce-severity: var(--ce-fg-2);
+}
+[data-page="design-engine"] [data-verdict="pass"] {
+  --ce-severity: var(--ce-positive);
+}
+
+/* ---------------------------------------------------------------------------
+ * The canvas scenes.
+ * ------------------------------------------------------------------------ */
+
+[data-page="design-engine"] .ce-scene {
+  padding: var(--ce-f6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--ce-f4);
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* ---------------------------------------------------------------------------
+ * The atlas grammar. Every scene uses the same three-part rhythm:
+ * decisive introduction, visible reference table, live proof.
+ * ------------------------------------------------------------------------ */
+
+[data-page="design-engine"] .ce-scene-intro,
+[data-page="design-engine"] .ce-section-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--ce-f4);
+}
+
+[data-page="design-engine"] .ce-metric-band {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-block: 1px solid var(--ce-border);
+}
+[data-page="design-engine"] .ce-metric-band > div {
+  display: grid;
+  gap: var(--ce-f05);
+  min-width: 0;
+  padding: var(--ce-f3) 0;
+}
+[data-page="design-engine"] .ce-metric-band > div + div {
+  border-left: 1px solid var(--ce-border);
+  padding-left: var(--ce-f3);
+}
+[data-page="design-engine"] .ce-metric-band strong {
+  overflow: hidden;
+  color: var(--ce-fg);
+  font-size: var(--ce-title-size);
+  line-height: var(--ce-title-line);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-page="design-engine"] .ce-metric-band span {
+  color: var(--ce-fg-2);
+  font-size: var(--ce-micro-size);
+  line-height: var(--ce-micro-line);
+}
+
+[data-page="design-engine"] .ce-table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--ce-border);
+  border-radius: var(--ce-r-surface);
+}
+[data-page="design-engine"] .ce-table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+  text-align: left;
+}
+[data-page="design-engine"] .ce-table th,
+[data-page="design-engine"] .ce-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--ce-border);
+  vertical-align: middle;
+}
+[data-page="design-engine"] .ce-table th {
+  color: var(--ce-fg-2);
+  background: var(--ce-surface-2);
+  font-size: var(--ce-micro-size);
+  line-height: var(--ce-micro-line);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+[data-page="design-engine"] .ce-table tbody tr:last-child td { border-bottom: 0; }
+[data-page="design-engine"] .ce-table tbody tr[data-open="true"] td {
+  background: color-mix(in srgb, var(--ce-fg) 4%, transparent);
+}
+[data-page="design-engine"] .ce-identity-cell,
+[data-page="design-engine"] .ce-table-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--ce-f1);
+}
+[data-page="design-engine"] .ce-table-actions { justify-content: flex-end; }
+
+[data-page="design-engine"] .ce-flow-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: 1px solid var(--ce-border);
+  border-radius: var(--ce-r-surface);
+  overflow: hidden;
+}
+[data-page="design-engine"] .ce-flow-grid-four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+[data-page="design-engine"] .ce-flow-step {
+  display: grid;
+  align-content: start;
+  gap: var(--ce-f1);
+  min-height: 152px;
+  padding: var(--ce-f3);
+}
+[data-page="design-engine"] .ce-flow-step + .ce-flow-step { border-left: 1px solid var(--ce-border); }
+[data-page="design-engine"] .ce-token-table { min-width: 880px; }
+[data-page="design-engine"] .ce-token-table th:first-child { width: 280px; }
+[data-page="design-engine"] .ce-token-table th:nth-child(2) { width: 160px; }
+[data-page="design-engine"] .ce-token-table th:last-child { width: 72px; }
+[data-page="design-engine"] .ce-token-link {
+  display: flex;
+  align-items: center;
+  gap: var(--ce-f1);
+  width: 100%;
+  min-height: var(--ce-h-control);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+[data-page="design-engine"] .ce-token-link:hover .ce-value { text-decoration: underline; }
+[data-page="design-engine"] .ce-nesting-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 400px);
+  gap: var(--ce-f4);
+  align-items: start;
+}
+
+/* ---------------------------------------------------------------------------
+ * Presentation shell — one calm command bar, one contextual view bar.
+ * ------------------------------------------------------------------------ */
+
+[data-page="design-engine"] [data-engine-toolbar] {
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--ce-fg) 3%, transparent);
+}
+
+[data-page="design-engine"] [data-verdict] {
+  height: 44px !important;
+  padding: 0 var(--ce-f4) !important;
+}
+
+[data-page="design-engine"] [data-verdict] .ce-title {
+  font-size: var(--ce-body-size);
+  line-height: var(--ce-body-line);
+}
+
+[data-page="design-engine"] [data-growth="done"] {
+  display: none !important;
+}
+
+[data-page="design-engine"] .ce-canvas-toolbar {
+  min-height: 52px !important;
+  padding: 10px var(--ce-f4) !important;
+  background: var(--ce-surface-2);
+  border-bottom-color: color-mix(in srgb, var(--ce-fg) 10%, transparent) !important;
+}
+
+/* The authoring surface and the proof surface are complementary panes. An
+   overlay makes the proof disappear behind the controls; at workspace widths
+   the rail therefore participates in the flex layout and reserves its column.
+   Narrow links keep the floating treatment, so the canvas remains the primary
+   surface when there is not enough room for two readable columns. */
+@media (min-width: 901px) {
+  [data-page="design-engine"] [data-studio] > [data-rail][data-open="true"] {
+    position: relative !important;
+    inset: auto !important;
+    flex: 0 0 var(--ce-rail);
+    width: var(--ce-rail) !important;
+    min-height: 0;
+    border-top: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: 0;
+    box-shadow: 1px 0 0 color-mix(in srgb, var(--ce-fg) 8%, transparent);
+  }
+}
+
+@media (min-width: 901px) and (max-width: 1100px) {
+  [data-page="design-engine"] { --ce-rail: 360px; }
+}
+
+@media (max-width: 900px) {
+  /* A collapsed rail is still a real control, but it must not sit on top of the
+     first sentence in the canvas. Reserve a small header pocket for it on
+     narrow viewports; opening the rail restores the full authoring sheet. */
+  [data-page="design-engine"] [data-studio] > [data-rail][data-open="false"] {
+    top: 8px !important;
+    left: 12px !important;
+  }
+  [data-page="design-engine"] [data-studio] > [data-rail][data-open="false"] + [data-pane="canvas"] {
+    padding-top: 48px;
+  }
+
+  [data-page="design-engine"] .ce-scene-intro,
+  [data-page="design-engine"] .ce-section-heading { align-items: flex-start; flex-direction: column; gap: var(--ce-f2); }
+  [data-page="design-engine"] .ce-metric-band,
+  [data-page="design-engine"] .ce-flow-grid,
+  [data-page="design-engine"] .ce-flow-grid-four { grid-template-columns: 1fr; }
+  [data-page="design-engine"] .ce-metric-band > div + div,
+  [data-page="design-engine"] .ce-flow-step + .ce-flow-step {
+    border-left: 0;
+    border-top: 1px solid var(--ce-border);
+    padding-left: 0;
+  }
+  [data-page="design-engine"] .ce-flow-step + .ce-flow-step { padding-left: var(--ce-f3); }
+  [data-page="design-engine"] .ce-nesting-stage { grid-template-columns: 1fr; }
+  [data-page="design-engine"] [data-engine-toolbar] {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+    height: auto !important;
+    min-width: 0;
+    gap: 8px;
+    padding: 10px 12px !important;
+  }
+
+  [data-page="design-engine"] [data-engine-toolbar] > [data-dirty-dot] {
+    justify-self: start;
+  }
+
+  [data-page="design-engine"] [data-engine-toolbar] > [role="radiogroup"][aria-label="scene"] {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+  }
+
+  [data-page="design-engine"] [data-engine-toolbar] > [role="radiogroup"][aria-label="scene"] button {
+    min-width: 0;
+    padding-inline: 4px;
+  }
+
+  [data-page="design-engine"] .ce-canvas-toolbar {
+    min-width: 0;
+    gap: 8px !important;
+    padding-inline: 12px !important;
+  }
+
+  [data-page="design-engine"] .ce-canvas-toolbar > .ce-body {
+    flex-basis: 100% !important;
+  }
+
+  [data-page="design-engine"] .ce-canvas-toolbar [data-rung-switch] {
+    width: 100%;
+    min-width: 0;
+    margin-left: 0 !important;
+  }
+}
+
+@media (max-width: 480px) {
+  [data-page="design-engine"] [data-engine-toolbar] {
+    grid-template-columns: auto minmax(8px, 1fr) auto auto auto;
+  }
+
+  [data-page="design-engine"] [data-engine-toolbar] > .ce-title {
+    max-width: 96px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  [data-page="design-engine"] [data-engine-toolbar] > .ce-quiet,
+  [data-page="design-engine"] [data-engine-toolbar] > .ce-primary {
+    padding-inline: 6px;
+  }
+  [data-page="design-engine"] [data-engine-toolbar] > [role="radiogroup"][aria-label="scene"] {
+    display: flex;
+    gap: 2px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  [data-page="design-engine"] [data-engine-toolbar] > [role="radiogroup"][aria-label="scene"]::-webkit-scrollbar {
+    display: none;
+  }
+  [data-page="design-engine"] [data-engine-toolbar] > [role="radiogroup"][aria-label="scene"] button {
+    flex: 0 0 auto;
+    min-width: 72px;
+    padding-inline: 8px;
+  }
+}
+
+[data-page="design-engine"] [data-studio] > [data-rail] {
+  backdrop-filter: blur(18px);
+}
+
+/* A wide table scrolls INSIDE its own box. The page body never scrolls
+   sideways — measured before at 1114px of diagram inside a 280px window. */
+[data-page="design-engine"] .ce-scroller {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+
+/* ---------------------------------------------------------------------------
+ * EXACTLY ONE FILLED BUTTON, enforced on the vendored primitives too.
+ *
+ * Measured on the page this replaces: 74 of 82 buttons were transparent and the
+ * ONE filled button was filled with the page's own background — so the page had
+ * no primary action at all, which is why nothing on it read as the thing to do.
+ * `Save` is the filled one. Everything else states its selection with a border
+ * and full-strength ink, which is legible without competing.
+ * ------------------------------------------------------------------------ */
+
+/* the scene / appearance segmented control */
+[data-page="design-engine"] [role="radiogroup"] {
+  background: transparent;
+  border-color: var(--ce-border);
+  padding: 2px;
+  /* NEVER WRAPS. A one-of-three control that folds into two rows stops reading
+     as one control — the scene switch put "Dark" under "Light" at 1440 and the
+     toolbar grew a second row while the page was deriving. */
+  flex-wrap: nowrap;
+}
+[data-page="design-engine"] [role="radio"] {
+  background: transparent;
+  color: var(--ce-fg-2);
+  height: var(--ce-h-chip);
+  min-height: var(--ce-h-chip);
+  padding: 0 12px;
+  border: 1px solid transparent;
+  /* THE NESTED-CORNER RULE, and this selector is why it has to be here: it
+     outranks the `rounded-inner` utility the pill wears, so leaving
+     `--ce-r-control` would have kept the page's own chrome overriding the
+     register on the one page that demonstrates the register. `--ds-corner` is
+     published by the group's radius class and `--ds-corner-gap` by the group
+     itself (segmented.tsx); a radio that is NOT inside a rounded group inherits
+     neither and falls through to the chrome radius unchanged. */
+  border-radius: max(
+    0px,
+    calc(var(--ds-corner, var(--ce-r-control)) - var(--ds-corner-gap, 0px))
+  );
+}
+[data-page="design-engine"] [role="radio"][aria-checked="true"] {
+  background: transparent;
+  color: var(--ce-fg);
+  border-color: var(--ce-fg);
+}
+
+/* the two-colour switch: a bordered track, and the knob carries the fill */
+[data-page="design-engine"] [data-slot="switch"] {
+  background: transparent;
+  border: 1px solid var(--ce-border);
+  height: var(--ce-h-chip);
+  min-height: var(--ce-h-chip);
+  width: 44px;
+}
+[data-page="design-engine"] [data-slot="switch"][data-state="checked"] {
+  border-color: var(--ce-fg);
+}
+
+/* the select trigger, which is a button in the DOM */
+[data-page="design-engine"] [data-slot="select-trigger"] {
+  background: transparent;
+  height: var(--ce-h-control);
+  min-height: var(--ce-h-control);
+}
+
+/* ---------------------------------------------------------------------------
+ * The slider thumb: 16px of ink inside a 24px target.
+ *
+ * Two rules that look like they conflict and do not — every interactive element
+ * is at least 24 x 24, AND the thumb reads as a 16px dot. `background-clip:
+ * content-box` behind a 4px transparent border gives both: the BOX is 24, the
+ * PAINT is 16, and `getComputedStyle().backgroundColor` still reports the ink
+ * so its contrast against the track can be measured.
+ * ------------------------------------------------------------------------ */
+[data-page="design-engine"] [role="slider"] {
+  width: var(--ce-h-chip);
+  height: var(--ce-h-chip);
+  border-radius: 12px;
+  border: 4px solid transparent;
+  background: var(--ce-fg);
+  background-clip: content-box;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+}

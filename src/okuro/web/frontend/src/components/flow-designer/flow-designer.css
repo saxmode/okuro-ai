@@ -1,0 +1,2185 @@
+/* okuro-flow canvas — ported from tools/flow-designer, scoped under .fd-root.
+   STRUCTURAL CHROME (surfaces, text, borders, fonts, radii, selection/accent)
+   inherits the okuro design system via tokens. FUNCTIONAL hues stay fixed:
+   port-type colours (--fd-t-*), node-category colours (in graph.ts), the group
+   purple, the swatch palette and edge-label chips are semantic, not chrome. */
+/* Design tokens shared by the editor (.fd-root) AND the gallery (.fd-gallery).
+   The gallery renders OUTSIDE .fd-root, so without this its --fd-* reads empty
+   and every surface/border/wash collapses to transparent.
+
+   The workflow designer (.wf-root / .wf-gallery) reads the same tokens — it is a
+   different product on the same components, so it must not fork the palette.
+   TOKENS ONLY: the `.fd-gallery { display: flex }` rule further down is LAYOUT,
+   and the workflow gallery deliberately does not take it (it stacks its header
+   above a card grid, where the flow gallery puts a folder rail beside one).
+   Carrying `fd-gallery` for its tokens dragged that flex row along and turned
+   the workflow cards into full-height columns. */
+.fd-root,
+.fd-gallery,
+.wf-root,
+.wf-gallery {
+  /* chrome -> design tokens */
+  --fd-bg: var(--color-surface);
+  /* header bar + side panel match okuro's nav/sidebar (both bg-surface) */
+  --fd-panel: var(--color-surface);
+  --fd-elevated: var(--color-surface-elevated);
+  --fd-input: var(--color-surface-subtle);
+  --fd-fg: var(--color-fg);
+  --fd-mut: var(--color-fg-muted);
+  --fd-subtle: var(--color-fg-subtle);
+  --fd-line: var(--color-border);
+  --fd-line-2: var(--color-border-subtle);
+  --fd-accent: var(--color-accent);
+  --fd-accent-subtle: var(--color-accent-subtle);
+  --fd-radius: var(--radius-md);
+  --fd-radius-lg: var(--radius-lg);
+  --fd-mono: var(--font-mono);
+  /* functional / semantic (NOT chrome — kept stable across themes) */
+  --fd-t-flow: #9aa0aa;
+  --fd-t-data: #4aa3ff;
+  --fd-t-control: #e7e7ef;
+  --fd-t-value: #46d17a;
+  --fd-t-signal: #ff6fae;
+  --fd-t-asset: #d8b24a;
+  --fd-group: #7d5bff;
+  --fd-sel: var(--color-accent);
+  /* node-category header hues — canonical source of truth. graph.ts (canvas)
+     and flow-to-mermaid.ts (classDef) both read these instead of re-hardcoding
+     the same hex, so the three views can never drift. Like --fd-t-* above,
+     these are semantic encodings kept stable across themes. */
+  --fd-cat-process: #4aa3ff;
+  --fd-cat-input: #46d17a;
+  --fd-cat-output: #ffc24d;
+  --fd-cat-decision: #ff6fae;
+  --fd-cat-note: #9aa0aa;
+  --fd-cat-title: #e8eaf0;
+  --fd-cat-mdnote: #9aa0aa;
+  --fd-cat-group: #b07cff;
+}
+
+/* editor shell layout (NOT the gallery) */
+.fd-root {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--fd-bg);
+  color: var(--fd-fg);
+  font-family: inherit; /* inherit the okuro design typography */
+  overflow: hidden;
+}
+
+/* ---- top bar: flow management ---- */
+.fd-topbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--fd-panel);
+  border-bottom: 1px solid var(--fd-line);
+}
+.fd-flowsel {
+  background: var(--fd-elevated);
+  border: 1px solid var(--fd-line);
+  color: var(--fd-fg);
+  border-radius: var(--fd-radius);
+  padding: 6px 9px;
+  font-size: 12px;
+  max-width: 230px;
+}
+.fd-nameinput {
+  flex: 1;
+  max-width: 360px;
+  background: var(--fd-input);
+  border: 1px solid var(--fd-line);
+  color: var(--fd-fg);
+  border-radius: var(--fd-radius);
+  padding: 6px 10px;
+  font-size: 13px;
+  font-weight: var(--font-weight-semibold, 600);
+}
+.fd-tbtn {
+  background: var(--fd-elevated);
+  border: 1px solid var(--fd-line);
+  color: var(--fd-fg);
+  border-radius: var(--fd-radius);
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.fd-tbtn:hover {
+  border-color: var(--fd-accent);
+}
+.fd-tbtn.danger:hover {
+  border-color: var(--color-error);
+  color: var(--color-error);
+}
+.fd-savebadge {
+  font-size: 11px;
+  color: var(--fd-mut);
+  min-width: 64px;
+}
+.fd-savebadge.saving {
+  color: var(--color-warning);
+}
+.fd-savebadge.saved {
+  color: var(--fd-accent);
+}
+.fd-savebadge.error {
+  color: var(--color-error);
+}
+
+/* ---- layout ---- */
+.fd-wrap {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+.fd-canvas {
+  flex: 1;
+  height: 100%;
+  position: relative;
+}
+/* Touch: claim all gestures on the flow pane so iOS Safari routes pinch-zoom
+   and two-finger pan to React Flow instead of zooming/scrolling the page.
+   React Flow ships no touch-action rule of its own, so without this pinch is
+   dead on iPad. */
+.fd-canvas-flow,
+.fd-canvas-flow .react-flow__pane,
+.fd-canvas-flow .react-flow__viewport {
+  touch-action: none;
+}
+/* empty port → "+" quick-extend affordance: click to spawn a connected node */
+.react-flow__handle.fd-port-open {
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: var(--fd-elevated);
+  border: 1.5px solid var(--fd-accent);
+  opacity: 0.95;
+  cursor: pointer;
+  z-index: 5;
+}
+.react-flow__handle.fd-port-open::after {
+  content: "+";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--fd-accent);
+  pointer-events: none;
+}
+.react-flow__handle.fd-port-open:hover {
+  background: var(--fd-accent);
+  opacity: 1;
+}
+.react-flow__handle.fd-port-open:hover::after {
+  color: #06060a;
+}
+/* long-pressed port, selected for re-placement via the toolbar */
+.react-flow__handle.fd-port-sel {
+  box-shadow: 0 0 0 3px var(--fd-accent), 0 0 0 5px var(--fd-bg);
+  z-index: 6;
+}
+/* Text stays freely selectable everywhere (task ids, labels). The ONLY time
+   selection is suppressed is while Space-pan is active: globals.css forces
+   `user-select: text` on body (pywebview workaround), so a Space+drag pan
+   would otherwise start a native text selection that bleeds into the shell.
+   The .fd-panning class is toggled on Space down/up by the keydown handler. */
+.fd-root.fd-panning,
+.fd-root.fd-panning * {
+  -webkit-user-select: none;
+  user-select: none;
+}
+.fd-side {
+  width: 300px;
+  flex: none;
+  position: relative;
+  background: var(--fd-panel);
+  border-left: 1px solid var(--fd-line);
+  padding: 14px 14px 30px;
+  overflow-y: auto;
+  /* Fly-in: the panel slides open (width) while its contents fade + settle
+     from the right, so opening on node-select reads as motion, not a jump. */
+  transition: width 0.26s cubic-bezier(0.22, 1, 0.36, 1),
+    padding 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.fd-side > * {
+  transition: opacity 0.2s ease 0.06s, transform 0.26s cubic-bezier(0.22, 1, 0.36, 1) 0.02s;
+}
+/* Collapsed inspector — full-screen canvas. Width is forced to 0 inline;
+   this strips the chrome (border, padding, scrollbars, resizer) so nothing
+   peeks out at the canvas edge. Contents shift right + fade for the fly-in.
+   Toggle lives in the top bar. */
+.fd-side-collapsed {
+  padding: 0;
+  border-left: none;
+  overflow: hidden;
+}
+.fd-side-collapsed > * {
+  opacity: 0;
+  transform: translateX(16px);
+}
+.fd-resizer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 7px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 9;
+}
+.fd-resizer:hover {
+  background: linear-gradient(90deg, var(--fd-accent-subtle), transparent);
+}
+
+.fd-side h1 {
+  font-size: 15px;
+  margin: 0 0 2px;
+  color: var(--fd-fg);
+}
+.fd-side h2 {
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--fd-mut);
+  margin: 16px 0 8px;
+}
+.fd-sub {
+  font-size: 11px;
+  color: var(--fd-mut);
+  margin: 0 0 8px;
+  line-height: 1.4;
+}
+.fd-side input,
+.fd-side select {
+  width: 100%;
+}
+.fd-descinput,
+.fd-wsel {
+  background: var(--fd-elevated) !important;
+  border: 1px solid var(--fd-line);
+  color: var(--fd-fg);
+  border-radius: var(--fd-radius);
+  padding: 7px 9px;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+.fd-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: var(--fd-elevated);
+  border: 1px solid var(--fd-line);
+  color: var(--fd-fg);
+  padding: 7px 9px;
+  border-radius: var(--fd-radius);
+  font-size: 12px;
+  margin-bottom: 6px;
+  cursor: pointer;
+}
+.fd-btn:hover {
+  border-color: var(--color-border-hover);
+}
+.fd-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.fd-bar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.fd-bar .fd-btn {
+  flex: 1;
+  text-align: center;
+  margin-bottom: 0;
+}
+.fd-leg {
+  font-size: 10.5px;
+  color: var(--fd-mut);
+  line-height: 1.9;
+}
+.fd-leg i {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  margin-right: 5px;
+  vertical-align: middle;
+}
+.fd-placeholder {
+  color: var(--fd-subtle);
+  font-size: 12px;
+  font-style: italic;
+  line-height: 1.5;
+}
+
+/* ---- power-user panel: zone headers, collapsible sections, add grid, keys ---- */
+.fd-zonehead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 14px 0 8px;
+}
+.fd-zonehead:first-of-type {
+  margin-top: 2px;
+}
+.fd-zone-label {
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--fd-fg);
+  font-weight: 700;
+}
+.fd-zone-meta {
+  margin-left: auto;
+  font-family: var(--fd-mono);
+  font-size: 10px;
+  color: var(--fd-mut);
+  background: var(--fd-elevated);
+  border: 1px solid var(--fd-line);
+  border-radius: var(--radius-sm);
+  padding: 1px 6px;
+}
+.fd-inspector-head {
+  border-bottom: 1px solid var(--fd-line);
+  padding-bottom: 7px;
+}
+/* Close button lives in the inspector head. It's a mobile affordance (the
+   panel opens as a full-screen overlay there); on desktop the top-bar
+   "Inspector ›" toggle already covers closing, so it stays hidden. */
+.fd-inspector-close {
+  display: none;
+  margin-left: auto;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--fd-line);
+  border-radius: var(--radius-sm);
+  background: var(--fd-elevated);
+  color: var(--fd-fg);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+.fd-inspector-close:active {
+  background: var(--fd-panel);
+}
+/* Phone: the inspector is a full-width overlay drawer, not a side column, so
+   editing a node is comfortable and the canvas underneath stays untouched
+   while dragging. The panel only appears when the user taps the toolbar
+   Settings button (auto-open is suppressed on mobile). */
+@media (max-width: 767px) {
+  .fd-side:not(.fd-side-collapsed) {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: auto !important;
+    z-index: 20;
+    box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.25);
+  }
+  .fd-side:not(.fd-side-collapsed) .fd-resizer {
+    display: none;
+  }
+  .fd-inspector-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+/* collapsible section */
+.fd-sec {
+  border-top: 1px solid var(--fd-line);
+}
+.fd-sec:first-of-type {
+  margin-top: 6px;
+}
+.fd-sechead {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--fd-mut);
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+.fd-sechead:hover {
+  color: var(--fd-fg);
+}
+.fd-secarrow {
+  font-size: 9px;
+  transition: transform 0.12s;
+  color: var(--fd-subtle);
+}
+.fd-sec.open .fd-secarrow {
+  transform: rotate(90deg);
+}
+.fd-sectitle {
+  flex: 1;
+  text-align: left;
+}
+.fd-sechint {
+  letter-spacing: 0;
+  text-transform: none;
+  font-weight: 400;
+  font-size: 10px;
+  color: var(--fd-subtle);
+}
+.fd-secbody {
+  padding: 0 0 10px;
+}
+.fd-secbody .k {
+  color: var(--fd-mut);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-size: 9px;
+  margin-bottom: 4px;
+}
+/* compact add palette */
+.fd-addgrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+}
+.fd-addbtn {
+  padding: 6px 8px;
+  font-size: 11px;
+  text-align: left;
+  border: 1px solid var(--fd-line);
+  border-radius: var(--radius-sm);
+  background: var(--fd-elevated);
+  color: var(--fd-fg);
+  cursor: pointer;
+}
+.fd-addbtn:hover {
+  border-color: var(--color-accent);
+  background: var(--color-accent-subtle);
+}
+/* shortcuts cheat sheet */
+.fd-keys {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.fd-keys > div {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--fd-mut);
+}
+.fd-keys > div > span {
+  margin-left: auto;
+  color: var(--fd-subtle);
+  font-size: 10px;
+}
+.fd-keys kbd {
+  font-family: var(--fd-mono);
+  font-size: 10px;
+  color: var(--fd-fg);
+  background: var(--fd-elevated);
+  border: 1px solid var(--fd-line);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+/* ---- detail / port editor ---- */
+.fd-det {
+  background: var(--fd-elevated);
+  border: 1px solid var(--fd-line);
+  border-radius: var(--fd-radius-lg);
+  padding: 11px 12px;
+  margin-bottom: 6px;
+}
+.fd-det .dtag {
+  font-family: var(--fd-mono);
+  font-size: 10px;
+  color: var(--color-fg-inverse, #06060a);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+}
+.fd-det .k {
+  color: var(--fd-mut);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-size: 9px;
+  display: block;
+  margin-bottom: 2px;
+}
+.fd-none {
+  color: var(--fd-subtle);
+  font-size: 11px;
+}
+.fd-pedit {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+  margin: 3px 0;
+}
+.fd-pedit .x {
+  color: var(--color-error);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0 3px;
+}
+.fd-miniadd {
+  font-size: 10px;
+  color: var(--fd-accent);
+  cursor: pointer;
+  margin: 2px 0 8px;
+  display: inline-block;
+}
+.fd-pcard {
+  background: var(--fd-bg);
+  border: 1px solid var(--fd-line-2);
+  border-radius: var(--fd-radius);
+  padding: 7px 8px;
+  margin: 6px 0;
+}
+.fd-pcard .r1 {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+}
+.fd-pcard .r2 {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-top: 6px;
+}
+.fd-pcard .drag {
+  cursor: grab;
+  color: var(--fd-subtle);
+  font-size: 13px;
+  user-select: none;
+  line-height: 1;
+}
+.fd-pcard .drag:active {
+  cursor: grabbing;
+}
+.fd-pcard .dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+}
+.fd-pcard .lblin {
+  flex: 1;
+  background: var(--fd-input);
+  border: 1px solid var(--fd-line);
+  color: var(--fd-fg);
+  border-radius: var(--radius-sm);
+  padding: 5px 7px;
+  font-size: 12px;
+}
+.fd-pcard .lblro {
+  flex: 1;
+  font-size: 11.5px;
+  color: var(--fd-mut);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fd-pcard .r2 select {
+  flex: 1;
+  background: var(--fd-input);
+  border: 1px solid var(--fd-line);
+  color: var(--fd-fg);
+  border-radius: var(--radius-sm);
+  padding: 4px 5px;
+  font-size: 11px;
+}
+.fd-pcard .x {
+  color: var(--color-error);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 2px;
+}
+.fd-pcard .cntb {
+  font-size: 10px;
+  color: var(--fd-mut);
+  background: var(--fd-elevated);
+  border: 1px solid var(--fd-line);
+  border-radius: 9px;
+  padding: 1px 7px;
+  min-width: 20px;
+  text-align: center;
+}
+.fd-swatches {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  gap: 5px;
+  margin-bottom: 6px;
+}
+/* per-node style picker (tinted / solid / outline) */
+.fd-stylerow {
+  display: flex;
+  gap: 4px;
+}
+.fd-stybtn {
+  flex: 1;
+  padding: 4px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid var(--fd-line);
+  border-radius: var(--radius-sm);
+  background: var(--fd-elevated);
+  color: var(--fd-mut);
+  cursor: pointer;
+}
+.fd-stybtn:hover {
+  color: var(--fd-fg);
+}
+.fd-stybtn.sel {
+  border-color: var(--color-accent);
+  color: var(--fd-fg);
+  background: var(--color-accent-subtle);
+}
+.fd-swatches .sw {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 5px;
+  cursor: pointer;
+  border: 1px solid rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: #06060a;
+  font-weight: 700;
+}
+.fd-swatches .sw.def {
+  font-size: 10px;
+}
+.fd-swatches .sw:hover,
+.fd-swatches .sw.sel {
+  outline: 2px solid var(--fd-fg);
+  outline-offset: 1px;
+}
+
+/* ---- content-alignment 3x3 grid (sets data.align + data.valign) ---- */
+.fd-aligngrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  max-width: 102px;
+  margin-bottom: 6px;
+}
+.fd-aligngrid .ag {
+  aspect-ratio: 1;
+  display: flex;
+  padding: 4px;
+  border: 1px solid var(--fd-line);
+  border-radius: 5px;
+  background: var(--fd-elevated);
+  cursor: pointer;
+}
+.fd-aligngrid .ag::before {
+  content: "";
+  width: 10px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--fd-mut);
+}
+.fd-aligngrid .ag[data-h="left"] {
+  justify-content: flex-start;
+}
+.fd-aligngrid .ag[data-h="center"] {
+  justify-content: center;
+}
+.fd-aligngrid .ag[data-h="right"] {
+  justify-content: flex-end;
+}
+.fd-aligngrid .ag[data-v="top"] {
+  align-items: flex-start;
+}
+.fd-aligngrid .ag[data-v="center"] {
+  align-items: center;
+}
+.fd-aligngrid .ag[data-v="bottom"] {
+  align-items: flex-end;
+}
+.fd-aligngrid .ag:hover {
+  border-color: var(--fd-fg);
+}
+.fd-aligngrid .ag.sel {
+  border-color: var(--fd-fg);
+  background: color-mix(in srgb, var(--fd-fg) 12%, var(--fd-elevated));
+}
+.fd-aligngrid .ag.sel::before {
+  background: var(--fd-fg);
+}
+
+/* ---- nodes (content surface = elevated token; category colours kept) ---- */
+.fd-nd {
+  position: relative;
+  min-width: 230px;
+  min-height: 96px;
+  /* fill the wrapper so NodeResizer drags resize the visible card */
+  width: 100%;
+  height: 100%;
+  background: var(--fd-elevated);
+  border: 1px solid var(--fd-line);
+  border-radius: var(--fd-radius-lg);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.55);
+  font-size: 12px;
+}
+.fd-nd.selected {
+  outline: 2px solid var(--fd-sel);
+}
+/* ---- node style variants (data.style) ----
+   bg / border / text colours arrive inline (dynamic per node colour); these
+   rules only cover what inline can't reach. tinted = default, no extra rules.
+   solid: body text inherits the contrast colour set on the card.
+   outline: no fill, so drop the elevated card shadow too. */
+.fd-nd.fd-v-solid .fd-ndttl,
+.fd-nd.fd-v-solid .fd-ndsub,
+.fd-nd.fd-v-solid .fd-nsub,
+.fd-nd.fd-v-solid .fd-plab,
+.fd-nd.fd-v-solid .fd-plabel {
+  color: inherit;
+}
+.fd-nd.fd-v-solid .fd-ndsub,
+.fd-nd.fd-v-solid .fd-nsub {
+  opacity: 0.82;
+}
+.fd-nd.fd-v-outline {
+  box-shadow: none;
+}
+.fd-nd.grp {
+  border-style: dashed;
+  border-color: var(--fd-group);
+  background: color-mix(in srgb, var(--fd-group) 8%, var(--fd-elevated));
+}
+.fd-grpbox {
+  width: 100%;
+  height: 100%;
+  border: 1.5px dashed var(--fd-group);
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--fd-group) 5%, transparent);
+}
+.fd-grpbox.selected {
+  outline: 2px solid var(--fd-sel);
+}
+.fd-grpbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 10px 10px 0 0;
+  color: #06060a;
+  font-weight: 700;
+}
+.fd-grpbar .fd-tag {
+  font-family: var(--fd-mono);
+  font-size: 10px;
+  background: rgba(0, 0, 0, 0.32);
+  color: #fff;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+}
+.fd-grpclose {
+  margin-left: auto;
+  cursor: pointer;
+  color: #06060a;
+  font-weight: 700;
+  font-size: 12px;
+  background: rgba(0, 0, 0, 0.18);
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+.fd-grpclose:hover {
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+}
+.fd-nd.lr {
+  min-width: 244px;
+  border-left-width: 1px;
+  display: flex;
+  flex-direction: column;
+}
+.fd-nd.lr .fd-hd {
+  padding: 7px 11px;
+  border-radius: 8px 8px 0 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  color: #06060a;
+}
+.fd-hd .fd-tag {
+  font-family: var(--fd-mono);
+  font-size: 10px;
+  background: rgba(0, 0, 0, 0.32);
+  color: #fff;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+}
+.fd-ttl-hd {
+  font-size: 12.5px;
+  line-height: 1.2;
+  color: #06060a;
+  cursor: text;
+  /* grow with the header width; ellipsis at the real edge, not a fixed cap */
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fd-nsub {
+  padding: 5px 11px 2px;
+  color: var(--fd-mut);
+  font-size: 10.5px;
+  line-height: 1.35;
+}
+.fd-nd.lr .fd-body {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0 10px;
+  /* fill the resized card height; ports stay top-aligned within it */
+  flex: 1 1 auto;
+}
+.fd-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.fd-prow {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 20px;
+  font-size: 10.5px;
+  color: var(--fd-fg);
+}
+.fd-col.in .fd-prow {
+  padding-left: 16px;
+}
+.fd-col.out .fd-prow {
+  padding-right: 16px;
+  justify-content: flex-end;
+}
+.fd-plabel {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.fd-ndinner {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 3px;
+  min-height: 92px;
+  /* fill the resized card so text/sub use the full width + centre vertically */
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 12px 24px;
+  text-align: left;
+}
+.fd-ndtag {
+  font-family: var(--fd-mono);
+  font-size: 10px;
+  color: #06060a;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.fd-ndtag .fd-cnt {
+  opacity: 0.85;
+}
+.fd-ndttl {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--fd-fg);
+  cursor: text;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fd-ndttl-in {
+  font-size: 13px;
+  font-weight: 700;
+  background: var(--fd-input);
+  border: 1px solid var(--fd-accent);
+  color: var(--fd-fg);
+  border-radius: var(--radius-sm);
+  padding: 1px 4px;
+  width: 166px;
+}
+.fd-ndsub {
+  color: var(--fd-mut);
+  font-size: 10.5px;
+  line-height: 1.3;
+  max-width: 100%;
+  cursor: text;
+}
+/* An empty slot showing its placeholder, not content. */
+.fd-ndsub-empty {
+  color: var(--fd-subtle);
+  font-style: italic;
+}
+/* Inline editor for the body line. Only reachable in a view whose config lists
+   "sub" as editable (/workflows' prompt); /flow edits its subtitle in the
+   inspector, so this never renders there. */
+.fd-ndsub-in {
+  font-family: inherit;
+  font-size: 10.5px;
+  line-height: 1.35;
+  background: var(--fd-input);
+  border: 1px solid var(--fd-accent);
+  color: var(--fd-fg);
+  border-radius: var(--radius-sm);
+  padding: 2px 4px;
+  width: 100%;
+  resize: none;
+  outline: none;
+}
+/* Header row when a view adds a right-hand slot beside the chip (/workflows
+   puts the phase there). /flow renders the chip bare and never gets this. */
+.fd-ndrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+}
+/* Declarative badge row under the body. The view returns the list; the node
+   only renders it — /workflows uses it for risk/tier/criteria/fan-out/issues,
+   the run view will use it for live state. */
+.fd-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+}
+.fd-badge {
+  font-family: var(--fd-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--fd-line);
+  color: var(--fd-mut);
+  background: transparent;
+  white-space: nowrap;
+}
+.fd-badge.bad {
+  border-color: var(--color-error);
+  color: var(--color-error);
+}
+.fd-badge.accent {
+  border-color: var(--fd-accent);
+  color: var(--fd-accent);
+}
+
+/* ---- title node: standalone heading, no box chrome, no ports ---- */
+.fd-title {
+  padding: 4px 8px;
+  max-width: 520px;
+  color: var(--fd-fg);
+  background: transparent;
+  border: none;
+}
+.fd-title.selected {
+  outline: 2px solid var(--fd-sel);
+  outline-offset: 4px;
+  border-radius: var(--radius-sm);
+}
+.fd-title .fd-title-txt {
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  color: inherit;
+  cursor: text;
+  white-space: normal;
+  display: block;
+  max-width: none;
+}
+.fd-title .fd-title-txt.fd-ndttl-in,
+.fd-title .fd-ndttl-in {
+  font-size: 30px;
+  font-weight: 800;
+  width: 100%;
+}
+.fd-title-sub {
+  margin-top: 2px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--fd-mut);
+}
+
+/* ---- mdnote: prose note with rendered Markdown body ---- */
+.fd-mdnote {
+  position: relative;
+  min-width: 240px;
+  /* cap auto-width only; a resized node carries an explicit wrapper width that
+     this must not clamp, so widen the ceiling and fill the wrapper instead */
+  max-width: 560px;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--fd-elevated);
+  border: 1px solid var(--fd-line);
+  border-radius: var(--fd-radius-lg);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+}
+.fd-mdnote.selected {
+  outline: 2px solid var(--fd-sel);
+}
+.fd-mdnote-hd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  color: #06060a;
+  font-weight: 700;
+}
+.fd-mdnote-body {
+  padding: 8px 12px 10px;
+  font-size: 12px;
+  color: var(--fd-fg);
+  cursor: text;
+  /* grow into the resized card; scroll only when content exceeds the box */
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+/* tighten the shared markdown rhythm inside the small canvas card */
+.fd-mdnote-body p:first-child,
+.fd-mdnote-body h1:first-child,
+.fd-mdnote-body h2:first-child,
+.fd-mdnote-body h3:first-child {
+  margin-top: 0;
+}
+
+/* ---- NodeResizer: drag-to-resize handles (visible only while selected) ---- */
+.fd-rz-line {
+  border-color: var(--fd-sel);
+  border-width: 1px;
+  opacity: 0.5;
+}
+.fd-rz-handle {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  border: 1px solid var(--fd-bg, #06060a);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+.fd-plab {
+  position: absolute;
+  font-size: 9.5px;
+  color: var(--fd-mut);
+  pointer-events: auto;
+  white-space: nowrap;
+  max-width: 74px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  z-index: 1;
+}
+.fd-plab:hover {
+  max-width: none;
+  overflow: visible;
+  color: var(--fd-fg);
+  background: var(--fd-panel);
+  border: 1px solid var(--fd-line);
+  border-radius: 3px;
+  padding: 0 4px;
+  z-index: 20;
+}
+.fd-plab.ghide {
+  opacity: 0;
+}
+.fd-nd.lr .fd-plabel.ghide {
+  opacity: 0;
+}
+.fd-nd.lr .fd-prow:hover .fd-plabel.ghide {
+  opacity: 1;
+}
+/* side-panel toggle: hide every connection-dot label (handles stay live) */
+.fd-hide-plabels .fd-plab,
+.fd-hide-plabels .fd-plabel {
+  display: none;
+}
+
+/* ── gantt mode (renders OUTSIDE .fd-root → use global okuro --color-* tokens,
+   not the fd-root-scoped --fd-* vars which would be undefined here) ───────── */
+/* date-label ruler (DOM overlay; gridlines come from RF <Background Lines>) */
+.fd-gantt-ruler {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 5;
+  pointer-events: none;
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+}
+.fd-gantt-rlabel {
+  position: absolute;
+  top: 13px;
+  font-size: 10px;
+  color: var(--color-fg-muted);
+  white-space: nowrap;
+  font-family: var(--font-mono);
+}
+.fd-gbar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-left-width: 3px;
+  border-radius: 5px;
+  background: var(--color-surface-elevated);
+  overflow: hidden;
+  font-size: 12px;
+  color: var(--color-fg);
+}
+.fd-gbar.selected {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+.fd-gbar-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  opacity: 0.22;
+  pointer-events: none;
+}
+.fd-gbar-label {
+  position: relative;
+  padding: 0 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  z-index: 1;
+}
+/* connector dots — hidden until the bar is hovered/selected (Asana feel) */
+.fd-gbar-handle {
+  width: 8px;
+  height: 8px;
+  background: var(--color-accent);
+  border: 1px solid var(--color-surface);
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.fd-gbar:hover .fd-gbar-handle,
+.fd-gbar.selected .fd-gbar-handle {
+  opacity: 1;
+}
+/* selected/hovered dependency edges — prominent (the editor scopes this to
+   .fd-root; the gantt canvas root carries .fd-canvas-gantt instead) */
+.fd-canvas-gantt .react-flow__edge.selected .react-flow__edge-path {
+  stroke: var(--color-fg);
+  stroke-width: 3.5;
+}
+.fd-canvas-gantt .react-flow__edge:hover .react-flow__edge-path {
+  stroke-width: 3;
+}
+/* status accents (functional, not brand) */
+.fd-gbar-pending {
+  border-left-color: var(--color-fg-muted);
+}
+.fd-gbar-running {
+  border-left-color: #5b9dff;
+}
+.fd-gbar-verified {
+  border-left-color: #3fb950;
+}
+.fd-gbar-failed {
+  border-left-color: var(--color-error);
+}
+/* hover-link highlight (gantt bar <-> task list row) */
+.react-flow__node.fd-gbar-hl .fd-gbar {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+/* bottom task list (split-screen) */
+.fd-tlrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 16px;
+  font-size: 12px;
+  color: var(--color-fg);
+  cursor: pointer;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.fd-tlrow:hover,
+.fd-tlrow.hl {
+  background: var(--color-surface-elevated);
+}
+.fd-tldot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--color-fg-muted);
+}
+.fd-tldot.fd-gbar-running {
+  background: #5b9dff;
+}
+.fd-tldot.fd-gbar-verified {
+  background: #3fb950;
+}
+.fd-tldot.fd-gbar-failed {
+  background: var(--color-error);
+}
+.fd-tltitle {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fd-tlmeta {
+  font-size: 10px;
+  color: var(--color-fg-subtle);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+/* intake drawer */
+.fd-intake-scrim {
+  position: fixed;
+  inset: 0;
+  background: var(--color-scrim, rgba(0, 0, 0, 0.4));
+  z-index: 40;
+}
+.fd-intake {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 380px;
+  z-index: 41;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border-left: 1px solid var(--color-border);
+  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.4);
+}
+.fd-intake-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border-subtle);
+  font-size: 14px;
+}
+.fd-intake-body {
+  flex: 1;
+  overflow: auto;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.fd-intake-sec {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--color-fg-muted);
+  margin-top: 4px;
+}
+.fd-intake-ctx {
+  max-height: 160px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--color-fg-muted);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+.fd-intake-ta {
+  min-height: 120px;
+  resize: vertical;
+  font-size: 13px;
+  color: var(--color-fg);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+.fd-intake-mic {
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 12px;
+  color: var(--color-fg);
+}
+.fd-intake-mic.rec {
+  border-color: var(--color-error);
+  color: var(--color-error);
+}
+.fd-intake-ft {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--color-border-subtle);
+}
+.fd-intake-save {
+  background: var(--color-accent);
+  color: var(--color-surface);
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.fd-art-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 7px 10px;
+  font-size: 12px;
+  color: var(--color-fg);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 6px;
+}
+.fd-art-row:hover {
+  border-color: var(--color-accent);
+}
+/* live LLM activity toast (gantt suggest) */
+.fd-suggest-toast {
+  position: absolute;
+  top: 96px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 520px;
+  padding: 8px 14px;
+  font-size: 12px;
+  color: var(--color-fg);
+  background: var(--color-surface-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45);
+}
+.fd-suggest-spin {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: fd-spin 0.7s linear infinite;
+}
+@keyframes fd-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.fd-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--fd-mut);
+}
+.fd-chiptext {
+  cursor: text;
+}
+.fd-chip-in {
+  background: #fff;
+  color: #0a0a10;
+  border: 1px solid var(--fd-accent);
+  border-radius: 3px;
+  font-family: var(--fd-mono);
+  font-size: 10px;
+  font-weight: 700;
+  width: 58px;
+  padding: 0 3px;
+}
+.fd-edgelbl-wrap {
+  position: absolute;
+  pointer-events: all;
+}
+.fd-edgelbl {
+  font-family: var(--fd-mono);
+  font-size: 10px;
+  font-weight: 700;
+  background: #cdd3df;
+  color: #0a0a10;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  cursor: text;
+  white-space: nowrap;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.45);
+}
+.fd-edgelbl-in {
+  font-family: var(--fd-mono);
+  font-size: 10px;
+  font-weight: 700;
+  background: #fff;
+  color: #0a0a10;
+  border: 1px solid var(--fd-accent);
+  border-radius: var(--radius-sm);
+  padding: 1px 5px;
+  width: 96px;
+}
+
+/* draggable edge waypoints (Q2) — shown only while the edge is selected */
+.fd-wp {
+  position: absolute;
+  width: 11px;
+  height: 11px;
+  margin: 0;
+  border-radius: 50%;
+  background: #0a0a10;
+  border: 2px solid var(--fd-accent);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  cursor: grab;
+  pointer-events: all;
+  touch-action: none;
+}
+.fd-wp:active {
+  cursor: grabbing;
+}
+
+.fd-toast {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--fd-accent-subtle);
+  border: 1px solid var(--fd-accent);
+  color: var(--fd-accent);
+  padding: 6px 12px;
+  border-radius: var(--fd-radius);
+  font-size: 12px;
+  z-index: 7;
+}
+/* ---- React Flow internal overrides, scoped to the canvas ---- */
+.fd-root .react-flow__handle {
+  width: 11px;
+  height: 11px;
+  border: none;
+}
+/* Float the full circle outside the card with a 4px gap on every side.
+   RF centres each handle on the edge (translate ±50%), so offsetting by
+   -(radius 5.5 + gap 4) = -9.5px puts the whole 11px circle 4px clear of the box. */
+.fd-root .react-flow__handle-left {
+  left: -9.5px;
+}
+.fd-root .react-flow__handle-right {
+  right: -9.5px;
+}
+.fd-root .react-flow__handle-top {
+  top: -9.5px;
+}
+.fd-root .react-flow__handle-bottom {
+  bottom: -9.5px;
+}
+.fd-root .react-flow__attribution {
+  display: none;
+}
+.fd-root .react-flow__edge.selected .react-flow__edge-path {
+  stroke: var(--fd-fg) !important;
+  stroke-width: 3.5 !important;
+  opacity: 1 !important;
+}
+.fd-root .react-flow__edge:hover .react-flow__edge-path {
+  stroke-width: 3 !important;
+  cursor: pointer;
+}
+.fd-root .react-flow__node-group {
+  padding: 0;
+  width: auto;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+.fd-root .react-flow__node-group.selectable:hover {
+  box-shadow: none;
+}
+.fd-root .react-flow__node-group.selectable.selected,
+.fd-root .react-flow__node-group.selectable:focus,
+.fd-root .react-flow__node-group.selectable:focus-visible {
+  box-shadow: none;
+}
+.fd-root .react-flow__controls button {
+  background: var(--fd-elevated);
+  color: var(--fd-fg);
+  fill: var(--fd-fg);
+}
+/* RF's horizontal mode adds a border-right divider between buttons via
+   `.react-flow__controls.horizontal .react-flow__controls-button` (3 classes);
+   match the panel class too so this wins the specificity tie and removes it. */
+.fd-root .react-flow__panel.react-flow__controls .react-flow__controls-button {
+  border: none;
+}
+/* ---- Flow | Mermaid view toggle ---- */
+.fd-viewtoggle {
+  display: inline-flex;
+  gap: 4px;
+}
+/* ---- Mermaid (read-only) view ---- */
+.fd-mermaid {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--fd-bg, transparent);
+  overflow: hidden;
+}
+.fd-mermaid-bar {
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  border-bottom: 1px solid var(--fd-line);
+  flex: 0 0 auto;
+}
+.fd-mermaid-svg {
+  flex: 1 1 auto;
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.fd-mermaid-svg svg {
+  max-width: 100%;
+  height: auto;
+}
+.fd-mermaid-err {
+  flex: 1 1 auto;
+  overflow: auto;
+  margin: 0;
+  padding: 16px;
+  color: var(--color-destructive, #f92f77);
+  font-size: 12px;
+  white-space: pre-wrap;
+  font-family: var(--font-mono, "JetBrains Mono", ui-monospace, 'SF Mono', 'Cascadia Code', 'Roboto Mono', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace);
+}
+.fd-root .react-flow__controls button:hover {
+  background: var(--fd-panel);
+}
+
+/* ---- chat-to-draw dock ---- */
+.fd-chat {
+  position: absolute;
+  left: 12px;
+  bottom: 36px;
+  width: 340px;
+  max-width: calc(100% - 24px);
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  background: var(--fd-panel);
+  border: 1px solid var(--fd-line);
+  border-radius: var(--fd-radius-lg);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+.fd-chat-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--fd-line);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fd-fg);
+}
+.fd-chat-head .sp {
+  margin-left: auto;
+}
+.fd-chat-log {
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 8px 10px;
+  font-family: var(--fd-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--fd-mut);
+  white-space: pre-wrap;
+  word-break: break-word;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.fd-chat-log .me {
+  color: var(--fd-accent);
+}
+.fd-chat-log .ok {
+  color: var(--fd-t-value);
+}
+.fd-chat-log .err {
+  color: #ff6b6b;
+}
+.fd-chat-log .dim {
+  color: var(--fd-subtle);
+}
+.fd-chat-empty {
+  color: var(--fd-subtle);
+  font-style: italic;
+}
+.fd-chat-in {
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+  padding: 8px;
+  border-top: 1px solid var(--fd-line);
+}
+.fd-chat-launch {
+  position: absolute;
+  left: 12px;
+  bottom: 36px;
+  z-index: 8;
+}
+
+/* back-to-gallery link in the editor topbar */
+.fd-gallery-back {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fd-mut);
+  text-decoration: none;
+  padding: 0 8px;
+  border-right: 1px solid var(--fd-line);
+  margin-right: 4px;
+  white-space: nowrap;
+}
+.fd-gallery-back:hover {
+  color: var(--fd-fg);
+}
+
+/* ===== flow gallery (the /flow landing) ===== */
+.fd-gallery {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  background: var(--fd-bg);
+  color: var(--fd-fg);
+}
+.fd-gallery-rail {
+  width: 224px;
+  flex: none;
+  border-right: 1px solid var(--fd-line);
+  background: var(--fd-panel);
+  padding: 10px 8px;
+  overflow-y: auto;
+}
+.fd-rail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px 8px;
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--fd-mut);
+  font-weight: 700;
+}
+.fd-rail-head button {
+  background: none;
+  border: none;
+  color: var(--fd-mut);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+}
+.fd-rail-head button:hover {
+  color: var(--fd-fg);
+}
+.fd-folder-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 12.5px;
+  color: var(--fd-mut);
+}
+.fd-folder-row:hover {
+  background: var(--fd-elevated);
+  color: var(--fd-fg);
+}
+.fd-folder-row.sel {
+  background: var(--color-accent-subtle);
+  color: var(--fd-fg);
+}
+/* drop target highlight while dragging a flow over a folder */
+.fd-folder-row.drop {
+  background: var(--color-accent-subtle);
+  color: var(--fd-fg);
+  box-shadow: inset 0 0 0 1.5px var(--color-accent);
+}
+.fd-folder-row.drop .fd-folder-ic {
+  color: var(--color-accent);
+}
+.fd-folder-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fd-folder-count {
+  font-family: var(--fd-mono);
+  font-size: 10px;
+  color: var(--fd-subtle);
+}
+.fd-folder-acts {
+  display: none;
+  gap: 2px;
+}
+.fd-folder-row:hover .fd-folder-acts {
+  display: flex;
+}
+.fd-folder-acts button {
+  background: none;
+  border: none;
+  color: var(--fd-subtle);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0 2px;
+}
+.fd-folder-acts button:hover {
+  color: var(--fd-fg);
+}
+.fd-rail-tree {
+  margin-top: 6px;
+  border-top: 1px solid var(--fd-line);
+  padding-top: 6px;
+}
+.fd-gallery-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.fd-gallery-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--fd-line);
+}
+.fd-gallery-spacer {
+  flex: 1;
+}
+.fd-sort {
+  background: var(--fd-elevated);
+  border: 1px solid var(--fd-line);
+  border-radius: var(--radius-sm);
+  color: var(--fd-mut);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 6px 10px;
+}
+.fd-sort:hover {
+  color: var(--fd-fg);
+}
+.fd-gallery-empty {
+  color: var(--fd-subtle);
+  font-size: 13px;
+  padding: 40px 18px;
+}
+.fd-search {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 10px;
+  height: 34px;
+  width: 300px;
+  border: 1px solid var(--fd-line);
+  border-radius: var(--radius-sm);
+  background: var(--fd-elevated);
+  color: var(--fd-mut);
+}
+.fd-search input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--fd-fg);
+  font-size: 13px;
+}
+.fd-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.fd-folder-ic {
+  flex: none;
+  color: var(--fd-subtle);
+}
+
+.fd-flow-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
+  /* size each row to its card and pack at top — inside the height-constrained
+     flex column, `auto` rows collapse the cards to 0. */
+  grid-auto-rows: max-content;
+  align-content: start;
+  gap: 18px;
+  padding: 18px 18px 48px;
+  overflow-y: auto;
+}
+/* flow tile: icon header + name + folder picker footer */
+.fd-flow-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--fd-line);
+  border-radius: var(--fd-radius-lg);
+  background: var(--fd-elevated);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 0.12s, transform 0.12s, box-shadow 0.12s;
+}
+.fd-flow-card:hover {
+  border-color: var(--color-accent);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+}
+/* fade the card being dragged so the drop folder behind it stays visible */
+.fd-flow-card.dragging {
+  opacity: 0.3;
+  transform: none;
+  box-shadow: none;
+}
+/* preview hero — a fitted mini-canvas of the flow (Figma-style).
+   Definite height (NOT aspect-ratio): the thumb is a flex item in a column
+   card, where flex layout overrides aspect-ratio and collapses it to 0. */
+.fd-thumb {
+  flex: none;
+  height: 150px;
+  /* slight 5%-foreground wash so the mini-map preview reads as framed */
+  background: color-mix(in srgb, var(--fd-fg) 5%, var(--fd-bg));
+  border-bottom: 1px solid var(--fd-line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.fd-thumb-svg {
+  width: 100%;
+  height: 100%;
+  padding: 14px;
+}
+.fd-thumb-empty {
+  font-size: 11px;
+  color: var(--fd-subtle);
+  font-style: italic;
+}
+.fd-thumb-skel {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(100deg, transparent 38%, var(--fd-elevated) 50%, transparent 62%);
+  background-size: 220% 100%;
+  animation: fdShimmer 1.2s ease-in-out infinite;
+}
+@keyframes fdShimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+.fd-flow-body {
+  padding: 10px 12px 8px;
+  flex: 1;
+}
+.fd-flow-name {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--fd-fg);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+.fd-flow-sub {
+  margin-top: 4px;
+  font-family: var(--fd-mono);
+  font-size: 10px;
+  color: var(--fd-subtle);
+}
+.fd-flow-foot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border-top: 1px solid var(--fd-line);
+  color: var(--fd-subtle);
+}
+.fd-move-select {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--fd-mut);
+  font-size: 11px;
+  cursor: pointer;
+}
+.fd-move-select:hover {
+  color: var(--fd-fg);
+}
+.fd-flow-del {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: none;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  cursor: pointer;
+}
+.fd-flow-card:hover .fd-flow-del {
+  display: flex;
+}
+.fd-flow-del:hover {
+  background: var(--color-destructive, #f92f77);
+}
+.fd-flow-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  font-size: 9.5px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── floating touch toolbar (Figma/FigJam-style) ─────────────────────────────
+   Small icon bar over the canvas for iPad use (no keyboard). Drag the grip to
+   re-dock bottom ↔ left; selection-gated buttons disable when nothing's picked. */
+.fd-tb {
+  position: absolute;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px;
+  /* Stay strictly inside the canvas — never spill over the left nav or the
+     inspector, where neighbouring UI would paint on top and swallow taps.
+     When the canvas is narrower than the bar, wrap to extra rows instead. */
+  max-width: calc(100% - 16px);
+  max-height: calc(100% - 16px);
+  box-sizing: border-box;
+  background: var(--fd-elevated);
+  border: 1px solid var(--fd-line);
+  border-radius: var(--fd-radius-lg);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+  user-select: none;
+  -webkit-user-select: none;
+}
+.fd-tb-bottom {
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  flex-flow: row wrap;
+}
+.fd-tb-left {
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  flex-flow: column wrap;
+  align-content: center;
+}
+.fd-tb-dragging {
+  flex-flow: row wrap;
+  cursor: grabbing;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
+}
+.fd-tb-grip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  min-height: 40px;
+  border: 0;
+  background: transparent;
+  color: var(--fd-subtle);
+  cursor: grab;
+  border-radius: var(--fd-radius);
+  touch-action: none; /* let pointer-drag own the gesture, not page scroll */
+}
+.fd-tb-left .fd-tb-grip {
+  width: 40px;
+  min-height: 24px;
+}
+.fd-tb-grip:active {
+  cursor: grabbing;
+}
+.fd-tb-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  background: transparent;
+  color: var(--fd-fg);
+  border-radius: var(--fd-radius);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.fd-tb-btn:hover {
+  background: var(--fd-accent-subtle);
+}
+.fd-tb-btn:active {
+  background: var(--fd-input);
+}
+.fd-tb-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+  pointer-events: none;
+}
+.fd-tb-danger:hover {
+  color: #ff5d5d;
+  background: rgba(255, 93, 93, 0.14);
+}
+/* active toggle (e.g. multi-select mode on) */
+.fd-tb-btn.fd-tb-on {
+  background: var(--fd-accent);
+  color: var(--color-surface, #0a0a10);
+}
+.fd-tb-btn.fd-tb-on:hover {
+  background: var(--fd-accent);
+}
+.fd-tb-sep {
+  flex: none;
+  background: var(--fd-line);
+  align-self: stretch;
+}
+.fd-tb-bottom .fd-tb-sep,
+.fd-tb-dragging .fd-tb-sep {
+  width: 1px;
+  margin: 4px 2px;
+}
+.fd-tb-left .fd-tb-sep {
+  height: 1px;
+  margin: 2px 4px;
+}
+/* text-alignment mini-grid (3×3) shown when a node is selected */
+.fd-tb-align {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  padding: 2px;
+  align-self: center;
+}
+.fd-tb-ag {
+  width: 17px;
+  height: 13px;
+  padding: 0;
+  border: 1px solid var(--fd-line);
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+  position: relative;
+}
+.fd-tb-ag::after {
+  content: "";
+  position: absolute;
+  height: 2px;
+  width: 8px;
+  border-radius: 1px;
+  background: var(--fd-mut);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+.fd-tb-ag[data-h="left"]::after {
+  left: 3px;
+  transform: translateY(-50%);
+}
+.fd-tb-ag[data-h="right"]::after {
+  left: auto;
+  right: 3px;
+  transform: translateY(-50%);
+}
+.fd-tb-ag[data-v="top"]::after {
+  top: 31%;
+}
+.fd-tb-ag[data-v="bottom"]::after {
+  top: 69%;
+}
+.fd-tb-ag:hover {
+  border-color: var(--color-border-hover);
+}
+.fd-tb-ag.sel {
+  border-color: var(--fd-accent);
+  background: var(--fd-accent-subtle);
+}
+.fd-tb-ag.sel::after {
+  background: var(--fd-accent);
+}

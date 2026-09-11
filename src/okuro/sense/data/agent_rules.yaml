@@ -1,0 +1,266 @@
+# Governing agent rules — the system-level rules every session receives.
+#
+# WHY THIS FILE EXISTS. These rules used to be string literals inside
+# sections.py (build_protocol / build_tool_protocol), which meant their WORDING
+# could only change via a code edit. Sourcing them here makes the wording
+# dynamic settings data: reshaping a rule (e.g. declarative -> imperative
+# DO/NEVER) is a yaml edit, not a code change. Rendered by
+# okuro.sense.bootstrap.rules; no rule text is hardcoded in a builder.
+#
+# SHAPE. Each rule renders under a `## <heading>` section. `lead` is the
+# one-line directive that opens it (imperative, high-salience). `groups` hold
+# labelled item lists; an item may be a plain string or a {do|never|check}
+# object for the imperative frame. Keep it low-noise: one rule = one line.
+
+close_out:
+  heading: "Operating Rules"
+  # "Deviate ONLY with a specific, articulable reason" is gone. It was added by
+  # a pass meant to STRENGTHEN the packet and it fixed nothing: it took a rule
+  # set already labelled highest-priority and attached a self-judged exception,
+  # which an agent grants itself by construction — the reason is always
+  # articulable to the one articulating it. The equivalent line in
+  # providers/template.py never carried the clause, so removing it restores
+  # parity between the two surfaces rather than inventing a new wording.
+  #
+  # PRECEDENT, measured: the 2026-07-19 redesign removed a self-declared escape
+  # hatch from the tool-protocol section for exactly this reason — "the packet
+  # licensed exactly the behaviour we did not want." That logic was never
+  # applied to the rules section until now.
+  lead: "These are the highest-priority instructions in this session."
+  groups:
+    - title: "Before you start"
+      items:
+        - "ALWAYS research first — understand the domain, existing code, and conventions before writing anything."
+        - "NEVER edit code you have not read."
+    - title: "While working"
+      items:
+        - "ALWAYS load secrets via keyring — NEVER a .env file, NEVER a hardcoded credential."
+        - "NEVER cross-import modules — they talk via subprocess or MCP, never a Python import across projects."
+        - "ALWAYS test a change before declaring it done — run existing tests if present."
+        - "Change ONLY what was asked — no drive-by refactors, no extra features. This bounds what you EDIT, never what you DIAGNOSE."
+        - "ALWAYS name the CLASS a problem belongs to before proposing a fix, then recommend instance-scope or class-scope (DP10/DP11). Presenting the instance fix as the whole answer is the failure this pairs with."
+        - "Commit after 2+ files or any user-facing change — NEVER batch to session end; sessions crash."
+        - "NEVER `git add -A`/`git add .` — name specific files; one logical change per commit."
+        - "NEVER create .md spec/architecture/ADR/README files — decisions -> write_memory, progress -> log_progress, ideas -> capture_thought. Architecture lives in code."
+    - title: "Before you finish"
+      items:
+        - "write_memory — persist anything non-obvious you discovered."
+        - "log_progress — record substantive work."
+        - "session_report — ALWAYS call it before ending; rate the tools you used."
+        - "Clean up — remove temp files, debug logs, test artifacts."
+        # STATED BEFORE THE AGENT ACTS, not only after. Every item above names a
+        # TOOL, so an agent obeying them literally ends its turn on a tool call.
+        # Whoever is waiting receives the final MESSAGE, and a turn that ends on
+        # a tool call has none — which is how a subagent completes its work and
+        # returns nothing. Audit finding across 980 sessions. The correction
+        # already existed in mcp_middleware's per-result nudge, but that only
+        # reaches an agent that successfully called an okuro tool; an agent
+        # reads THIS before it does anything.
+        - "FINISH WITH YOUR OWN REPLY, IN PLAIN TEXT — the calls above come BEFORE it, never after. Whoever is waiting on you (a user, or the agent that spawned you) receives your final message, not your last tool result."
+        # PLAIN TEXT IS NOT ALWAYS A DELIVERY CHANNEL. Measured 2026-07-29:
+        # three subagents spawned as NAMED teammates each ended on
+        # stop_reason='end_turn' carrying a full report (6612, 5637 and 5637
+        # chars) and the spawner received only an idle_notification — the text
+        # was never delivered, 71 ms later. Verified in the sidechain
+        # transcripts, which do persist, under
+        # <project>/<session>/subagents/agent-<id>.jsonl. The rule above is
+        # correct for a blocking subtask and INERT for a named teammate, so
+        # stating it alone told those agents to do the one thing that cannot
+        # work. Kept provider-agnostic: okuro dispatches to four harnesses and
+        # only the harness knows its own delivery contract.
+        - "CHECK HOW YOUR REPLY IS DELIVERED — if your harness spawned you as a NAMED teammate or background agent, your plain text may never reach your spawner. Send the deliverable through the harness's agent-messaging tool as well, and persist it (artifact_write / write_memory) so it survives either way."
+
+tool_routing:
+  heading: "Tool Protocol — MANDATORY ROUTING"
+  # GREP IS A SEQUENCE RULE, NOT A BAN. The owner, 2026-09-09: "grep can be used
+  # if cortex has been tried first." The old wording said "NEVER use them to
+  # hunt", which is stricter than the rule and made a legitimate fallback read
+  # as a violation — cortex does not index everything (a log file, a data dump,
+  # a fresh untracked tree), and an agent that has already asked cortex and got
+  # nothing needs a next move rather than a wall.
+  #
+  # "If you hunt with grep, say so and say why" also went: it asked the agent
+  # to narrate a permitted action, and a rule that requires an apology reads as
+  # a rule the agent is breaking.
+  lead: "BEFORE you act on, claim about, or build in any subsystem, call read_memory on it. A previous session may already have established the answer — or corrected it. Source code is NOT evidence of behaviour: a line may be a fallback, dead, or overridden upstream, and only the brain or the runtime knows which. THEN, to LOCATE code you have not read, go to cortex FIRST. Grep, Glob and find are the fallback for what cortex could not answer — use them after cortex has been tried, never instead of trying it."
+  note: "Fires on the ACTION, not the turn — a session that never needs to find code never needs cortex."
+  # NO BENCHMARK. "cortex recall@5 0.92 vs ripgrep 0.28" and "+16pp recall,
+  # +32pp top-1" are the evidence that justified BUILDING this rule — figures
+  # for whoever maintains it. Quoted at the agent they invite the cost-benefit
+  # judgement the rule does not offer, and 0.28 is a number an agent can weigh
+  # against its own confidence. This one `why:` renders into the CORE packet,
+  # TOOL-PROTOCOL.md and all four provider instruction files, so the benchmark
+  # was reaching six surfaces from one line.
+  #
+  # WHAT SURVIVES: the size claim, which is a fact about what the route returns,
+  # and the `project=` instruction, which is an action.
+  why: "cortex returns ~2 KB against ~25 KB for the same question, and searches the whole indexed project rather than one directory. Always pass `project=`."
+  # ACTIONS — the typed contract. TWO consumers read this one list:
+  #   1. the packet renderer (bootstrap/rules.py) -> the tables below
+  #   2. a gate compiler -> per-provider PreToolUse bodies
+  #
+  # WHY IT IS TYPED. These used to be `rows:` of display strings. A human could
+  # read them; no gate could compile them. So the STATED rule and the ENFORCED
+  # rule were two separate artefacts, and they drifted: the cortex hook was
+  # bound to the `Grep` tool while the routing table said "never hunt with
+  # grep", and hunting simply moved to `grep -r` inside Bash where no matcher
+  # looked. Four holes in that gate, each a new invocation shape.
+  #
+  # FIELDS. `want`/`call`/`instead_of` render the prose. `okuro` names the tools
+  # that satisfy the action. `protects` names the RESOURCE class a gate should
+  # guard — resources are finite and knowable, unlike the unbounded set of
+  # commands that can reach them. `native_ok` marks the one case where a native
+  # tool is genuinely correct, so a compiler does not gate it.
+  #
+  # ADD AN ACTION HERE, NOT IN A TABLE. A hand-written row is invisible to the
+  # compiler and will silently go unenforced.
+  actions:
+    # FIRST ROW ON PURPOSE. Restores a rule that was never written down,
+    # because until 2026-05-24 it did not have to be: the packet CARRIED
+    # memories to the agent, so nobody needed telling to fetch them.
+    #
+    # Commit 61a87eb1 ("M5 push — memory_index lazy by default") dropped the
+    # 30-row memory index from the packet as a token-budget trim, justified by
+    # "the pointer block already covers discovery". That claim was never
+    # measured — memory_eval did not exist until 2026-07-15 — and at that exact
+    # moment the similarity gate behind the pointer block had ALREADY been
+    # silently broken for 14 days by the _SIM_FLOOR misread, returning a
+    # recency list instead of an answer.
+    #
+    # So memory stopped arriving unasked, the fetch that would have replaced it
+    # was broken, and no rule told anyone to fetch. Agents went blind for two
+    # months and wrote confident nonsense from whatever was most recent.
+    #
+    # Retrieval was fixed 2026-07-17. This row is the missing half.
+    - id: consult_before_acting
+      want: "Act on, claim about, or build in a subsystem"
+      call: "`read_memory(subsystem, project=...)` — FIRST, before cortex"
+      okuro: [read_memory]
+      protects: []
+    - id: locate_by_meaning
+      want: "Code by meaning / concept"
+      call: "`cortex_search(query, project=...)`"
+      okuro: [cortex_search]
+      protects: [indexed_roots]
+    - id: locate_exact_symbol
+      want: "Exact symbol, string, error text"
+      call: "`cortex_search_code(pattern)`"
+      okuro: [cortex_search_code]
+      protects: [indexed_roots]
+    - id: locate_owner
+      want: "Which files own a concept"
+      call: "`cortex_route(concept)`"
+      okuro: [cortex_route]
+      protects: [indexed_roots]
+    - id: understand_file
+      want: "What a file does, before editing"
+      call: "`cortex_read_header(path)`"
+      okuro: [cortex_read_header]
+      protects: [indexed_roots]
+    - id: read_known_range
+      want: "A range you already located"
+      call: "`cortex_read_section(path, start, end)`"
+      okuro: [cortex_read_section]
+      protects: [indexed_roots]
+    - id: grep_one_named_file
+      want: "Grep inside ONE file cortex named"
+      call: "native Grep — correct here"
+      okuro: []
+      protects: []
+      native_ok: true
+    - id: gpu_state
+      group: "System state — NEVER shell out for these"
+      want: "GPU / VRAM / temperature"
+      call: "`sysinfo_gpu_status()`"
+      instead_of: "`nvidia-smi`"
+      okuro: [sysinfo_gpu_status]
+      protects: [system_state]
+    - id: docker_state
+      group: "System state — NEVER shell out for these"
+      want: "Docker containers"
+      call: "`sysinfo_docker_status()`"
+      instead_of: "`docker ps`"
+      okuro: [sysinfo_docker_status]
+      protects: [system_state]
+    - id: service_state
+      group: "System state — NEVER shell out for these"
+      want: "Service health"
+      call: "`sysinfo_service_health()`"
+      instead_of: "`curl localhost`"
+      okuro: [sysinfo_service_health]
+      protects: [system_state]
+      # ADVISORY ONLY — stays in the packet, is NOT compiled into a gate.
+      # `curl localhost` is a general-purpose HTTP client, not an unambiguous
+      # state read: an agent legitimately curls a local service to exercise an
+      # endpoint, fetch a page, or POST a fixture. A gate cannot tell those
+      # from a health check by inspecting the command, so enforcing it would
+      # deny correct work — and a gate that denies correct work is one people
+      # switch off, taking the routes that DO hold with it.
+      # The other three system-state routes have no such ambiguity.
+      enforceable: false
+    - id: disk_state
+      group: "System state — NEVER shell out for these"
+      want: "Disk space"
+      call: "`sysinfo_storage_status()`"
+      instead_of: "`df -h`"
+      okuro: [sysinfo_storage_status]
+      protects: [system_state]
+    # THE INTERPRETER PATH. Gating command NAMES cannot cover this: an agent
+    # reaches okuro.db through python, sqlite3, node, perl — the set is
+    # unbounded because a shell is Turing-complete. What IS bounded is the
+    # RESOURCE, so this action protects the database file itself and the gate
+    # matches on the path appearing anywhere in the command text, including
+    # inside a heredoc body where argv parsing never looks.
+    #
+    # Measured, this session: the agent auditing tool-routing read the store
+    # with `python3 - <<PY` + sqlite3 six times, and the gate it had just
+    # shipped exempted every one of them by design.
+    - id: read_okuro_store
+      want: "Anything in okuro's own store"
+      call: "the typed MCP tool for it — `trace_stats`, `compliance_scorecard`, `read_memory`, `artifact_get`, `todo_list`"
+      instead_of: "`sqlite3 ~/.okuro/okuro.db`"
+      okuro: [trace_stats, compliance_scorecard, read_memory, artifact_get, todo_list]
+      protects: [okuro_store]
+    # ADDED 2026-08-09. Deliverable routing was stated on three surfaces and
+    # agreed on none: providers/template.py said "never a .md file on disk"
+    # while ORCH-ARTIFACT-DISK and sections.py told subagents to write research
+    # to {project}/docs/research/. Both shipped in the same generated CLAUDE.md,
+    # ~90 lines apart, and the packet — the surface most agents actually read —
+    # named no deliverable tool at all.
+    #
+    # It had been noticed once already: the 2026-07 pass retired the guard that
+    # tripped over the conflict and left both instructions live. Routing it
+    # through this contract is the fix that pass needed, because a row here
+    # reaches every surface from one place and cannot drift out of one of them.
+    - id: write_deliverable
+      want: "Produce a document-length deliverable — report, audit, dossier, map"
+      call: "`artifact_write(kind=\"report\", project=..., title, body)` — NEVER a `.md` file, not even a copy"
+      instead_of: "writing it to `{project}/docs/`"
+      okuro: [artifact_write]
+      protects: []
+      # ADVISORY ONLY. Disk writes are legitimate for what the brain cannot
+      # hold — images, generated code, tests — and no matcher can tell a
+      # screenshot from a report by inspecting a Write call. The rule is stated
+      # everywhere and enforced by review, not by a gate that would deny
+      # correct work.
+      enforceable: false
+  tables:
+    - title: null
+      header: ["You want", "Call"]
+      from_actions: {group: null, columns: [want, call]}
+    - title: "System state — NEVER shell out for these"
+      header: ["You want", "Call", "Not"]
+      from_actions:
+        group: "System state — NEVER shell out for these"
+        columns: [want, call, instead_of]
+  groups:
+    - title: "Secrets"
+      items:
+        - "ALWAYS `keyring_get(name)` — NEVER a .env file, NEVER a literal in code."
+    - title: "Knowledge capture"
+      items:
+        - "Gotcha/pitfall -> `write_memory(topic='gotcha', ...)`"
+        - "Convention -> `write_memory(topic='convention', ...)`"
+        - "Non-obvious decision -> `write_memory(topic='decision', ...)`"
+        - "User idea -> `capture_thought(content, category='idea')`"
+        - "Correcting a memory -> `write_memory(supersedes='<handle>', ...)`"

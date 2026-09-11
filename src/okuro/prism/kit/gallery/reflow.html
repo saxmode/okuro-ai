@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en" data-theme="okuro">
+<head>
+<meta charset="utf-8">
+<title>prism · board kit — L3 reflow</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../board/tokens.css">
+<link rel="stylesheet" href="../board/theme.css">
+<link rel="stylesheet" href="../board/components.css">
+<link rel="stylesheet" href="../board/zoom-stage.css">
+<link rel="stylesheet" href="gallery.css">
+<script src="../board/zoom-stage.js" defer></script>
+<script src="../board/reveal.js" defer></script>
+<script src="gallery.js" defer></script>
+<script defer>
+  // width-tier switcher for the L3 demo
+  window.addEventListener("DOMContentLoaded", function () {
+    var doc = document.querySelector(".doc-view");
+    document.querySelector(".width-switch").addEventListener("click", function (e) {
+      var b = e.target.closest("button"); if (!b) return;
+      doc.dataset.width = b.dataset.width;
+      document.querySelectorAll(".width-switch button").forEach(function (x) { x.classList.toggle("active", x === b); });
+    });
+  });
+</script>
+</head>
+<body>
+<div class="gallery-wrap" style="max-width:none;padding:0">
+  <div class="gallery-head" style="padding-left:40px;padding-right:40px">
+    <div><h1>L3 reflow</h1><div class="sub">doc-view REFLOWS (never scales) · brand <span data-brand-label></span></div></div>
+    <div class="grow"></div>
+    <span class="viewport-readout"></span>
+    <div class="width-switch brand-switch" role="group" aria-label="width">
+      <button data-width="reading">reading 860</button>
+      <button data-width="wide">wide 1480</button>
+      <button data-width="full" class="active">full 1600</button>
+      <button data-width="ultra">ultra 2560</button>
+    </div>
+    <div class="brand-switch" role="group" aria-label="brand">
+      <button data-brand="okuro">okuro</button>
+      <button data-brand="northwind">Northwind</button>
+      <button data-brand="meridian">Meridian</button>
+    </div>
+    <div class="gallery-links">
+      <a href="index.html">Overview</a>
+      <a href="design-language.html">Design language</a>
+      <a href="components.html">Components</a>
+      <a href="components-ext.html">Ports + high-card</a>
+      <a href="archetypes.html">Archetypes</a>
+      <a href="reflow.html" class="active">L3 reflow</a>
+    </div>
+  </div>
+
+  <div class="doc-view" data-width="full">
+    <div class="l3-doc">
+      <div class="l3-shell">
+        <aside class="l3-toc detail-toc">
+          <div class="toc-eyebrow">On this page</div>
+          <ul>
+            <li><a href="#c1" class="active">The full document</a></li>
+            <li><a href="#c2">Why L3 reflows</a></li>
+            <li><a href="#c2a" class="toc-h3">Measure cap</a></li>
+            <li><a href="#c2b" class="toc-h3">Ultra two-column</a></li>
+            <li><a href="#c3">Provenance</a></li>
+          </ul>
+        </aside>
+        <main class="l3-main">
+          <article class="prose">
+            <h1 id="c1">L3 — the full document, progressively revealed</h1>
+            <p>At L3 the deck stops being slides and becomes the complete document. Where L0–L2 are the fixed 1600×900 canvas scaled to fit, L3 <strong>reflows</strong>: the measure is capped at 72 characters, the layout responds to container width, and at ultra widths the body splits into two columns with a sticky table of contents.</p>
+            <p>This is the one place the kit deliberately abandons the scale-to-fit model. A long read must wrap to the reader's window, not shrink to a postcard. Container queries drive it, so the same article reflows correctly whether it sits in a narrow drawer or a 2560px ultra-wide.</p>
+            <h2 id="c2">Why L3 reflows instead of scaling</h2>
+            <p>Scaling keeps a slide's composition intact — every element holds its relative place, which is exactly what you want for a designed slide. Prose is different: its composition <em>is</em> the wrap. Force prose onto a fixed canvas and you either overflow the frame or scale the type below legibility. Reflow keeps type at its designed size and lets the column breathe.</p>
+            <h3 id="c2a">Measure cap</h3>
+            <p>Body paragraphs and list items are capped at 72ch regardless of container width — the readability floor from the kit spec. Widen the window past the cap and the column stops growing; the gutter absorbs the rest.</p>
+            <h3 id="c2b">Ultra two-column</h3>
+            <p>Past 2000px of container width, the article body flows into two columns with headings spanning both. Switch the width tier to <strong>ultra 2560</strong> above and widen your window to see it engage. The sticky TOC stays pinned on the left.</p>
+            <h2 id="c3">Provenance</h2>
+            <p>Every claim in a real L3 document carries a source link back to the memory system it was mined from — the deck is generated from durable context, never invented at render time.</p>
+            <blockquote>The deck is generated from the brain; L3 is the brain, laid out to read.</blockquote>
+          </article>
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <footer class="site-footer" style="padding-left:40px;padding-right:40px"><span class="accent">prism board kit</span><span class="footer-meta"><span>L3 reflow demo</span></span></footer>
+</div>
+</body>
+</html>

@@ -1,0 +1,24 @@
+<!-- archetype: classification-table / verdict (kit-spec 3b · meridian slide 3). Slots: eyebrow, title, callout, columns[] (header labels — DATA; default = the API-audit set below), rows[] (cells by column index). A column's role (method|verdict) styles that column's cells as badges. -->
+<section class="slide" data-archetype="classification-table">
+  <div class="slide-inner">
+    <div class="slide-eyebrow" data-slot="eyebrow"><span class="slide-num">08</span> API verdict</div>
+    <h1 class="slide-title" data-slot="title">Keep, cut, or <span class="accent">redesign</span></h1>
+    <div class="verdict-callout" data-slot="callout">
+      <span>19 endpoints reviewed</span>
+      <span class="vc-stat"><span class="vc-dot" style="background:var(--ok)"></span>8 essential</span>
+      <span class="vc-stat"><span class="vc-dot" style="background:var(--warn)"></span>5 no-go</span>
+      <span class="vc-stat"><span class="vc-dot" style="background:var(--gold)"></span>6 redesign</span>
+    </div>
+    <div class="verdict-table-wrap" data-slot="table">
+      <table class="verdict-table">
+        <thead><tr data-slot="columns"><th>Endpoint</th><th>Method</th><th>Verdict</th><th>Reason</th></tr></thead>
+        <tbody>
+          <tr class="essential"><td class="ep-path">/inbox/list</td><td><span class="method-badge get">GET</span></td><td><span class="verdict-badge essential">Essential</span></td><td class="ep-reason">Core read path, high traffic</td></tr>
+          <tr class="nogo"><td class="ep-path">/legacy/sync</td><td><span class="method-badge post">POST</span></td><td><span class="verdict-badge nogo">No-go</span></td><td class="ep-reason">Duplicates the event bus</td></tr>
+          <tr class="redesign"><td class="ep-path">/doc/render</td><td><span class="method-badge put">PUT</span></td><td><span class="verdict-badge redesign">Redesign</span></td><td class="ep-reason">Blocking; make it async</td></tr>
+          <tr class="redundant"><td class="ep-path">/ping/v1</td><td><span class="method-badge get">GET</span></td><td><span class="verdict-badge redundant">Redundant</span></td><td class="ep-reason">Superseded by /health</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>

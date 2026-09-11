@@ -1,0 +1,62 @@
+/* Gallery chrome — NOT part of the shipped kit. Frames the specimens and is
+   itself theme-aware via the kit's resolved vars. */
+
+:root {
+  /* generic brand mark for the nav (masked square) — real decks inject a brand SVG */
+  --brand-ic: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 22"><path d="M0 0h24v15l-7 7H0z"/></svg>');
+}
+
+.gallery-wrap { max-width: 1680px; margin: 0 auto; padding: 0 40px 120px; }
+
+.gallery-head {
+  display: flex; align-items: center; gap: 24px; flex-wrap: wrap;
+  padding: 28px 0 20px; border-bottom: 1px solid var(--border); margin-bottom: 40px;
+}
+.gallery-head h1 { font-size: 26px; font-weight: 800; letter-spacing: -0.02em; color: var(--fg-primary); margin: 0; }
+.gallery-head .sub { font-size: 13px; color: var(--fg-tertiary); font-family: var(--font-mono); }
+.gallery-head .grow { margin-left: auto; }
+
+.gallery-links { display: flex; gap: 6px; flex-wrap: wrap; }
+.gallery-links a {
+  font-size: 13px; font-weight: 600; color: var(--fg-secondary); text-decoration: none;
+  padding: 6px 14px; border: 1px solid var(--border); border-radius: var(--radius-pill);
+}
+.gallery-links a:hover { color: var(--accent-text); border-color: var(--accent); }
+.gallery-links a.active { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
+
+/* brand switcher */
+.brand-switch { display: flex; gap: 4px; align-items: center; background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius-pill); padding: 4px; }
+.brand-switch button {
+  font-family: var(--font-mono); font-size: 12px; cursor: pointer; padding: 5px 12px;
+  border: 0; background: transparent; color: var(--fg-secondary); border-radius: var(--radius-pill);
+}
+.brand-switch button.active { background: var(--accent); color: var(--accent-ink); font-weight: 700; }
+
+.viewport-readout { font-family: var(--font-mono); font-size: 11px; color: var(--fg-muted); }
+
+/* section scaffolding */
+.spec-section { margin: 56px 0; }
+.spec-section > h2 {
+  font-size: 13px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--accent-text); margin: 0 0 6px;
+}
+.spec-section > .spec-note { font-size: 13px; color: var(--fg-tertiary); margin: 0 0 24px; max-width: 72ch; }
+.spec-block { margin: 24px 0; padding: 24px; border: 1px dashed var(--border); border-radius: var(--radius-card); background: color-mix(in srgb, var(--bg-elev) 40%, transparent); }
+.spec-block > .spec-label { font-family: var(--font-mono); font-size: 11px; color: var(--fg-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px; }
+
+/* token swatches */
+.swatch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.swatch { border: 1px solid var(--border); border-radius: var(--radius-card); overflow: hidden; }
+.swatch .chip { height: 56px; }
+.swatch .meta { padding: 8px 10px; font-family: var(--font-mono); font-size: 11px; }
+.swatch .meta .name { color: var(--fg-body); }
+.swatch .meta .val { color: var(--fg-muted); }
+
+/* archetype stage embed: a 16:9 box that ZoomStage fits into */
+.stage-embed { width: 100%; aspect-ratio: 16 / 9; border: 1px solid var(--border); border-radius: var(--radius-card); overflow: hidden; margin-bottom: 12px; }
+.stage-caption { display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 12px; color: var(--fg-tertiary); margin-bottom: 40px; }
+.stage-caption .arch-id { color: var(--accent-text); }
+
+/* type specimen */
+.type-row { display: grid; grid-template-columns: 160px 1fr; gap: 20px; align-items: baseline; padding: 12px 0; border-bottom: 1px solid var(--border-soft); }
+.type-row .type-meta { font-family: var(--font-mono); font-size: 11px; color: var(--fg-muted); }

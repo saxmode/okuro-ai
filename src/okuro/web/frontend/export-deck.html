@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>okuro·prism deck</title>
+    <style>
+      html, body, #prism-deck-export-root { height: 100%; margin: 0; }
+      body { background: #0b0b0c; }
+    </style>
+    <!-- The backend injects the DeckDoc payload here before the module runs. The
+         classic inline script executes at parse time, ahead of the deferred
+         module below, so window.__PRISM_DECK__ is always set on mount. -->
+    <script>window.__PRISM_DECK__ = /*__PRISM_DECK_PAYLOAD__*/ null;</script>
+  </head>
+  <body>
+    <div id="prism-deck-export-root"></div>
+    <script type="module" src="/src/prism-deck-export.tsx"></script>
+  </body>
+</html>

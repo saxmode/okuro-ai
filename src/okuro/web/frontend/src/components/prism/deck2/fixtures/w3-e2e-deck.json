@@ -1,0 +1,860 @@
+{
+  "id": "w3-e2e-deck",
+  "title": "Contextual Intelligence — board brief",
+  "brand": "northwind",
+  "tagline": "Commands are commodity. Context is the advantage.",
+  "hero": {
+    "slide": {
+      "archetype": "hero",
+      "slots": {
+        "eyebrow": {
+          "num": "01",
+          "text": "Northwind · board brief"
+        },
+        "title": [
+          {
+            "text": "Commands are commodity. "
+          },
+          {
+            "text": "Context is the advantage.",
+            "accent": true
+          }
+        ],
+        "lede": "The Concierge is proactive where every competitor is reactive.",
+        "personas": [
+          {
+            "mark": "a",
+            "name": "Alex Reiter",
+            "lens": "CEO · Northwind"
+          },
+          {
+            "mark": "b",
+            "name": "Robin Vogt",
+            "lens": "Board · vision"
+          }
+        ],
+        "meta": [
+          {
+            "label": "family",
+            "value": "swiss"
+          },
+          {
+            "label": "audience",
+            "value": "board"
+          }
+        ]
+      }
+    }
+  },
+  "topics": [
+    {
+      "id": "contextual-intelligence",
+      "title": "Contextual Intelligence",
+      "levels": {
+        "L0": {
+          "slide": {
+            "archetype": "card-set",
+            "slots": {
+              "eyebrow": {
+                "num": "01",
+                "text": "the moat"
+              },
+              "title": [
+                {
+                  "text": "Context is the "
+                },
+                {
+                  "text": "moat",
+                  "accent": true
+                }
+              ],
+              "cards": [
+                {
+                  "name": "Person Enrichment"
+                },
+                {
+                  "name": "Ambient Triggers"
+                },
+                {
+                  "name": "Scene Personalization"
+                },
+                {
+                  "name": "Competitor Gap"
+                },
+                {
+                  "name": "Model Tier"
+                }
+              ],
+              "stats": [
+                {
+                  "num": "5",
+                  "numState": "gold",
+                  "lbl": "capabilities"
+                },
+                {
+                  "num": "0",
+                  "lbl": "competitors have any"
+                }
+              ]
+            }
+          }
+        },
+        "L1": {
+          "slide": {
+            "archetype": "disclosure-list",
+            "slots": {
+              "eyebrow": {
+                "num": "02",
+                "text": "five capabilities"
+              },
+              "title": [
+                {
+                  "text": "Five capabilities no competitor has"
+                }
+              ],
+              "rows": [
+                {
+                  "mark": "1",
+                  "title": "Person Enrichment",
+                  "sub": "Claude Haiku 4.5",
+                  "body": "Research arriving guests from public sources; map personality signals to a welcome scene before they ring the bell.",
+                  "toggle": "Detail"
+                },
+                {
+                  "mark": "2",
+                  "title": "Ambient Triggers",
+                  "sub": "AudioTag on edge board",
+                  "body": "Classify crowd noise, music energy, and voice density in real time. Act without a command.",
+                  "toggle": "Detail"
+                },
+                {
+                  "mark": "3",
+                  "title": "Scene Personalization",
+                  "sub": "typed schema",
+                  "body": "Translate enrichment signals into typed Northwind actor commands: lights, music, blinds, temperature.",
+                  "toggle": "Detail"
+                },
+                {
+                  "mark": "4",
+                  "title": "Competitor Gap",
+                  "sub": "moat",
+                  "body": "Every competitor is reactive. The Concierge is not.",
+                  "toggle": "Detail"
+                },
+                {
+                  "mark": "5",
+                  "title": "Model Tier",
+                  "sub": "routing",
+                  "body": "Right model for right task. Not the biggest model.",
+                  "toggle": "Detail"
+                }
+              ]
+            }
+          }
+        },
+        "L2": {
+          "slide": {
+            "archetype": "card-set",
+            "slots": {
+              "eyebrow": {
+                "num": "02",
+                "text": "capabilities · detail"
+              },
+              "title": [
+                {
+                  "text": "Five capabilities no competitor has"
+                }
+              ],
+              "cards": [
+                {
+                  "name": "Person Enrichment",
+                  "desc": "Research arriving guests from public sources; map personality signals to a welcome scene before they ring the bell."
+                },
+                {
+                  "name": "Ambient Triggers",
+                  "desc": "Classify crowd noise, music energy, and voice density in real time. Act without a command."
+                },
+                {
+                  "name": "Scene Personalization",
+                  "desc": "Translate enrichment signals into typed Northwind actor commands: lights, music, blinds, temperature."
+                },
+                {
+                  "name": "Competitor Gap",
+                  "desc": "Every competitor is reactive. The Concierge is not."
+                },
+                {
+                  "name": "Model Tier",
+                  "desc": "Right model for right task. Not the biggest model."
+                }
+              ],
+              "stats": [
+                {
+                  "num": "Haiku 4.5",
+                  "lbl": "right model for right task"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "l3": {
+        "title": "Contextual Intelligence — full context",
+        "width": "wide",
+        "sections": [
+          {
+            "id": "moat",
+            "heading": "Context is the moat",
+            "level": 1,
+            "md": "Commands are commodity. Context is the advantage.\n\nCommands are commodity.Context is the advantage."
+          },
+          {
+            "id": "capabilities",
+            "heading": "Five capabilities",
+            "level": 2,
+            "md": "- **Person Enrichment** — Research arriving guests from public sources; map personality signals to a welcome scene before they ring the bell. _(Claude Haiku 4.5)_\n- **Ambient Triggers** — Classify crowd noise, music energy, and voice density in real time. Act without a command. _(AudioTag on edge board)_\n- **Scene Personalization** — Translate enrichment signals into typed Northwind actor commands: lights, music, blinds, temperature. _(typed schema)_\n- **Competitor Gap** — Every competitor is reactive. The Concierge is not. _(moat)_\n- **Model Tier** — Right model for right task. Not the biggest model. _(routing)_"
+          }
+        ]
+      }
+    },
+    {
+      "id": "privacy-safeguards",
+      "title": "Privacy Safeguards",
+      "levels": {
+        "L0": {
+          "slide": {
+            "archetype": "disclosure-list",
+            "slots": {
+              "eyebrow": {
+                "num": "06",
+                "text": "compliant by design"
+              },
+              "title": [
+                {
+                  "text": "Privacy safeguards under house policy"
+                }
+              ],
+              "rows": [
+                {
+                  "mark": "1",
+                  "title": "Lawful basis",
+                  "sub": "legal basis",
+                  "body": "Legitimate interest — hospitality personalization using publicly available data.",
+                  "toggle": "Detail"
+                },
+                {
+                  "mark": "2",
+                  "title": "Non-sensitive data",
+                  "sub": "no sensitive data",
+                  "body": "Career, public interests, cultural background — not a sensitive category.",
+                  "toggle": "Detail"
+                },
+                {
+                  "mark": "3",
+                  "title": "Deletion",
+                  "sub": "retention",
+                  "body": "Enrichment data deleted after the visit (proportionality).",
+                  "toggle": "Detail"
+                }
+              ]
+            }
+          }
+        },
+        "L1": {
+          "slide": {
+            "archetype": "disclosure-list",
+            "slots": {
+              "eyebrow": {
+                "num": "06",
+                "text": "safeguards · 6 of 8"
+              },
+              "title": [
+                {
+                  "text": "Privacy safeguards under house policy"
+                }
+              ],
+              "rows": [
+                {
+                  "mark": "1",
+                  "title": "Lawful basis",
+                  "sub": "legal basis",
+                  "body": "Legitimate interest — hospitality personalization using publicly available data.",
+                  "toggle": "Detail"
+                },
+                {
+                  "mark": "2",
+                  "title": "Non-sensitive data",
+                  "sub": "no sensitive data",
+                  "body": "Career, public interests, cultural background — not a sensitive category.",
+                  "toggle": "Detail"
+                },
+                {
+                  "mark": "3",
+                  "title": "Deletion",
+                  "sub": "retention",
+                  "body": "Enrichment data deleted after the visit (proportionality).",
+                  "toggle": "Detail"
+                },
+                {
+                  "mark": "4",
+                  "title": "Sensitive categories",
+                  "sub": "excluded",
+                  "body": "Health, political views, religion — never processed unless publicly shared.",
+                  "toggle": "Detail"
+                },
+                {
+                  "mark": "5",
+                  "title": "Public data only",
+                  "sub": "sourcing",
+                  "body": "Encyclopaedia, news search, press — publicly available sources.",
+                  "toggle": "Detail"
+                },
+                {
+                  "mark": "6",
+                  "title": "Anonymisation",
+                  "sub": "retention",
+                  "body": "Scene template retained only if explicitly anonymised.",
+                  "toggle": "Detail"
+                }
+              ]
+            }
+          }
+        },
+        "L2": {
+          "slide": {
+            "archetype": "disclosure-list",
+            "slots": {
+              "eyebrow": {
+                "num": "06",
+                "text": "safeguards · complete"
+              },
+              "title": [
+                {
+                  "text": "Privacy safeguards under house policy"
+                }
+              ],
+              "rows": [
+                {
+                  "mark": "1",
+                  "title": "Lawful basis",
+                  "sub": "legal basis",
+                  "body": "Legitimate interest — hospitality personalization using publicly available data.",
+                  "toggle": "Detail"
+                },
+                {
+                  "mark": "2",
+                  "title": "Non-sensitive data",
+                  "sub": "no sensitive data",
+                  "body": "Career, public interests, cultural background — not a sensitive category.",
+                  "toggle": "Detail"
+                },
+                {
+                  "mark": "3",
+                  "title": "Deletion",
+                  "sub": "retention",
+                  "body": "Enrichment data deleted after the visit (proportionality).",
+                  "toggle": "Detail"
+                },
+                {
+                  "mark": "4",
+                  "title": "Sensitive categories",
+                  "sub": "excluded",
+                  "body": "Health, political views, religion — never processed unless publicly shared.",
+                  "toggle": "Detail"
+                },
+                {
+                  "mark": "5",
+                  "title": "Public data only",
+                  "sub": "sourcing",
+                  "body": "Encyclopaedia, news search, press — publicly available sources.",
+                  "toggle": "Detail"
+                },
+                {
+                  "mark": "6",
+                  "title": "Anonymisation",
+                  "sub": "retention",
+                  "body": "Scene template retained only if explicitly anonymised.",
+                  "toggle": "Detail"
+                },
+                {
+                  "mark": "7",
+                  "title": "Silent fallback",
+                  "sub": "graceful",
+                  "body": "No useful signals -> silent fallback to the venue default.",
+                  "toggle": "Detail"
+                },
+                {
+                  "mark": "8",
+                  "title": "Counsel sign-off",
+                  "sub": "governance",
+                  "body": "Recommend privacy counsel sign-off before production.",
+                  "toggle": "Detail"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "l3": {
+        "title": "Privacy Safeguards — full context",
+        "width": "wide",
+        "sections": [
+          {
+            "id": "dsg",
+            "heading": "All eight safeguards",
+            "level": 1,
+            "md": "- **Lawful basis** — Legitimate interest — hospitality personalization using publicly available data. _(legal basis)_\n- **Non-sensitive data** — Career, public interests, cultural background — not a sensitive category. _(no sensitive data)_\n- **Deletion** — Enrichment data deleted after the visit (proportionality). _(retention)_\n- **Sensitive categories** — Health, political views, religion — never processed unless publicly shared. _(excluded)_\n- **Public data only** — Encyclopaedia, news search, press — publicly available sources. _(sourcing)_\n- **Anonymisation** — Scene template retained only if explicitly anonymised. _(retention)_\n- **Silent fallback** — No useful signals -> silent fallback to the venue default. _(graceful)_\n- **Counsel sign-off** — Recommend privacy counsel sign-off before production. _(governance)_"
+          }
+        ]
+      }
+    },
+    {
+      "id": "cost-latency",
+      "title": "Cost & Latency",
+      "levels": {
+        "L0": {
+          "slide": {
+            "archetype": "framework-tiles",
+            "slots": {
+              "eyebrow": {
+                "num": "04",
+                "text": "the numbers"
+              },
+              "title": [
+                {
+                  "text": "CHF 0.58/month, sub-12ms"
+                }
+              ],
+              "tiles": [
+                {
+                  "label": "Person enrichment",
+                  "value": "CHF 0.58/mo",
+                  "desc": "24 guests × CHF 0.024/task"
+                },
+                {
+                  "label": "AudioTag classify",
+                  "value": "<12 ms",
+                  "desc": "400 audio classes on an edge board"
+                },
+                {
+                  "label": "T2 research task",
+                  "value": "17K tokens",
+                  "desc": "worst case"
+                }
+              ]
+            }
+          }
+        },
+        "L1": {
+          "slide": {
+            "archetype": "framework-tiles",
+            "slots": {
+              "eyebrow": {
+                "num": "04",
+                "text": "cost + latency"
+              },
+              "title": [
+                {
+                  "text": "Full cost and latency budget"
+                }
+              ],
+              "tiles": [
+                {
+                  "label": "Person enrichment",
+                  "value": "CHF 0.58/mo",
+                  "desc": "24 guests × CHF 0.024/task"
+                },
+                {
+                  "label": "Ambient (AudioTag)",
+                  "value": "~CHF 0",
+                  "desc": "3.7 MB, <12 ms, zero cloud cost"
+                },
+                {
+                  "label": "Model tier",
+                  "value": "Haiku 4.5",
+                  "desc": "right model for right task"
+                },
+                {
+                  "label": "AudioTag classify",
+                  "value": "<12 ms",
+                  "desc": "400 audio classes on an edge board"
+                },
+                {
+                  "label": "Party mode",
+                  "value": "20 min",
+                  "desc": "crowd noise sustained ≥0.75"
+                },
+                {
+                  "label": "Context window",
+                  "value": "17K tokens",
+                  "desc": "8.5% of Haiku 200K"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "l3": {
+        "title": "Cost & Latency — full context",
+        "width": "wide",
+        "sections": [
+          {
+            "id": "cost",
+            "heading": "Cost",
+            "level": 1,
+            "md": "- **Person enrichment**: CHF 0.58/mo _(24 guests × CHF 0.024/task)_\n- **Ambient (AudioTag)**: ~CHF 0 _(3.7 MB, <12 ms, zero cloud cost)_\n- **Model tier**: Haiku 4.5 _(right model for right task)_"
+          },
+          {
+            "id": "latency",
+            "heading": "Latency",
+            "level": 2,
+            "md": "- **AudioTag classify**: <12 ms _(400 audio classes on an edge board)_\n- **Party mode**: 20 min _(crowd noise sustained ≥0.75)_\n- **Context window**: 17K tokens _(8.5% of Haiku 200K)_"
+          }
+        ]
+      }
+    },
+    {
+      "id": "competitors",
+      "title": "Competitors",
+      "levels": {
+        "L0": {
+          "slide": {
+            "archetype": "classification-table",
+            "slots": {
+              "eyebrow": {
+                "num": "08",
+                "text": "the field"
+              },
+              "title": [
+                {
+                  "text": "Five competitors, one gap"
+                }
+              ],
+              "columns": [
+                {
+                  "label": "System"
+                },
+                {
+                  "label": "What they do"
+                },
+                {
+                  "label": "Verdict",
+                  "role": "verdict"
+                }
+              ],
+              "rows": [
+                {
+                  "cells": [
+                    "Halcyon",
+                    "Closest — HalcyonGPT 3.0, fluent natural language, on-prem for privacy; but cannot research a guest.",
+                    "closest"
+                  ],
+                  "verdict": "essential"
+                },
+                {
+                  "cells": [
+                    "Belltower",
+                    "—",
+                    "reactive"
+                  ],
+                  "verdict": "redundant"
+                },
+                {
+                  "cells": [
+                    "Quartzline",
+                    "—",
+                    "reactive"
+                  ],
+                  "verdict": "redundant"
+                },
+                {
+                  "cells": [
+                    "Fernbank",
+                    "—",
+                    "reactive"
+                  ],
+                  "verdict": "redundant"
+                },
+                {
+                  "cells": [
+                    "Umbra",
+                    "—",
+                    "reactive"
+                  ],
+                  "verdict": "redundant"
+                }
+              ]
+            }
+          }
+        },
+        "L1": {
+          "slide": {
+            "archetype": "classification-table",
+            "slots": {
+              "eyebrow": {
+                "num": "08",
+                "text": "field · detail"
+              },
+              "title": [
+                {
+                  "text": "What they do, where they miss"
+                }
+              ],
+              "columns": [
+                {
+                  "label": "System"
+                },
+                {
+                  "label": "What they do"
+                },
+                {
+                  "label": "Verdict",
+                  "role": "verdict"
+                }
+              ],
+              "rows": [
+                {
+                  "cells": [
+                    "Halcyon",
+                    "Closest — HalcyonGPT 3.0, fluent natural language, on-prem for privacy; but cannot research a guest.",
+                    "closest"
+                  ],
+                  "verdict": "essential"
+                },
+                {
+                  "cells": [
+                    "Belltower",
+                    "—",
+                    "reactive"
+                  ],
+                  "verdict": "redundant"
+                },
+                {
+                  "cells": [
+                    "Quartzline",
+                    "—",
+                    "reactive"
+                  ],
+                  "verdict": "redundant"
+                },
+                {
+                  "cells": [
+                    "Fernbank",
+                    "—",
+                    "reactive"
+                  ],
+                  "verdict": "redundant"
+                },
+                {
+                  "cells": [
+                    "Umbra",
+                    "—",
+                    "reactive"
+                  ],
+                  "verdict": "redundant"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "l3": {
+        "title": "Competitors — full context",
+        "width": "wide",
+        "sections": [
+          {
+            "id": "competitors",
+            "heading": "The competitive field",
+            "level": 1,
+            "md": "- **Halcyon** — Closest — HalcyonGPT 3.0, fluent natural language, on-prem for privacy; but cannot research a guest.\n- **Belltower** — reactive; no proactive context\n- **Quartzline** — reactive; no proactive context\n- **Fernbank** — reactive; no proactive context\n- **Umbra** — reactive; no proactive context"
+          }
+        ]
+      }
+    }
+  ],
+  "accuracy": {
+    "levels": {},
+    "cells": {
+      "L0-0": [
+        {
+          "claim": "caps",
+          "component": "card-set",
+          "emphasis": "focal",
+          "rendered": 5,
+          "total": 5,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 5,
+          "content_incomplete": false
+        }
+      ],
+      "L1-0": [
+        {
+          "claim": "caps",
+          "component": "disclosure-list",
+          "emphasis": "focal",
+          "rendered": 5,
+          "total": 5,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 5,
+          "content_incomplete": false
+        }
+      ],
+      "L2-0": [
+        {
+          "claim": "caps",
+          "component": "card-set",
+          "emphasis": "focal",
+          "rendered": 5,
+          "total": 5,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 5,
+          "content_incomplete": false
+        }
+      ],
+      "L0-1": [
+        {
+          "claim": "dsg",
+          "component": "disclosure-list",
+          "emphasis": "support",
+          "rendered": 3,
+          "total": 8,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "3 of 8 — all 8 in L4",
+          "count_mismatch": false,
+          "content_available": 8,
+          "content_incomplete": false
+        }
+      ],
+      "L1-1": [
+        {
+          "claim": "dsg",
+          "component": "disclosure-list",
+          "emphasis": "focal",
+          "rendered": 6,
+          "total": 8,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "6 of 8 — all 8 in L4",
+          "count_mismatch": false,
+          "content_available": 8,
+          "content_incomplete": false
+        }
+      ],
+      "L2-1": [
+        {
+          "claim": "dsg",
+          "component": "disclosure-list",
+          "emphasis": "focal",
+          "rendered": 8,
+          "total": 8,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 8,
+          "content_incomplete": false
+        }
+      ],
+      "L0-2": [
+        {
+          "claim": "cost",
+          "component": "framework-tiles",
+          "emphasis": "focal",
+          "rendered": 3,
+          "total": 3,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 3,
+          "content_incomplete": false
+        }
+      ],
+      "L1-2": [
+        {
+          "claim": "cost",
+          "component": "framework-tiles",
+          "emphasis": "focal",
+          "rendered": 3,
+          "total": 3,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 3,
+          "content_incomplete": false
+        },
+        {
+          "claim": "latency",
+          "component": "framework-tiles",
+          "emphasis": "support",
+          "rendered": 3,
+          "total": 3,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 3,
+          "content_incomplete": false
+        }
+      ],
+      "L0-3": [
+        {
+          "claim": "competitors",
+          "component": "classification-table",
+          "emphasis": "focal",
+          "rendered": 5,
+          "total": 5,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 1,
+          "content_incomplete": true
+        }
+      ],
+      "L1-3": [
+        {
+          "claim": "competitors",
+          "component": "classification-table",
+          "emphasis": "focal",
+          "rendered": 5,
+          "total": 5,
+          "in_l4": true,
+          "synthesized": false,
+          "fallback": false,
+          "affordance": "",
+          "count_mismatch": false,
+          "content_available": 1,
+          "content_incomplete": true
+        }
+      ]
+    },
+    "silent_deficits": [],
+    "count_mismatches": [],
+    "synthesized": [],
+    "fallback": [],
+    "content_gaps": [
+      "competitors"
+    ]
+  }
+}
