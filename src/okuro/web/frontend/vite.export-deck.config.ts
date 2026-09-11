@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { viteSingleFile } from "vite-plugin-singlefile";
 import path from "path";
+import { okuroAliases } from "./vite.aliases";
 
 // Build for the deck2 single-file HTML export (PRISM v4 W4 / R33). Renders the
 // SAME DeckShadowHost the live viewer uses, so nothing drifts. viteSingleFile
@@ -12,12 +13,7 @@ import path from "path";
 // emptyOutDir never wipes it and vice-versa.
 export default defineConfig({
   plugins: [react(), viteSingleFile()],
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-      "@kit": path.resolve(__dirname, "../../prism/kit/board"),
-    },
-  },
+  resolve: { alias: okuroAliases(__dirname) },
   build: {
     outDir: "../export-dist/deck",
     emptyOutDir: true,
