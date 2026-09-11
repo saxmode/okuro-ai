@@ -381,8 +381,18 @@ def gate_owner(
 
 
 def gate_install_smoke(root: Path) -> list[Finding]:
-    """Fresh venv → pip install → ``okuro --version``. Catches allowlist rot
-    before a public user does. Slow by nature; run it last.
+    """Fresh venv → pip install → ``okuro --version`` → the full UI build.
+    Catches allowlist rot before a public user does. Slow by nature; run it
+    last.
+
+    THE UI BUILD IS PART OF THE SMOKE, not optional. install.sh runs
+    scripts/build-frontend.sh and dies if it fails — so an export whose UI
+    does not build is an export that does not install, and the gate must say
+    so. Measured 2026-09-12 on a Mac: pip and ``okuro --version`` were green
+    while ``pnpm build:export-deck`` had been failing on every machine for
+    seven weeks (a vite alias missing from one of three configs). The build
+    is checked by the same script the installer runs, in the throwaway copy,
+    and the three outputs the API serves must exist afterwards.
 
     Installs from a THROWAWAY COPY, never from ``root``: pip's build (and
     okuro's own build hook) writes into the source tree — ``__pycache__``,
@@ -394,10 +404,22 @@ def gate_install_smoke(root: Path) -> list[Finding]:
         venv = Path(tmp) / "venv"
         workcopy = Path(tmp) / "tree"
         shutil.copytree(root, workcopy)
+        if shutil.which("node") is None or shutil.which("bash") is None:
+            return [Finding("install-smoke", "scripts/build-frontend.sh",
+                            "cannot verify the UI build — node is not on this host's PATH")]
+        fe = workcopy / "src" / "okuro" / "web" / "frontend"
+        web = workcopy / "src" / "okuro" / "web"
+        build_and_check = (
+            f'bash "{workcopy}/scripts/build-frontend.sh" "{fe}"'
+            f' && test -f "{web}/dist/index.html"'
+            f' && test -f "{web}/export-dist/export.html"'
+            f' && test -f "{web}/export-dist/deck/export-deck.html"'
+        )
         steps: list[list[str]] = [
             [sys.executable, "-m", "venv", str(venv)],
             [str(venv / "bin" / "pip"), "install", "--quiet", "-e", str(workcopy)],
             [str(venv / "bin" / "okuro"), "--version"],
+            ["bash", "-c", build_and_check],
         ]
         for cmd in steps:
             proc = subprocess.run(cmd, capture_output=True, text=True)

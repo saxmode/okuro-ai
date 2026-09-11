@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { viteSingleFile } from "vite-plugin-singlefile";
 import path from "path";
+import { okuroAliases } from "./vite.aliases";
 
 // Build for the Prism single-file HTML export. Separate from the main SPA build
 // so the app stays code-split while each exported deck is ONE self-contained
@@ -13,9 +14,7 @@ import path from "path";
 // `emptyOutDir: true` and would otherwise wipe this template on every rebuild.
 export default defineConfig({
   plugins: [react(), viteSingleFile()],
-  resolve: {
-    alias: { "@": path.resolve(__dirname, "./src") },
-  },
+  resolve: { alias: okuroAliases(__dirname) },
   build: {
     outDir: "../export-dist",
     emptyOutDir: true,

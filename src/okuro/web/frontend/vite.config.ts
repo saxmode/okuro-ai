@@ -1,6 +1,7 @@
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
+import { okuroAliases } from "./vite.aliases";
 import { readFile, writeFile } from "node:fs/promises";
 
 // Stamp `__BUILD_ID__` in dist/sw.js with a build-time timestamp so the browser
@@ -27,18 +28,8 @@ function swBuildStamp(): Plugin {
 export default defineConfig({
   plugins: [react(), swBuildStamp()],
   resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-      // The prism board kit (styling authority) lives outside the frontend src.
-      // The deck v2 runtime imports its CSS/JS as ?raw to inject into a shadow
-      // root — single source of truth, never copied (no drift). fs.allow below
-      // grants the dev server read access to that sibling package dir.
-      "@kit": path.resolve(__dirname, "../../prism/kit/board"),
-      // The composed-slide grid CSS (.composed-slide/-row/-cell) lives in the kit
-      // gallery, not board — the deck's ComposedCell injects it so the solver's
-      // grid placement renders in the viewer exactly as in the gallery.
-      "@kitgallery": path.resolve(__dirname, "../../prism/kit/gallery"),
-    },
+    // Shared with the two export configs — see vite.aliases.ts for why.
+    alias: okuroAliases(__dirname),
   },
   build: {
     outDir: "../dist",
