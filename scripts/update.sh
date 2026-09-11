@@ -191,6 +191,35 @@ lineage_swapped() {
     [[ "$rc" == "1" ]]
 }
 
+# Full copy of the okuro home beside it, before anything moves: every entry
+# except regenerable caches and the backups. `okuro backup create` below is
+# the consistent DATABASE copy; this is everything else, taken by the one
+# piece of code that does not depend on which okuro version is installed.
+# Unaffordable or failed → abort, nothing changed.
+snapshot_okuro_home() {   # <dest>
+    local src="${OKURO_HOME:-$HOME/.okuro}" dest="$1"
+    [[ -d "$src" ]] || { echo "[update] no $src yet — nothing to snapshot"; return 0; }
+    local ex="backups .deploy-backups hf models comfyui cortex prism-cache cache webview voice-previews repos proof logs"
+    local need kb e
+    need="$(du -sk "$src" 2>/dev/null | cut -f1)"
+    for e in $ex; do
+        [[ -e "$src/$e" ]] && { kb="$(du -sk "$src/$e" 2>/dev/null | cut -f1)"; need=$((need - ${kb:-0})); }
+    done
+    local free; free="$(df -Pk "$(dirname "$dest")" | awk 'NR==2{print $4}')"
+    if [[ "${free:-0}" -le $((need + need / 10)) ]]; then
+        echo "[update] not enough disk for a full snapshot of $src (need ~$((need / 1024)) MB, $((${free:-0} / 1024)) MB free) — aborting, nothing changed" >&2
+        exit 1
+    fi
+    if [[ "$DRY" == "1" ]]; then echo "[dry-run] would: full copy of $src → $dest"; return 0; fi
+    mkdir -p "$dest"
+    local args=(); for e in $ex; do args+=("--exclude=./$e"); done
+    if ! ( cd "$src" && tar -cf - "${args[@]}" . ) | ( cd "$dest" && tar -xpf - ); then
+        echo "[update] snapshot to $dest failed — aborting, nothing changed" >&2
+        exit 1
+    fi
+    echo "[update] full copy of $src kept at $dest (everything but caches; delete it once the new install checks out)"
+}
+
 # Replace this checkout with a fresh clone of the new lineage, then hand the
 # rest of the job to the new copy's installer. Never returns.
 reclone_after_lineage_swap() {
@@ -208,6 +237,7 @@ reclone_after_lineage_swap() {
     echo "[update] directory is code plus build output the installer regenerates."
 
     if [[ "$DRY" == "1" ]]; then
+        echo "[dry-run] would: full copy of ${OKURO_HOME:-$HOME/.okuro} → ${OKURO_HOME:-$HOME/.okuro}.pre-reclone-${ts}"
         echo "[dry-run] would: $OKURO backup create --label pre-reclone"
         echo "[dry-run] would: git clone --branch $branch $remote_url $staging"
         echo "[dry-run] would: mv $REPO_ROOT $retired  &&  mv $staging $REPO_ROOT"
@@ -216,11 +246,13 @@ reclone_after_lineage_swap() {
         exit 0
     fi
 
+    snapshot_okuro_home "${OKURO_HOME:-$HOME/.okuro}.pre-reclone-${ts}"
+
     # Same backup machinery as the quiesce step, own label so the recovery
     # snapshot is identifiable in `okuro backup list`. Services are already
     # stopped (quiesce above, or the parent process before a self-reexec).
     # A failed backup ABORTS — nothing is moved, nothing is lost.
-    echo "[update] backing up current state (DB + keyring) before re-clone…"
+    echo "[update] backing up current state before re-clone…"
     if ! run "$OKURO" backup create --label pre-reclone; then
         echo "[update] BACKUP FAILED — aborting re-clone. Your checkout and data are untouched." >&2
         exit 1

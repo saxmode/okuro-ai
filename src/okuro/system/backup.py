@@ -2,8 +2,9 @@
 # <!-- AGENT_HEADER
 # role: code
 # purpose: okuro state backup + restore — WAL-consistent okuro.db snapshots
-#   plus keyring/config, used by `okuro backup` and the update flow. The
-#   corruption guard is stopping the DB-writer services, not closing windows.
+#   plus EVERYTHING else in ~/.okuro that is not a regenerable cache, used by
+#   `okuro backup` and the update flow. The corruption guard is stopping the
+#   DB-writer services, not closing windows.
 # index:
 #   paths
 #   def create_backup
@@ -17,9 +18,21 @@ Every backup is a self-contained directory under ``~/.okuro/backups/``:
 
     <UTC-timestamp>-<label>/
         okuro.db          WAL-consistent online copy (sqlite3 .backup API)
-        keyring/          the file-keyring vault (optional, default on)
-        config.json       if present
-        manifest.json     timestamp, label, git sha, schema version, row counts
+        <every other entry of ~/.okuro>   config.yaml, keyring/, tokens,
+                          corpora/, deliveries/, roles/, guard/, … — copied
+                          as-is; other *.db files via the sqlite backup API
+        manifest.json     timestamp, label, git sha, schema version, row
+                          counts, the entries carried and the ones excluded
+
+WHAT IS EXCLUDED, AND WHY IT IS A DENYLIST. The backup used to be an
+allowlist — db, keyring, then three more folders added in 2026-08 — and it
+drifted every time ~/.okuro gained a new kind of data: measured 2026-09-09,
+config.yaml, the API tokens, corpora, deliveries and attachments (~1.8 GB
+of data with no other copy) were not in it. The update stakes a user's data
+on this backup, so the rule is inverted: EVERYTHING is carried except the
+entries in EXCLUDED_ENTRIES, which are regenerable caches (models, indexes,
+build output), clones with their own remotes, and the backups themselves.
+A new kind of user data is therefore backed up on the day it appears.
 
 Restore stops the DB-writer services first (so no stale process holds the
 DB open), snapshots the CURRENT state as a safety net, swaps the files in,
@@ -74,6 +87,24 @@ def _effective_keep(db_size: int) -> int:
     if db_size <= 0:
         return RETENTION
     return min(RETENTION, max(1, _max_backup_bytes() // db_size))
+
+#: Top-level entries of ~/.okuro that a backup deliberately does NOT carry.
+#: Every one is regenerable from the network, from the repo, or from the
+#: data that IS carried — or is itself a backup. Anything not listed here
+#: ships in every backup, by construction.
+EXCLUDED_ENTRIES = frozenset({
+    "backups", ".deploy-backups",          # the backups themselves
+    "hf", "models", "comfyui",             # downloaded model weights
+    "cortex", "prism-cache", "cache",      # indexes and caches rebuilt by the daemon
+    "webview", "voice-previews",           # build output / generated previews
+    "repos",                               # managed clones with their own remotes
+    "proof",                               # regenerable screenshots
+    "logs",                                # runtime logs
+})
+
+#: The main database and its WAL sidecars — copied via the sqlite backup
+#: API, never as files.
+_DB_ENTRIES = ("okuro.db", "okuro.db-wal", "okuro.db-shm")
 
 # Stop order = writers last-to-first; start order = the reverse. embed does
 # not write okuro.db but is cycled for a clean, consistent restart.
@@ -164,6 +195,45 @@ def _backup_db_wal_safe(src: Path, dst: Path) -> None:
         source.close()
 
 
+def backup_entries(base: Path) -> list[str]:
+    """Every top-level entry of ``base`` a backup carries, sorted."""
+    return sorted(
+        p.name for p in Path(base).iterdir()
+        if p.name not in EXCLUDED_ENTRIES and p.name not in _DB_ENTRIES
+    )
+
+
+def _tree_bytes(paths: list[Path]) -> int:
+    total = 0
+    for p in paths:
+        if p.is_symlink():
+            continue
+        if p.is_file():
+            total += p.stat().st_size
+        elif p.is_dir():
+            for f in p.rglob("*"):
+                if f.is_file() and not f.is_symlink():
+                    total += f.stat().st_size
+    return total
+
+
+def _copy_entry(src: Path, dst: Path) -> None:
+    """Copy one ~/.okuro entry into a backup dir, preserving what it is."""
+    if src.is_symlink():
+        if dst.is_symlink() or dst.exists():
+            dst.unlink() if not dst.is_dir() or dst.is_symlink() else shutil.rmtree(dst)
+        os.symlink(os.readlink(src), dst)
+    elif src.is_dir():
+        shutil.copytree(src, dst, symlinks=True, dirs_exist_ok=True)
+    elif src.suffix == ".db":
+        try:
+            _backup_db_wal_safe(src, dst)
+        except sqlite3.Error:
+            shutil.copy2(src, dst)
+    else:
+        shutil.copy2(src, dst)
+
+
 # ── create ──────────────────────────────────────────────────────────────────
 
 def create_backup(label: str = "manual", *, include_keyring: bool = True,
@@ -178,14 +248,17 @@ def create_backup(label: str = "manual", *, include_keyring: bool = True,
     bdir = base / "backups"
     bdir.mkdir(parents=True, exist_ok=True)
 
+    entries = [e for e in backup_entries(base) if include_keyring or e != "keyring"]
+    total_bytes = db_size + _tree_bytes([base / e for e in entries])
+
     # Disk safety: prune to (keep-1) FIRST so the new copy reuses freed space,
-    # then REFUSE if there still isn't room for a full DB copy + 10% headroom.
-    # Without this, backing up a multi-GB DB can fill the disk and break the
-    # very update the backup was meant to protect.
-    keep = _effective_keep(db_size)
+    # then REFUSE if there still isn't room for the whole backup + 10%
+    # headroom. Without this, backing up a multi-GB DB can fill the disk and
+    # break the very update the backup was meant to protect.
+    keep = _effective_keep(total_bytes)
     _prune(bdir, keep=max(0, keep - 1))
     free = shutil.disk_usage(bdir).free
-    needed = int(db_size * 1.1)
+    needed = int(total_bytes * 1.1)
     if free < needed:
         raise OSError(
             f"insufficient disk for backup: need ~{needed / 1e9:.1f} GB, only "
@@ -201,21 +274,14 @@ def create_backup(label: str = "manual", *, include_keyring: bool = True,
 
     _backup_db_wal_safe(src_db, dest / "okuro.db")
 
-    if include_keyring and (base / "keyring").exists():
-        shutil.copytree(base / "keyring", dest / "keyring", dirs_exist_ok=True)
-    if (base / "config.json").exists():
-        shutil.copy2(base / "config.json", dest / "config.json")
-
-    # User-layer content that used to live (wrongly) in the git tree — since
-    # the infrastructure/data cut, ~/.okuro is its ONLY copy, so the backup
-    # must carry it: personal roles, user design kits, the guard token list.
-    # All KB-scale next to the DB; deliberately NOT proof/ (regenerable
-    # screenshots) or repos/ (clones with their own remotes).
-    extras = []
-    for extra in ("roles", "design-systems", "guard"):
-        if (base / extra).exists():
-            shutil.copytree(base / extra, dest / extra, dirs_exist_ok=True)
-            extras.append(extra)
+    # Everything else, by denylist: config, tokens, keyring, personal roles,
+    # design kits, the guard list, corpora, deliveries, attachments, flows,
+    # stacks, … — whatever is there today and whatever appears tomorrow.
+    for name in entries:
+        _copy_entry(base / name, dest / name)
+    excluded = sorted(
+        p.name for p in base.iterdir() if p.name in EXCLUDED_ENTRIES
+    )
 
     manifest = {
         "timestamp": stamp,
@@ -223,8 +289,13 @@ def create_backup(label: str = "manual", *, include_keyring: bool = True,
         "git_sha": _git_sha(),
         "schema_version": _schema_version(dest / "okuro.db"),
         "db_bytes": (dest / "okuro.db").stat().st_size,
+        "bytes_total": total_bytes,
         "keyring": (dest / "keyring").exists(),
-        "extras": extras,
+        "entries": entries,
+        # kept for readers of older manifests: the carried entries other
+        # than the keyring
+        "extras": [e for e in entries if e != "keyring"],
+        "excluded": excluded,
         "counts": _row_counts(dest / "okuro.db"),
     }
     (dest / "manifest.json").write_text(json.dumps(manifest, indent=2))
@@ -327,14 +398,23 @@ def restore_backup(backup_id: str, *, manage_services: bool = True,
             pass
     shutil.copy2(src_db, live)
 
-    if (src_dir / "keyring").exists():
-        shutil.copytree(src_dir / "keyring", base / "keyring", dirs_exist_ok=True)
+    # Everything the backup carries comes back — driven by the backup dir
+    # itself, not by a second list that could drift from create_backup's.
+    # Additive: entries that exist live but not in the backup are left alone.
+    restored: list[str] = []
+    if src_dir.is_dir():
+        for entry in sorted(src_dir.iterdir()):
+            if entry.name in ("okuro.db", "manifest.json"):
+                continue
+            _copy_entry(entry, base / entry.name)
+            restored.append(entry.name)
 
     if manage_services:
         start_services()
 
     return {
         "restored_from": str(src_db),
+        "restored_entries": restored,
         "safety_backup": safety["path"] if safety else None,
         "services_cycled": stopped,
     }

@@ -134,6 +134,36 @@ esac
 
 have git || die "git still missing after toolchain setup"
 
+
+# ── full snapshot of the okuro home before anything moves ───────────────────
+# The re-clone never touches ~/.okuro, but the migration that follows does —
+# and on a checkout old enough to need a re-clone, the installed okuro's own
+# `backup create` is the OLD one, covering whatever it covered back then
+# (measured 2026-09-09: database and keyring, not config, tokens, corpora or
+# deliveries). This script is the only fresh code on such a machine, so it
+# takes the complete copy itself: every entry of the okuro home except
+# regenerable caches and the backups, as a sibling directory. A failed or
+# unaffordable snapshot ABORTS with nothing changed.
+snapshot_okuro_home() {   # <dest>
+    local src="${OKURO_HOME:-$HOME/.okuro}" dest="$1"
+    [ -d "$src" ] || { log "  no $src yet — nothing to snapshot"; return 0; }
+    local ex="backups .deploy-backups hf models comfyui cortex prism-cache cache webview voice-previews repos proof logs"
+    local need kb e
+    need="$(du -sk "$src" 2>/dev/null | cut -f1)"
+    for e in $ex; do
+        [ -e "$src/$e" ] && { kb="$(du -sk "$src/$e" 2>/dev/null | cut -f1)"; need=$((need - ${kb:-0})); }
+    done
+    local free; free="$(df -Pk "$(dirname "$dest")" | awk 'NR==2{print $4}')"
+    [ "${free:-0}" -gt $((need + need / 10)) ] \
+        || die "not enough disk for a full snapshot of $src (need ~$((need / 1024)) MB, $((${free:-0} / 1024)) MB free) — nothing was changed"
+    mkdir -p "$dest" || die "cannot create $dest"
+    local args=(); for e in $ex; do args+=("--exclude=./$e"); done
+    if ! ( cd "$src" && tar -cf - "${args[@]}" . ) | ( cd "$dest" && tar -xpf - ); then
+        die "snapshot to $dest failed — nothing was changed"
+    fi
+    log "  full copy of $src kept at $dest (everything but caches; delete it once the new install checks out)"
+}
+
 # ── clone or update, then hand off ──────────────────────────────────────────
 # CLASS (identical to scripts/update.sh and bootstrap.ps1): a ff-only
 # distribution channel whose upstream lineage can be legitimately REPLACED.
@@ -173,8 +203,13 @@ if [ -d "$INSTALL_DIR/.git" ]; then
     log "  impossible and always will be. Your data lives in ~/.okuro, not here —"
     log "  this directory is code plus build output install.sh rebuilds."
 
-    # Same backup contract as update.sh: a failed backup ABORTS with the
-    # checkout untouched. No okuro binary means nothing installed to back up.
+    ts="$(date +%Y%m%d-%H%M%S)"
+    snapshot_okuro_home "${OKURO_HOME:-$HOME/.okuro}.pre-reclone-${ts}"
+
+    # Then the installed okuro's own backup too — its database copy is
+    # WAL-consistent, which a file copy of a live database is not. A failed
+    # backup ABORTS with the checkout untouched. No okuro binary means
+    # nothing installed to back up.
     okuro_bin=""
     for cand in "$INSTALL_DIR/.venv/bin/okuro" "$INSTALL_DIR/venv/bin/okuro"; do
         [ -x "$cand" ] && { okuro_bin="$cand"; break; }
@@ -187,7 +222,6 @@ if [ -d "$INSTALL_DIR/.git" ]; then
         log "  no okuro binary under $INSTALL_DIR — nothing installed to back up, continuing"
     fi
 
-    ts="$(date +%Y%m%d-%H%M%S)"
     staging="${INSTALL_DIR}.reclone-${ts}"
     retired="${INSTALL_DIR}.old-${ts}"
     [ -e "$staging" ] && die "staging path already exists: $staging — remove it and re-run"
