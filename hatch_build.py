@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Hatchling build hook — vendors the embedding model into the wheel.
 
 Downloads ``Alibaba-NLP/gte-modernbert-base`` (the LOW / laptop-safe tier,
