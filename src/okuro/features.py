@@ -4,8 +4,9 @@
 # purpose: features — the release maturity switch. A feature that ships but is
 #   not ready to be presented is declared here and gated at its registration
 #   points, so the public package carries it INERT rather than absent.
-# index: imports | FEATURES | def feature_enabled | def feature_state |
-#   def _config_features | def _reset_cache
+# index: imports | class Feature | FEATURES | def _config_features |
+#   def feature_enabled | def feature_state | def _withheld |
+#   def withheld_tools | def withheld_commands | def withheld_routes
 # AGENT_HEADER_END -->
 """The release maturity switch — features that ship inert.
 
@@ -51,6 +52,36 @@ and one-way: omitting one raises ``MigrationGapError`` and refuses to boot,
 for every install. Schema always ships, on or off — the switch gates
 BEHAVIOUR. The corollary is worth stating plainly: shipping a feature's
 migration is the irreversible act, not enabling the feature.
+
+WHERE THE GATES SIT. Three registration points read this module, one per
+surface, so ONE declaration below hides a feature everywhere:
+
+===============  ======================  ==============================
+Declared on      Withheld by             Consumed at
+===============  ======================  ==============================
+``commands``     :func:`withheld_commands`  ``cli/main.py`` — dropped
+                                            from the click group
+``tools``        :func:`withheld_tools`     ``mcp/_registry.py`` — left
+                                            out of the tool list
+``routes``       :func:`withheld_routes`    ``GET /api/features`` — the
+                                            SPA filters its nav and
+                                            refuses the route
+===============  ======================  ==============================
+
+``routes`` are UI path PREFIXES (``/studio`` withholds ``/studio`` and
+``/studio/anything``), matched on segment boundaries so ``/studio-lab``
+is untouched. The web surface is the one that cannot hide by absence: the
+SPA is one built bundle, so its route still resolves and must explain
+itself rather than 404 (see the ``spa_fallback`` note — an absent route in
+okuro answers 200 text/html, never 404). That is why the API reports
+``summary`` alongside ``enabled``.
+
+WHAT TO PUT ON A DECLARATION. Gate a page's ROUTES, not the machinery other
+surfaces share. A page is usually a view over tools and commands that agent
+sessions, the orchestrator and the CLI also reach, and withholding those to
+hide a screen breaks callers that never open a browser. Before naming a tool
+or a command, check its importers with ``cortex_search_code`` — name it only
+if the feature is its sole caller.
 """
 
 from __future__ import annotations
@@ -68,16 +99,24 @@ class Feature(NamedTuple):
     feature that is not ready declares ``False`` and the release ships it off.
     ``summary`` is what a user reads when asking why something is missing.
 
-    ``tools`` and ``commands`` name the registration points to withhold while
-    the feature is off. They live HERE, next to the default, so a feature is
-    declared in exactly one place: adding a surface later is an edit to this
-    line, not a hunt through two registries.
+    ``tools``, ``commands`` and ``routes`` name the registration points to
+    withhold while the feature is off. They live HERE, next to the default, so
+    a feature is declared in exactly one place: adding a surface later is an
+    edit to this line, not a hunt through three registries.
+
+    ``routes`` are UI route path PREFIXES, each starting with ``/``. The SPA
+    reads them from ``GET /api/features`` and uses them for two jobs at once:
+    dropping the nav entries that lead there, and refusing the route itself if
+    someone arrives by URL. Prefix, not exact match, so a feature's detail
+    routes (``/studio/draft-7``) travel with its index route without being
+    listed one by one.
     """
 
     default: bool
     summary: str
     tools: tuple[str, ...] = ()
     commands: tuple[str, ...] = ()
+    routes: tuple[str, ...] = ()
 
 
 # NAMING CONSTRAINT, and it bites silently. PyYAML follows YAML 1.1, where a
@@ -93,6 +132,30 @@ class Feature(NamedTuple):
 #
 # Keep this list SHORT. An entry earns its place by being work-in-progress that
 # nonetheless has to live on main; a finished feature has no flag.
+#
+# EMPTY BY DECISION, not by omission. Every surface below is wired and tested;
+# nothing is currently declared because nothing currently needs hiding. The
+# mechanism exists so that the NEXT unfinished thing — a Studio rework, say —
+# can sit on main while a fix ships around it.
+#
+# TO DECLARE ONE, add a single entry. Every field but the first two is optional
+# and each names a surface to withhold while the feature is off:
+#
+#     FEATURES: dict[str, Feature] = {
+#         "studio-rework": Feature(
+#             default=False,                      # ships OFF; an install opts in
+#             summary="The rebuilt Studio editor.",
+#             routes=("/studio",),                # UI path prefixes  -> the SPA
+#             tools=("studio_draft", ...),        # MCP tool names    -> _registry
+#             commands=("studio",),               # click command names -> cli
+#         ),
+#     }
+#
+# That is the whole job — nothing else changes. `okuro features` lists it, the
+# CLI drops the command, the MCP registry withholds the tools, and the web shell
+# drops the nav entries and refuses the route. Constraints: never a YAML 1.1
+# boolean word for a name (see above), routes start with "/", never gate a
+# migration (see the module docstring).
 FEATURES: dict[str, Feature] = {}
 
 
@@ -177,3 +240,19 @@ def withheld_tools() -> frozenset[str]:
 def withheld_commands() -> frozenset[str]:
     """CLI command names to drop from the group while their feature is off."""
     return _withheld("commands")
+
+
+def withheld_routes() -> frozenset[str]:
+    """UI route prefixes the SPA must withhold while their feature is off.
+
+    Served by ``GET /api/features`` and consumed by the shell: nav leaves
+    under a withheld prefix disappear, and the route itself renders an
+    explanation instead of the page.
+
+    Unlike a tool or a command, a route cannot be hidden by ABSENCE — the SPA
+    ships as one bundle and its router already knows every path. So this list
+    is advisory to the client, and the client fails OPEN if it cannot reach
+    this endpoint: a visibility switch that blanks the UI when the API
+    hiccups is worse than a preview page someone was not meant to see.
+    """
+    return _withheld("routes")

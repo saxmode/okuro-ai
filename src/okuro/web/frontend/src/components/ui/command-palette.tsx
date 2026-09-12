@@ -8,6 +8,7 @@ import { toast } from "@/components/ui/toast";
 import { getHandoverIR, openHandover } from "@/lib/handover-context";
 import { captureSnapshot } from "@/lib/capture-snapshot";
 import { NAV_TREE } from "@/components/shell/nav-bar";
+import { useVisibleNavTree } from "@/lib/nav-visibility";
 import {
   Camera,
   CornerDownRight,
@@ -20,8 +21,12 @@ import {
 // Single source of truth for entry points: the palette derives its "Create" and
 // "Go to" lists from NAV_TREE, so a new feature added to the sidebar nav appears
 // in Cmd+K for free (add `create: {label}` to its leaf for a "New X" action too).
-const NAV_LEAVES = NAV_TREE.flatMap((g) => g.children);
-const CREATE_LEAVES = NAV_LEAVES.filter((l) => l.create);
+//
+// Derived INSIDE the component now, not at module load: the tree is filtered by
+// the release maturity switch, which is a per-install runtime answer. This is
+// the surface a feature would have leaked from — the palette is invisible until
+// someone presses a key, so a stale entry here survives every screenshot of a
+// correctly-hidden nav bar.
 const titleCase = (s: string) => s.charAt(0) + s.slice(1).toLowerCase();
 const createRoute = (to: string) => `${to}${to.includes("?") ? "&" : "?"}new=1`;
 
@@ -75,6 +80,8 @@ export function CommandPalette({
   onOpenChange,
 }: CommandPaletteProps) {
   const navigate = useNavigate();
+  const navLeaves = useVisibleNavTree(NAV_TREE).flatMap((g) => g.children);
+  const createLeaves = navLeaves.filter((l) => l.create);
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
   const controlled = controlledOpen !== undefined;
   const open = controlled ? controlledOpen : uncontrolledOpen;
@@ -229,7 +236,7 @@ export function CommandPalette({
                     hint="Save a quick note"
                     onSelect={() => setMode("capture")}
                   />
-                  {CREATE_LEAVES.map((leaf) => (
+                  {createLeaves.map((leaf) => (
                     <CmdItem
                       key={leaf.to}
                       icon={<FilePlus2 className="h-3.5 w-3.5" />}
@@ -274,7 +281,7 @@ export function CommandPalette({
                 </Command.Group>
 
                 <Command.Group heading="Go to" className="text-3xs uppercase tracking-wider text-tertiary">
-                  {NAV_LEAVES.map((leaf) => (
+                  {navLeaves.map((leaf) => (
                     <CmdItem
                       key={leaf.to}
                       icon={<CornerDownRight className="h-3.5 w-3.5" />}

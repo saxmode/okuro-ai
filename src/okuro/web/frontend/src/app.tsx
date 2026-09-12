@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, useParams, Outlet } from "react-router";
+import { BrowserRouter, Routes, Route, Navigate, useParams, useLocation, Outlet } from "react-router";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toast";
 import { DownloadsProvider } from "@/lib/downloads-context";
@@ -8,6 +8,9 @@ import { DownloadsTray } from "@/components/models/downloads-tray";
 import { AppShell } from "@/components/shell/app-shell";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { HomePage } from "@/pages/home";
+import { FeatureOffPage } from "@/components/shell/feature-off-page";
+import { FeaturesProvider, useFeatures } from "@/lib/features-context";
+import { isRouteWithheld } from "@/lib/features-api";
 import { openExternal, api } from "@/lib/api";
 import {
   applyPulseOutlineOverrideFromProfile,
@@ -193,6 +196,47 @@ function LegacyTaskRedirect() {
 }
 
 /**
+ * ONE gate for every route under the shell — present and future.
+ *
+ * A pathless layout route, so it sits between AppShell and the whole page
+ * table and sees every navigation. That is the difference between a mechanism
+ * and a one-off hide: declaring a route in `okuro.features.FEATURES` is
+ * enough, and nothing in this file changes when the next feature is declared.
+ *
+ * Three states, and the middle one is the deliberate part:
+ *   - not settled  → the loader, NOT the page. Rendering the page first would
+ *     mount a withheld feature and fire its queries before the answer lands
+ *     (option B in lib/features-context.tsx).
+ *   - withheld     → FeatureOffPage. A direct URL must explain itself: okuro's
+ *     SPA fallback answers 200 for unknown paths, so "404" is not available
+ *     and would be a lie anyway — the page exists, it is switched off.
+ *   - otherwise    → the page.
+ */
+function FeatureGate() {
+  const { pathname } = useLocation();
+  const { withheldRoutes, settled } = useFeatures();
+  if (!settled) return <PageLoader />;
+  if (isRouteWithheld(pathname, withheldRoutes)) return <FeatureOffPage />;
+  return <Outlet />;
+}
+
+/**
+ * A legacy redirect that respects the switch.
+ *
+ * `/roles` and `/dashboard` both point at `/agents`. Left alone they would
+ * land on FeatureOffPage, which reads as "your old bookmark is broken" rather
+ * than "that page moved and is currently off". Sending them home instead
+ * keeps the redirect honest: the destination is unavailable, so the bookmark
+ * resolves to somewhere that works.
+ */
+function FeatureAwareNavigate({ to, fallback }: { to: string; fallback: string }) {
+  const { withheldRoutes, settled } = useFeatures();
+  if (!settled) return <PageLoader />;
+  const target = isRouteWithheld(to, withheldRoutes) ? fallback : to;
+  return <Navigate to={target} replace />;
+}
+
+/**
  * Gate every AppShell route on onboarding completion.
  *
  * A post-mac-wipe user who launched the app from Finder/Dock could land on
@@ -311,6 +355,9 @@ export function App() {
   usePulseOutlineSync();
   return (
     <QueryClientProvider client={queryClient}>
+      {/* Inside the query client (it fetches), outside the router (the whole
+          app reads it — nav, palette, routes and the welcome panel alike). */}
+      <FeaturesProvider>
       <DownloadsProvider>
       <TooltipProvider>
         <Toaster />
@@ -331,6 +378,7 @@ export function App() {
               />
               <Route element={<OnboardingGate />}>
               <Route element={withBoundary(<AppShell />)}>
+              <Route element={<FeatureGate />}>
                 <Route index element={withBoundary(<HomePage />)} />
                 <Route path="inbox" element={withBoundary(<InboxPage />)} />
                 <Route path="projects" element={withBoundary(<ProjectsPage />)} />
@@ -380,8 +428,8 @@ export function App() {
                 {/* Legacy path redirects — old bookmarks keep working. */}
                 <Route path="tasks" element={<Navigate to="/work" replace />} />
                 <Route path="tasks/:id" element={<LegacyTaskRedirect />} />
-                <Route path="roles" element={<Navigate to="/agents" replace />} />
-                <Route path="dashboard" element={<Navigate to="/agents" replace />} />
+                <Route path="roles" element={<FeatureAwareNavigate to="/agents" fallback="/" />} />
+                <Route path="dashboard" element={<FeatureAwareNavigate to="/agents" fallback="/" />} />
                 <Route path="system" element={<Navigate to="/health" replace />} />
 
                 {import.meta.env.DEV && (
@@ -389,11 +437,13 @@ export function App() {
                 )}
               </Route>
               </Route>
+              </Route>
             </Routes>
           </Suspense>
         </BrowserRouter>
       </TooltipProvider>
       </DownloadsProvider>
+      </FeaturesProvider>
     </QueryClientProvider>
   );
 }

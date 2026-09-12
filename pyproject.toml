@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "okuro"
-version = "3.0.0"
+version = "3.0.1"
 description = "Okuro — personal AI agent infrastructure"
 readme = "README.md"
 requires-python = ">=3.11"

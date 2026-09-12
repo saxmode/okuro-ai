@@ -23,6 +23,17 @@ if (typeof globalThis.ResizeObserver === "undefined") {
     ResizeObserverStub;
 }
 
+// jsdom implements no scrolling at all, so Element.prototype.scrollIntoView
+// does not exist. Two shipped components call it in an effect on mount: the
+// nav bar pulls an opened accordion group to the track's left edge, and cmdk
+// keeps the selected command-palette item in view. Both throw in jsdom, which
+// made rendering either of them in a test impossible for a reason that has
+// nothing to do with what was being tested. Same class of gap as the two
+// observers above, same remedy.
+if (typeof Element !== "undefined" && !Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = function scrollIntoViewStub() {};
+}
+
 // jsdom does not implement IntersectionObserver either. The codex page's
 // section nav constructs one as soon as the resolved model puts its sections in
 // the DOM — which, before the fix of 2026-09-11, it never got far enough to do.

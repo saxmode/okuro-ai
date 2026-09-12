@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <sub><code>ALPHA · v3.0.0</code> &nbsp;·&nbsp; <code>LINUX · MACOS · WINDOWS</code> &nbsp;·&nbsp; <code>APACHE-2.0</code> &nbsp;·&nbsp; <code>CLAUDE CODE · CODEX · GEMINI · CURSOR</code></sub>
+  <sub><code>ALPHA · v3.0.1</code> &nbsp;·&nbsp; <code>LINUX · MACOS · WINDOWS</code> &nbsp;·&nbsp; <code>APACHE-2.0</code> &nbsp;·&nbsp; <code>CLAUDE CODE · CODEX · GEMINI · CURSOR</code></sub>
 </p>
 
 <p align="center">
@@ -103,6 +103,19 @@ irm https://raw.githubusercontent.com/saxmode/okuro-ai/main/bootstrap.ps1 | iex
 A full backup of your database and keyring is taken before anything changes (`okuro backup list` to see them, `okuro backup restore latest` to roll back). Your data lives in `~/.okuro`, never in the checkout.
 
 If a release replaces the repository's history, the updater notices (the fetched branch shares no history with your checkout), backs up, re-clones beside the old directory, swaps the two, and finishes the install on the new code. The old checkout is kept as `~/okuro-ai.old-<timestamp>` for you to delete once the new one checks out.
+
+### Feature switches
+
+Occasionally a surface ships before it is ready to be presented, and arrives switched off. `okuro features` lists every switch on your install, whether it is on, and where that came from. Today it prints *(no features declared — everything is on)*.
+
+When something is listed, turn it on in `~/.okuro/config.yaml`:
+
+```yaml
+features:
+  <name>: true
+```
+
+Then restart okuro, or just reload the page for a web-only surface. Anything `okuro features` does not list is not gated — it is simply on.
 
 ## Prerequisites
 
