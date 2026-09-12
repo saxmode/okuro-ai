@@ -41,10 +41,17 @@ if [ ! -f "$FE/package.json" ]; then
     exit 1
 fi
 
-# pnpm acquisition cascade (mirrors update.sh's, intentionally layered to
-# cover every common Node setup):
-#   1. Volta toolchain   2. pnpm already on PATH
-#   3. corepack enable    4. npm install -g pnpm
+# pnpm acquisition cascade, layered to cover every common Node setup — and
+# NEVER needing root. Measured 2026-09-12 on a Linux host with the distro's
+# Node (/usr/bin/node) as a plain user: `corepack enable` cannot write to
+# /usr/bin and fails silently, `npm install -g pnpm` dies with EACCES on
+# /usr/lib/node_modules, and the installer stopped at "Build the UI". That is
+# exactly a server. So:
+#   1. Volta toolchain           2. pnpm already on PATH
+#   3. corepack enable (works when node's bin dir is writable)
+#   4. corepack RUN — `corepack pnpm …` downloads the pinned pnpm into the
+#      user's cache and needs no write access anywhere else
+#   5. npm install -g pnpm        6. npm install -g --prefix ~/.local pnpm
 # Echoes the chosen mode on stdout; all installer chatter goes to stderr so
 # the captured mode stays clean.
 ensure_pnpm() {
@@ -60,11 +67,18 @@ ensure_pnpm() {
         echo "[build-frontend] enabling pnpm via corepack" >&2
         corepack enable pnpm >/dev/null 2>&1 || true
         if command -v pnpm >/dev/null 2>&1; then echo "direct"; return 0; fi
+        echo "[build-frontend] corepack cannot write a shim here — running pnpm through corepack instead" >&2
+        if ( cd "$FE" && corepack pnpm --version >/dev/null 2>&1 ); then echo "corepack"; return 0; fi
     fi
     if command -v npm >/dev/null 2>&1; then
         echo "[build-frontend] installing pnpm via npm" >&2
-        npm install -g pnpm >&2 || return 1
-        echo "direct"; return 0
+        if npm install -g pnpm >&2 2>/dev/null; then echo "direct"; return 0; fi
+        echo "[build-frontend] global npm prefix is not writable — installing pnpm under ~/.local" >&2
+        if npm install -g --prefix "$HOME/.local" pnpm >&2; then
+            export PATH="$HOME/.local/bin:$PATH"
+            if command -v pnpm >/dev/null 2>&1; then echo "direct"; return 0; fi
+        fi
+        return 1
     fi
     echo "[build-frontend] no Node tooling on PATH — install Node first." >&2
     return 1
@@ -79,7 +93,8 @@ ensure_pnpm() {
 # subdir is wiped and deck2 export 503s.
 MODE="$(ensure_pnpm)"
 case "$MODE" in
-    volta)  ( cd "$FE" && volta run pnpm install --frozen-lockfile && volta run pnpm build && volta run pnpm build:export && volta run pnpm build:export-deck ) ;;
-    direct) ( cd "$FE" && pnpm install --frozen-lockfile && pnpm build && pnpm build:export && pnpm build:export-deck ) ;;
+    volta)    ( cd "$FE" && volta run pnpm install --frozen-lockfile && volta run pnpm build && volta run pnpm build:export && volta run pnpm build:export-deck ) ;;
+    direct)   ( cd "$FE" && pnpm install --frozen-lockfile && pnpm build && pnpm build:export && pnpm build:export-deck ) ;;
+    corepack) ( cd "$FE" && corepack pnpm install --frozen-lockfile && corepack pnpm build && corepack pnpm build:export && corepack pnpm build:export-deck ) ;;
     *) echo "build-frontend: unknown pnpm mode '$MODE'" >&2; exit 1 ;;
 esac

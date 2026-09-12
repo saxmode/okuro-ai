@@ -886,13 +886,31 @@ class LinuxServiceManager(ServiceManager):
 
         subprocess.run(["systemctl", "--user", "daemon-reload"], check=False)
 
+    def _reset_failed(self, name: str) -> None:
+        """Clear systemd's start-rate limit before (re)starting.
+
+        A unit whose binary vanished — the re-clone renames the old checkout
+        while its services still run — restarts into 203/EXEC until systemd
+        stops it with "Start request repeated too quickly" and refuses every
+        later `start` with exit 1. Measured 2026-09-12 on a Linux upgrade:
+        the updater's `service start okuro-embed` was refused for that reason
+        alone and the whole update aborted with every service stopped.
+        reset-failed is idempotent and harmless on a healthy unit.
+        """
+        subprocess.run(
+            ["systemctl", "--user", "reset-failed", self._target(name)],
+            check=False, capture_output=True,
+        )
+
     def start(self, name: str) -> None:
+        self._reset_failed(name)
         subprocess.run(["systemctl", "--user", "start", self._target(name)], check=True)
 
     def stop(self, name: str) -> None:
         subprocess.run(["systemctl", "--user", "stop", self._target(name)], check=True)
 
     def restart(self, name: str) -> None:
+        self._reset_failed(name)
         subprocess.run(["systemctl", "--user", "restart", self._target(name)], check=True)
 
     def reload(self, name: str) -> None:

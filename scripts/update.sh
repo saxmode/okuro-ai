@@ -462,8 +462,16 @@ if [[ "${OKURO_UPDATE_REINSTALL:-0}" == "1" ]]; then
     done
 fi
 
+# A service that refuses to start is a FINDING, not a reason to leave the
+# other two stopped. Measured 2026-09-12: okuro-embed could not start (no
+# sentence-transformers on a CPU-only host, and systemd's start-rate limit
+# tripped by the re-clone) and `set -e` aborted here — daemon and
+# orchestrator never came back, so the whole install was down after an
+# otherwise successful upgrade. Every start below is reported, never fatal;
+# `okuro doctor` at the end names what is not running.
 echo "[update] starting okuro-embed"
-run "$OKURO" service start okuro-embed
+run "$OKURO" service start okuro-embed || \
+    echo "[update] okuro-embed did not start (non-fatal) — semantic search degraded; okuro doctor will report it" >&2
 
 # ── auto-heal vec_* dimensions (re-embed tables drifted from the tier) ─
 # `okuro migrate` runs with services stopped, so its post-migrate pass can
@@ -503,7 +511,8 @@ fi
 # Consumers start now that vec_* dims are aligned.
 echo "[update] starting okuro-daemon + okuro-orchestrator"
 for svc in okuro-daemon okuro-orchestrator; do
-    run "$OKURO" service start "$svc"
+    run "$OKURO" service start "$svc" || \
+        echo "[update] $svc did not start (non-fatal here) — okuro doctor will report it; restart with: okuro service start $svc" >&2
 done
 
 # ── re-register okuro's agent surface ─────────────────────────────────

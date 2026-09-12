@@ -218,6 +218,16 @@ if [ -d "$INSTALL_DIR/.git" ]; then
         log "  backing up current state (DB + keyring) before re-clone…"
         "$okuro_bin" backup create --label pre-reclone \
             || die "backup FAILED — aborting re-clone. Your checkout and data are untouched."
+        # Stop the running services BEFORE the checkout moves. Their unit
+        # files name binaries inside it; renaming it under a running
+        # service makes systemd restart it into 203/EXEC until the
+        # start-rate limit trips, and every later `start` is refused.
+        # Measured 2026-09-12 on Linux. The installer's converge step
+        # starts them again on the new code.
+        log "  stopping okuro services before the swap"
+        for svc in okuro-orchestrator okuro-daemon okuro-embed; do
+            "$okuro_bin" service stop "$svc" >/dev/null 2>&1 || true
+        done
     else
         log "  no okuro binary under $INSTALL_DIR — nothing installed to back up, continuing"
     fi

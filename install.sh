@@ -581,6 +581,30 @@ fi
 VPY="$VENV/bin/python"
 "$VPY" -m pip install --quiet --upgrade pip >/dev/null
 
+# ─── embed extras installer — ONE copy, used by the fresh and refresh paths ──
+# Two steps when a torch index is in play. `pip install -e .[embed-cpu]
+# --index-url <torch-cpu>` replaces PyPI entirely, so pip cannot fetch okuro's
+# own build backend (hatchling) and dies with "Failed to build 'file:///…'
+# when installing build dependencies" — measured on a CPU-only Linux host
+# 2026-09-12, where this branch is the DEFAULT. `--extra-index-url` is not the
+# answer either: PyPI's Linux torch wheel is the ~2 GB CUDA build and can win
+# the resolution. So: torch from the CPU index on its own first (no build
+# step involved), then the extras from PyPI, where torch is already satisfied
+# and only sentence-transformers is fetched. Returns 0 when
+# sentence_transformers imports afterwards.
+install_embed_extras() {   # <extras> <index-flag-or-empty> <logfile>
+    local extras="$1" index_flag="$2" logf="$3"
+    : > "$logf"
+    if [ -n "$index_flag" ]; then
+        # shellcheck disable=SC2086
+        PYTHONUNBUFFERED=1 "$VPY" -m pip install "torch>=2.1" $index_flag 2>&1 | tee -a "$logf" \
+            | grep --line-buffered -E "^(Collecting|Successfully|ERROR|WARNING)" || true
+    fi
+    PYTHONUNBUFFERED=1 "$VPY" -m pip install -e "${REPO_DIR}[${extras}]" 2>&1 | tee -a "$logf" \
+        | grep --line-buffered -E "^(Collecting|Successfully|ERROR|WARNING)" || true
+    "$VPY" -c "import sentence_transformers" >/dev/null 2>&1
+}
+
 # ─── [4/11] package install ────────────────────────────────────────────────
 
 phase "Install okuro" "editable install — code edits picked up without re-bundling (~130 MB model on first run)"
@@ -634,6 +658,8 @@ if ! "$VPY" -c "import okuro" 2>/dev/null; then
         base_done_msg="okuro installed"
     fi
 
+
+
     # ─── embed extras (sentence-transformers + torch) ─────────────────────
     # Without this, cortex semantic search and the okuro-embed plist sit in
     # "degraded" mode (the in-process fallback raises EmbeddingsUnavailable
@@ -661,21 +687,23 @@ if ! "$VPY" -c "import okuro" 2>/dev/null; then
     # minutes. Without it grep block-buffers at 4KB and the terminal shows
     # nothing until the whole install is done — indistinguishable from a hang.
     # Portable: both GNU and BSD/macOS grep accept the flag.
-    if PYTHONUNBUFFERED=1 "$VPY" -m pip install -e "${REPO_DIR}[${EMBED_EXTRAS}]" $EMBED_INDEX_FLAG 2>&1 | tee "$EMBED_LOG" | grep --line-buffered -E "^(Collecting|Successfully|ERROR|WARNING)" || true; then
-        # tee preserves the full log; we only print the headline lines to the terminal.
-        if grep -q "^Successfully installed" "$EMBED_LOG" 2>/dev/null || \
-           "$VPY" -c "import sentence_transformers" >/dev/null 2>&1; then
-            record_event "fact" "embed_extras" "ok" 0 "${EMBED_EXTRAS} installed"
-            step "embed extras ready (${EMBED_EXTRAS})"
-        else
-            record_event "fact" "embed_extras" "warn" 0 "${EMBED_EXTRAS} install: outcome unclear (see pip-embed.log)"
-            warn_msg "embed extras install finished but sentence_transformers still not importable; semantic search will be degraded"
-            warn_msg "manual retry: ${C_DIM}${VPY} -m pip install -e '${REPO_DIR}[${EMBED_EXTRAS}]' ${EMBED_INDEX_FLAG}${C_RESET}"
-        fi
+    # TWO STEPS when a torch index is in play. `pip install -e .[embed-cpu]
+    # --index-url <torch-cpu>` replaces PyPI entirely, so pip cannot fetch
+    # okuro's own build backend (hatchling) and dies with "Failed to build
+    # 'file:///…' when installing build dependencies" — measured on a
+    # CPU-only Linux host 2026-09-12, where this branch is the DEFAULT.
+    # `--extra-index-url` is not the answer either: PyPI's Linux torch wheel
+    # is the ~2 GB CUDA build and can win the resolution. So: torch from the
+    # CPU index on its own first (it needs no build step), then the extras
+    # from PyPI, where torch is already satisfied and only
+    # sentence-transformers is fetched.
+    if install_embed_extras "$EMBED_EXTRAS" "$EMBED_INDEX_FLAG" "$EMBED_LOG"; then
+        record_event "fact" "embed_extras" "ok" 0 "${EMBED_EXTRAS} installed"
+        step "embed extras ready (${EMBED_EXTRAS})"
     else
         record_event "fact" "embed_extras" "fail" 0 "${EMBED_EXTRAS} install failed"
-        warn_msg "embed extras install FAILED — okuro is usable but semantic search / cortex will be degraded"
-        warn_msg "manual retry: ${C_DIM}${VPY} -m pip install -e '${REPO_DIR}[${EMBED_EXTRAS}]' ${EMBED_INDEX_FLAG}${C_RESET}"
+        warn_msg "embed extras install FAILED — okuro is usable but semantic search / cortex will be degraded (see ${EMBED_LOG})"
+        warn_msg "manual retry: ${C_DIM}${VPY} -m pip install 'torch>=2.1' ${EMBED_INDEX_FLAG} && ${VPY} -m pip install -e '${REPO_DIR}[${EMBED_EXTRAS}]'${C_RESET}"
     fi
 
     # ─── voice extra (faster-whisper — local dictation STT) ───────────────
@@ -727,8 +755,8 @@ else
         fi
         step "embed extras missing — installing ${EMBED_EXTRAS}"
         EMBED_LOG="$INSTALL_RUN_DIR/pip-embed.log"
-        if ! PYTHONUNBUFFERED=1 "$VPY" -m pip install -e "${REPO_DIR}[${EMBED_EXTRAS}]" $EMBED_INDEX_FLAG > "$EMBED_LOG" 2>&1; then
-            warn_msg "embed extras install failed on refresh — cortex / semantic search degraded"
+        if ! install_embed_extras "$EMBED_EXTRAS" "$EMBED_INDEX_FLAG" "$EMBED_LOG"; then
+            warn_msg "embed extras install failed on refresh — cortex / semantic search degraded (see ${EMBED_LOG})"
         fi
     fi
     phase_done "okuro refreshed"
