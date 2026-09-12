@@ -9,6 +9,7 @@ import {
 } from "motion/react";
 import { ChevronRight, Moon, Sun } from "lucide-react";
 import { useChrome } from "@/lib/chrome-context";
+import { useVisibleNavTree } from "@/lib/nav-visibility";
 import {
   applyThemeMode,
   currentThemeMode,
@@ -178,14 +179,19 @@ export function NavBar() {
   const reduced = useReducedMotion();
   const trackRef = useRef<HTMLDivElement>(null);
 
+  // Leaves whose feature is switched off never reach the bar. Empty until the
+  // features fetch settles, so a withheld entry cannot flash into view — see
+  // the loading-behaviour note in lib/features-context.tsx.
+  const navTree = useVisibleNavTree(NAV_TREE);
+
   // Which group owns the current route — used to auto-open on navigation so
   // the bar always shows where you are.
   const activeGroup = useMemo(
     () =>
-      NAV_TREE.find((g) =>
+      navTree.find((g) =>
         g.children.some((c) => isLeafActive(c.to, location.pathname)),
       )?.label ?? null,
-    [location.pathname],
+    [navTree, location.pathname],
   );
 
   const [openGroup, setOpenGroup] = useState<string | null>(activeGroup);
@@ -248,7 +254,7 @@ export function NavBar() {
             ref={trackRef}
             className="flex min-w-0 flex-1 items-center overflow-x-auto scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
-          {NAV_TREE.map((group, idx) => {
+          {navTree.map((group, idx) => {
             const isOpen = openGroup === group.label;
             return (
               <div

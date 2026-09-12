@@ -212,6 +212,15 @@ DUPLICATE_TOOL_NAMES: list[dict] = []  # [{"name": str, "kept": str, "dropped": 
 # bisect — the same reason DUPLICATE_TOOL_NAMES exists.
 WITHHELD_TOOL_NAMES: list[str] = []
 
+# Modules that imported cleanly but ended up contributing NO tool — every one
+# of them withheld, or dropped as a duplicate. They are deliberately absent
+# from LOADED_MODULES: the catalogue and the taxonomy are both derived from
+# _dispatch, so a module with no dispatch entry has no catalogue key, and
+# calling it "loaded" made get_module_taxonomy() advertise a module that
+# get_catalog() could not describe. Recorded here so the module is still
+# ACCOUNTED for — the same "where did it go" contract as the two lists above.
+EMPTY_MODULE_NAMES: list[str] = []
+
 
 def _strict_mode() -> bool:
     """Return True iff OKURO_MCP_STRICT is set to a truthy value."""
@@ -404,6 +413,7 @@ def _load_all() -> None:
         # largest module returns its tools as a single literal list with no
         # per-tool table inside it, so a filter in the modules would not.
         withheld = features_withheld_tools()
+        registered = 0
         for tool in tools:
             if tool.name in withheld:
                 WITHHELD_TOOL_NAMES.append(tool.name)
@@ -429,8 +439,23 @@ def _load_all() -> None:
             seen_names[tool.name] = mod_key
             _dispatch[tool.name] = (mod_key, handler)
             _all_tools.append(tool)
+            registered += 1
 
-        LOADED_MODULES.append(mod_key)
+        # A module that contributed nothing is not part of the served surface.
+        # The first case to reach this was a FEATURE owning a whole module
+        # (okuro.features gating all six flow_designer_* tools), but the same
+        # hole was already reachable via duplicate-drops — get_catalog() keys
+        # off _dispatch, so "loaded" without a dispatch entry made the
+        # taxonomy name a module the catalogue had no entry for.
+        if registered:
+            LOADED_MODULES.append(mod_key)
+        else:
+            EMPTY_MODULE_NAMES.append(mod_key)
+            logger.info(
+                "MCP registry: module '%s' contributed no tools "
+                "(all withheld or dropped) — not advertised.",
+                mod_key,
+            )
 
     _loaded = True
     logger.info(
@@ -591,6 +616,7 @@ def _reset_for_tests() -> None:
     FAILED_MODULES.clear()
     DUPLICATE_TOOL_NAMES.clear()
     WITHHELD_TOOL_NAMES.clear()
+    EMPTY_MODULE_NAMES.clear()
     _loaded = False
 
 

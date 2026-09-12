@@ -4,6 +4,7 @@ import { clsx } from "clsx";
 import { Link } from "react-router";
 import { onboardingApi } from "@/lib/api";
 import { usePulseData } from "@/hooks/use-activity-stream";
+import { useRouteWithheld } from "@/lib/features-context";
 import type { InferenceCli } from "@/types/api";
 import { parseApiDate } from "@/lib/format";
 
@@ -233,6 +234,14 @@ function StatusRow({ label, ok, detail }: { label: string; ok: boolean; detail: 
 }
 
 function TryRow({ to, title, detail }: { to: string; title: string; detail: string }) {
+  // Gated HERE rather than at the one call site that needed it (/agents), so
+  // every row in this list — and every row added later — inherits the rule.
+  // An onboarding panel that recommends a switched-off page is the worst
+  // possible first impression: it is the screen shown to someone who has not
+  // yet learned what okuro does.
+  const withheld = useRouteWithheld(to);
+  if (withheld) return null;
+
   return (
     <li>
       <Link

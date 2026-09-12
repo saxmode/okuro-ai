@@ -198,6 +198,7 @@ def _register_commands():
     from .cmd_probe import probe_conventions
     from .cmd_canon import canon
     from .cmd_release import release
+    from .cmd_features import features
 
     cli.add_command(system)
     cli.add_command(gpu)
@@ -232,6 +233,10 @@ def _register_commands():
     cli.add_command(probe_conventions)
     cli.add_command(canon)
     cli.add_command(release)
+    # Reads the switch below rather than being gated by it — a diagnostic that
+    # a feature could withhold would be unable to answer the question it exists
+    # for. Never declare "features" in FEATURES.commands.
+    cli.add_command(features)
 
     # A command whose feature is OFF is dropped from the group, so it does not
     # appear in `okuro --help` and is not invocable.

@@ -7,6 +7,7 @@
 #   def api_gpu
 #   def api_storage
 #   def api_system
+#   def api_features
 #   def api_models
 #   def api_doctor
 #   def api_bridge_providers
@@ -89,6 +90,41 @@ def api_system():
     from okuro.system.storage import get_storage_status
 
     return {"gpu": get_gpu_status(), "storage": get_storage_status()}
+
+
+@router.get("/api/features")
+def api_features():
+    """The release maturity switch, as the SPA sees it.
+
+    ``withheld_routes`` is the actionable half — the flat union of route
+    prefixes the shell must drop from its nav and refuse to render. Each
+    feature also carries its OWN ``routes``, which is what lets a refused URL
+    name the exact config key to flip. Without that mapping the client can
+    only guess the owner from the path, and a feature whose name differs from
+    its route (``studio-rework`` gating ``/studio``) gets no answer at all.
+
+    ``summary`` travels for the same reason: a direct URL must explain itself
+    rather than 404 — okuro's SPA fallback answers 200 for unknown paths, so
+    "not found" is not available and would be a lie anyway.
+
+    Read fresh on every request, never cached: ``okuro.features`` re-reads
+    ``~/.okuro/config.yaml`` per call by design, so flipping a feature is a
+    file edit plus a page reload — no deploy, no restart. Caching here would
+    be the one thing that takes that property away.
+    """
+    from okuro.features import FEATURES, feature_enabled, withheld_routes
+
+    return {
+        "features": {
+            name: {
+                "enabled": feature_enabled(name),
+                "summary": spec.summary,
+                "routes": list(spec.routes),
+            }
+            for name, spec in FEATURES.items()
+        },
+        "withheld_routes": sorted(withheld_routes()),
+    }
 
 
 # /api/roles listing moved to okuro.orchestrator.api.roles (subagent #13) so

@@ -15,4 +15,4 @@ _os.environ.setdefault("SENTENCE_TRANSFORMERS_HOME", str(_HF_DIR / "sentence-tra
 
 # Rewritten by `okuro release bump X.Y.Z` from pyproject.toml, the single
 # source of truth; pinned equal by gate_version_consistency. Never hand-edit.
-__version__ = "3.0.0"
+__version__ = "3.0.1"

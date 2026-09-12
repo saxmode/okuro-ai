@@ -4,6 +4,7 @@ import { Menu, Search, Sparkles } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { NAV_TREE, HealthDot } from "./nav-bar";
 import { OPEN_COMMAND_PALETTE_EVENT } from "@/components/ui/command-palette";
+import { useVisibleNavTree } from "@/lib/nav-visibility";
 import { cn } from "@/lib/utils";
 
 interface MobileTopBarProps {
@@ -19,6 +20,9 @@ interface MobileTopBarProps {
 // and a pulse button that opens the sidebar (pulse + panels + chat) drawer.
 export function MobileTopBar({ onOpenPanel, isActive = false }: MobileTopBarProps) {
   const [navOpen, setNavOpen] = useState(false);
+  // Same filtered tree the desktop bar and the palette get — one rule, three
+  // surfaces (lib/nav-visibility.ts).
+  const navTree = useVisibleNavTree(NAV_TREE);
 
   return (
     <>
@@ -64,7 +68,7 @@ export function MobileTopBar({ onOpenPanel, isActive = false }: MobileTopBarProp
             okuro
           </SheetTitle>
           <nav className="flex flex-1 flex-col overflow-y-auto px-2 pb-4">
-            {NAV_TREE.map((group) => (
+            {navTree.map((group) => (
               <div key={group.label} className="mb-3">
                 <p className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-widest text-fg-subtle">
                   {group.label}
