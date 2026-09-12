@@ -755,6 +755,23 @@ def _check_mcp_responding() -> CheckResult:
         loaded = reg.get_loaded_modules()
         failed = reg.get_failed_modules()
 
+        # A loaded registry is not a serving server. Build the server the
+        # daemon builds: this is where an incompatible `mcp` library shows
+        # itself (2026-09-12: mcp 2.2.0 on a fresh install, Server had no
+        # list_tools(), the orchestrator crashed, and this check said
+        # "responding" because it only counted modules).
+        try:
+            reg.build_mcp_server()
+        except Exception as exc:  # noqa: BLE001 — the message IS the finding
+            return CheckResult(
+                "MCP responding",
+                "fail",
+                f"{len(loaded)} modules loaded but the MCP server does not build: "
+                f"{type(exc).__name__}: {exc}",
+                "Check the installed `mcp` library version against pyproject "
+                "(`pip show mcp`); re-run the installer to re-resolve dependencies",
+            )
+
         if failed:
             names = ", ".join(f.get("name", "?") for f in failed)
             return CheckResult(

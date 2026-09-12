@@ -381,7 +381,8 @@ def gate_owner(
 
 
 def gate_install_smoke(root: Path) -> list[Finding]:
-    """Fresh venv → pip install → ``okuro --version`` → the full UI build.
+    """Fresh venv → pip install → ``okuro --version`` → MCP server builds →
+    the full UI build.
     Catches allowlist rot before a public user does. Slow by nature; run it
     last.
 
@@ -419,6 +420,13 @@ def gate_install_smoke(root: Path) -> list[Finding]:
             [sys.executable, "-m", "venv", str(venv)],
             [str(venv / "bin" / "pip"), "install", "--quiet", "-e", str(workcopy)],
             [str(venv / "bin" / "okuro"), "--version"],
+            # The MCP server is okuro's surface for every agent. It is built
+            # from the FRESHLY RESOLVED dependencies — the one place an
+            # unpinned library shows itself. 2026-09-12: pip resolved mcp
+            # 2.2.0 on two fresh machines, Server.list_tools() was gone, the
+            # orchestrator failed to start, and `okuro --version` was green.
+            [str(venv / "bin" / "python"), "-c",
+             "from okuro.mcp._registry import build_mcp_server; build_mcp_server()"],
             ["bash", "-c", build_and_check],
         ]
         for cmd in steps:
