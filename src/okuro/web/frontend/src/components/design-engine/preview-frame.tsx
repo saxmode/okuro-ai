@@ -1064,12 +1064,21 @@ body, .node, .node * {
 [data-component-showcase] .component-contract-table { overflow-x: auto; border: 0.1rem solid color-mix(in srgb, currentColor 18%, transparent); }
 [data-component-showcase] .component-contract-table table { width: 100%; min-width: 112rem; border-collapse: collapse; text-align: left; }
 [data-component-showcase] .component-contract-table :is(th, td) { padding: 1.6rem 2rem; border-bottom: 0.1rem solid color-mix(in srgb, currentColor 14%, transparent); vertical-align: top; }
-[data-component-showcase] .component-contract-table thead th { opacity: 0.56; font-size: 1.5rem; letter-spacing: 0.08em; text-transform: uppercase; }
+/* NO SIZE HERE, AND NO BACKTICKS EITHER -- this whole sheet is a JS template
+   literal, so one would end it. The rule used to type font-size: 1.5rem, which
+   is 12px against the frame's 50 % root and frozen at every rung: the exact
+   build-time literal test_showcase::test_every_declared_font_size_follows_the_
+   rung exists to catch, and these five header cells plus the thirty
+   showcase-contract terms below were its 35 failures. The size now rides on the
+   engine's own ds-n8 class, which is 1.5rem at the default rung and moves with
+   every other one. Everything that is NOT a size stays here. */
+[data-component-showcase] .component-contract-table thead th { opacity: 0.56; letter-spacing: 0.08em; text-transform: uppercase; }
 [data-component-showcase] .component-contract-table tbody th { font-weight: 600; }
 [data-component-showcase] .component-contract-table tbody tr:last-child :is(th, td) { border-bottom: 0; }
 [data-component-showcase] .showcase-contract { display: grid; gap: 0; margin: 1.2rem 0 0; border-top: 0.1rem solid color-mix(in srgb, currentColor 16%, transparent); }
 [data-component-showcase] .showcase-contract > div { display: grid; grid-template-columns: 8rem minmax(0, 1fr); gap: 1.2rem; padding: 1rem 0; border-bottom: 0.1rem solid color-mix(in srgb, currentColor 12%, transparent); }
-[data-component-showcase] .showcase-contract :is(dt, dd) { margin: 0; font-size: 1.5rem; line-height: 2rem; }
+/* Same literal, same fix -- the size rides on ds-n8; see the note above. */
+[data-component-showcase] .showcase-contract :is(dt, dd) { margin: 0; }
 [data-component-showcase] .showcase-contract dt { opacity: 0.52; }
 [data-variant-matrix] { margin-bottom: 8rem; }
 [data-specimen] { overflow: hidden; }

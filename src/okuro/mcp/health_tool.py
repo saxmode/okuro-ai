@@ -104,5 +104,30 @@ async def handle_tool(name: str, arguments: dict) -> list[TextContent]:
         "tool_count": reg.get_tool_count(),
         "duplicate_tool_names": reg.get_duplicate_tool_names(),
         "strict_mode": reg.is_strict_mode(),
+        # A withheld tool is ABSENT from the list, which is the point — but it
+        # makes "okuro never had that tool" and "a switch is holding it back"
+        # look identical from inside a session. This is the only place that can
+        # tell them apart, so it reports both halves of the switch: the tools
+        # that were withheld at registry load, and the daemon jobs the same
+        # feature is keeping off the scheduler.
+        "withheld_tools": sorted(reg.WITHHELD_TOOL_NAMES),
+        "empty_modules": sorted(reg.EMPTY_MODULE_NAMES),
+        "withheld_daemon_tasks": _withheld_daemon_tasks(),
     }
     return [TextContent(type="text", text=json.dumps(payload, indent=2))]
+
+
+def _withheld_daemon_tasks() -> list[str]:
+    """Daemon job ids a switched-off feature is keeping off the scheduler.
+
+    Best-effort and lazily imported, for the reason in this module's design
+    contract: ``mcp_health`` must answer even when okuro internals are the
+    thing that is broken, so a failure to read the switch degrades to an empty
+    list rather than taking the health report down with it.
+    """
+    try:
+        from okuro.features import withheld_daemon_tasks
+
+        return sorted(withheld_daemon_tasks())
+    except Exception:  # noqa: BLE001 — health must never fail on a sub-read
+        return []

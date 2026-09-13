@@ -333,6 +333,6 @@ export function ConfigurationPanel(props: ConfigurationPanelProps) {
       <ol className="dsc-stage-list">{["Authored identity", "Measured polarity", "Generated vocabulary", "Inherited frame", "Consumed component"].map((label, index) => <li key={label}><span>{index + 1}</span>{label}</li>)}</ol>
     </PanelSection>
 
-    {!props.editable && <div className="dsc-duplicate"><span><Sparkles />Create an editable branch</span><p>Shipped systems stay immutable. Your current draft can be saved as a user system.</p><Input value={copyId} onChange={(event) => setCopyId(event.target.value)} /><Button onClick={() => props.onDuplicate(copyId)} disabled={!copyId.trim() || props.saving}><Copy />{props.saving ? "Creating…" : "Duplicate draft"}</Button></div>}
+    {!props.editable && <div className="dsc-duplicate" data-duplicate-flow><span><Sparkles />Create an editable branch</span><p>Shipped systems stay immutable. Your current draft can be saved as a user system.</p><Input value={copyId} onChange={(event) => setCopyId(event.target.value)} /><Button onClick={() => props.onDuplicate(copyId)} disabled={!copyId.trim() || props.saving}><Copy />{props.saving ? "Creating…" : "Duplicate draft"}</Button></div>}
   </div>;
 }

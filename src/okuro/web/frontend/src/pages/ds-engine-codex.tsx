@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowDown, Check, CircleAlert, Copy, SlidersHorizontal, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Segmented } from "@/components/ui/segmented";
 import { engineApi, engineError } from "@/components/design-engine/engine-api";
+import { setActiveKit } from "@/lib/active-kit";
+import { useLeaveGuard } from "@/lib/leave-guard";
 import type { BrandJson, ResolvedModel } from "@/components/design-engine/types";
 import { COMPONENT_DOCS, COMPONENT_GROUPS } from "@/components/ds-engine-codex/catalog";
 import { ConfigurationPanel } from "@/components/ds-engine-codex/configuration-panel";
@@ -32,6 +34,22 @@ export function DsEngineCodexPage() {
     queryFn: () => engineApi.boot(),
     staleTime: Infinity,
   });
+  /* WHICH KIT PAINTS THE APP, ON ITS OWN QUERY — and it cannot be `/boot`.
+     `/boot` carries `active` too, and refetching IT to learn the new answer
+     would re-run the effect below that seeds `brand`/`model`/`sheet`/`rung`
+     from the payload: pressing "Set as active" would silently throw away the
+     kit you have open and every unsaved edit in it. `/kits` answers the same
+     question — the same `_active_kit_id` resolves both — and nothing on this
+     page is seeded from it. Read, never computed: the badge still comes off a
+     server payload, just a smaller one. */
+  const kitsQuery = useQuery({
+    queryKey: ["ds-engine-codex", "kits"],
+    queryFn: () => engineApi.kits(),
+    initialData: () =>
+      boot.data ? { kits: boot.data.kits, active: boot.data.active } : undefined,
+    enabled: Boolean(boot.data),
+  });
+  const activeKit = kitsQuery.data?.active ?? boot.data?.active ?? null;
   const [brand, setBrand] = useState<BrandJson | null>(null);
   const [savedBrand, setSavedBrand] = useState<BrandJson | null>(null);
   const [model, setModel] = useState<ResolvedModel | null>(null);
@@ -46,6 +64,13 @@ export function DsEngineCodexPage() {
   const [saving, setSaving] = useState(false);
   const [mobileConfigOpen, setMobileConfigOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  /* "WORKED ON" IS DIRTY *OR* SAVED, and the second half is the one a dirty
+     flag cannot carry: pressing Save clears `dirty`, and a kit you edited and
+     saved but never made live is exactly the case the owner's leave rule is
+     about. Reset when a different kit is opened — the question is about the kit
+     on screen, not about the session. */
+  const [savedThisSession, setSavedThisSession] = useState(false);
+  const [settingActive, setSettingActive] = useState(false);
   const pending = useRef<number | null>(null);
 
   useEffect(() => {
@@ -194,6 +219,10 @@ export function DsEngineCodexPage() {
       setSheet(css);
       setRung(kit.brand.defaults.rung.desktop);
       setDirty(false);
+      /* A DIFFERENT KIT IS A DIFFERENT QUESTION. Carrying the flag across would
+         make the leave-prompt fire for a kit you only looked at, because you
+         had saved an earlier one. */
+      setSavedThisSession(false);
     } catch (reason) {
       setError(engineError(reason).message);
     }
@@ -226,6 +255,7 @@ export function DsEngineCodexPage() {
       await engineApi.save(brand);
       setSavedBrand(brand);
       setDirty(false);
+      setSavedThisSession(true);
     } catch (reason) {
       setError(engineError(reason).message);
     } finally {
@@ -243,6 +273,8 @@ export function DsEngineCodexPage() {
       setBrand(next);
       setSavedBrand(next);
       setDirty(false);
+      setSavedThisSession(true);
+      void kitsQuery.refetch();
     } catch (reason) {
       setError(engineError(reason).message);
     } finally {
@@ -283,6 +315,62 @@ export function DsEngineCodexPage() {
       setError("The component import could not be copied. Clipboard access was refused.");
     }
   };
+
+  /* ── the two controls his 2026-09-12 rulings add ─────────────────────────
+     ISSUE 6 IS OPTION D-C: a row PREVIEWS, and one explicit control makes the
+     opened kit the one that paints okuro. No row click ever writes the profile,
+     which is why `openKit` above is unchanged. The write itself is
+     `lib/active-kit.ts` — the same function /settings' preset select calls, so
+     "set as default" cannot mean two things in two places. */
+  const openedEditable =
+    (kitsQuery.data?.kits ?? boot.data?.kits ?? []).find((kit) => kit.id === brand?.id)
+      ?.editable ?? false;
+
+  const makeActive = useCallback(async () => {
+    if (!brand) return;
+    setSettingActive(true);
+    setError(null);
+    try {
+      await setActiveKit(brand.id);
+      /* THE BADGE MOVES BECAUSE THE SERVER SAYS SO. Refetching `/kits` re-reads
+         `active` through the same resolver `/engine.css` uses; setting a local
+         "it is active now" flag would be a projection that computes, i.e. a
+         second authority for a question one layer already answers. */
+      await kitsQuery.refetch();
+    } catch (reason) {
+      setError(engineError(reason).message);
+    } finally {
+      setSettingActive(false);
+    }
+  }, [brand, kitsQuery]);
+
+  /* HIS NEW RULE: leaving the editor with a system you worked on and never made
+     live asks the question once. The hook owns the semantics and the dialog;
+     this page owns what "save" and "duplicate" mean on it. */
+  const { dialog: leaveDialog } = useLeaveGuard({
+    openedKit: brand?.id ?? null,
+    activeKit,
+    dirty,
+    savedThisSession,
+    editable: openedEditable,
+    onSetDefault: async () => {
+      if (!brand) return;
+      if (dirty && openedEditable) await saveBrand();
+      await makeActive();
+    },
+    onDuplicate: () => {
+      /* THE EXISTING FLOW, REVEALED — never a second fork path. The duplicate
+         affordance is already in the configuration rail (it renders for exactly
+         the kits that cannot be saved); this opens the rail on narrow viewports
+         and puts the control in front of the eye. */
+      setMobileConfigOpen(true);
+      window.requestAnimationFrame(() => {
+        const flow = document.querySelector<HTMLElement>("[data-duplicate-flow]");
+        flow?.scrollIntoView({ block: "center" });
+        flow?.querySelector<HTMLInputElement>("input")?.focus();
+      });
+    },
+  });
 
   if (boot.isLoading) return <EngineLoading />;
   if (boot.isError || !boot.data || !brand || !model) {
@@ -344,7 +432,7 @@ export function DsEngineCodexPage() {
                         assumption is the shape the charter calls a projection
                         that computes, i.e. a second authority. */}
                     <span className="dsc-system-origin ds-n7 ds-paragraphs">
-                      {kit.id === payload.active ? "Painting the app" : kit.id === payload.opened ? "Opened" : kit.editable ? "Editable" : "Protected"}
+                      {kit.id === activeKit ? "Painting the app" : kit.id === brand.id ? "Opened" : kit.editable ? "Editable" : "Protected"}
                     </span>
                     <span className="dsc-system-state ds-n7 ds-leads">{selected ? <><Check /> Open</> : "Inspect"}</span>
                   </button>
@@ -399,6 +487,24 @@ export function DsEngineCodexPage() {
 
         <aside className="dsc-config" aria-label="Design system configuration" data-mobile-open={mobileConfigOpen || undefined}>
           <div className="dsc-config-head"><div><span className="ds-n8 ds-leads">CONFIGURATION</span><strong className="ds-n6 ds-headings">{brand.id}</strong></div><div className="dsc-health ds-n8 ds-paragraphs"><i />{model.flags.length ? `${model.flags.length} findings` : "Ready"}<button type="button" onClick={() => setMobileConfigOpen(false)} aria-label="Close configuration"><X /></button></div></div>
+          {/* SET AS ACTIVE — his ruling D-C, 2026-09-12. A row PREVIEWS; this
+              is the only control on the page that writes the profile, and it
+              says which kit it is about. It goes QUIET rather than away when
+              the opened kit already paints the app: a control that vanishes
+              teaches nobody where it went, and the sentence beside it is the
+              honest answer to "why can I not press this". */}
+          <div className="dsc-config-active" data-set-active-row>
+            {brand.id === activeKit ? (
+              <span className="ds-n8 ds-paragraphs"><Check /> This system paints okuro</span>
+            ) : (
+              <>
+                <span className="ds-n8 ds-paragraphs">Previewing. okuro is painted with <strong>{activeKit ?? "its own system"}</strong>.</span>
+                <Button size="sm" type="button" disabled={settingActive} onClick={() => void makeActive()} data-set-active>
+                  {settingActive ? "Setting…" : "Set as active"}
+                </Button>
+              </>
+            )}
+          </div>
           {error && <div className="dsc-error"><CircleAlert />{error}</div>}
           <ConfigurationPanel
             brand={brand}
@@ -421,6 +527,7 @@ export function DsEngineCodexPage() {
         </aside>
       </div>
       <button className="dsc-config-mobile-trigger ds-n7 ds-leads" type="button" onClick={() => setMobileConfigOpen(true)} aria-expanded={mobileConfigOpen}><SlidersHorizontal /> Configure <span className="ds-n8 ds-leads">{model.flags.length}</span></button>
+      {leaveDialog}
     </main>
   );
 }

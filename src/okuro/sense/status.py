@@ -347,7 +347,7 @@ def project_status(
 
     project_row = db.fetchone(
         "SELECT id, name, path, observes_path, url, description, active, "
-        "       provisional, kind, charter, design_profile, created_at, updated_at "
+        "       provisional, kind, charter, created_at, updated_at "
         "FROM projects WHERE id = ?",
         (slug,),
     )
@@ -366,7 +366,6 @@ def project_status(
             "active": bool(project_row["active"]),
             "provisional": bool(project_row["provisional"]),
             "kind": project_row["kind"],
-            "design_profile": project_row["design_profile"],
             "has_charter": bool(charter),
             "charter_chars": len(charter) if charter else 0,
             "created_at": project_row["created_at"],

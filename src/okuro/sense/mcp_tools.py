@@ -2108,9 +2108,7 @@ def get_tools() -> list[Tool]:
                 "injected into every future session — an instruction channel, "
                 "not data), `charter` (use set_project_charter), `active` / "
                 "`indexed` / `provisional` (lifecycle and quarantine flags owned "
-                "by cortex root registration and the repo/corpus lifecycles), "
-                "`design_profile` (a validated ref into the design registry; a "
-                "raw setter would write a dangling ref)."
+                "by cortex root registration and the repo/corpus lifecycles)."
             ),
             inputSchema={
                 "type": "object",

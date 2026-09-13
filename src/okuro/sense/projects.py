@@ -184,10 +184,11 @@ def get_project(slug_or_path: str) -> str | None:
 #   update_project used to IGNORE any field it did not recognise: adding a
 #   column and forgetting this set produced a successful-looking no-op.
 #
-#   design_profile (migration 069) is STILL in that state — read at
-#   bootstrap/sections.py:1383,1909 and status.py:310, written by nothing in
-#   src/. It is listed in AGENT_REFUSED with the reason, so it is now a
-#   recorded decision rather than an omission.
+#   design_profile (migration 069) WAS in that state for its whole life — read
+#   at bootstrap/sections.py and status.py, written by nothing in src/, so it
+#   was NULL on every row it ever had. Migration 149 drops it (2026-09-12, on
+#   the owner's ruling) and both readers are gone with it; a column no writer can
+#   reach is not a column, it is a comment in the schema.
 #
 # The silent drop is what made the failure invisible, so update_project now
 # RAISES on an unrecognised field, and the three sets below partition EVERY
@@ -254,13 +255,6 @@ AGENT_REFUSED = {
     "charter": (
         "OWNED BY set_project_charter, which is the validated single-purpose "
         "tool for it. Two write paths for one field is how they drift."
-    ),
-    "design_profile": (
-        "UNREACHABLE BY DESIGN, NOT BY OVERSIGHT — it is a REF into the "
-        "design-profile registry, validated against a YAML file on disk by "
-        "stack/validator.py:311. A generic setter would write a dangling ref "
-        "that degrades every subsequent bootstrap. It needs a validating "
-        "setter of its own; see the note in this module's class comment."
     ),
 }
 
@@ -356,8 +350,8 @@ def register_project(slug: str, **fields) -> dict:
             "`path`/`observes_path` are deliberately excluded — set them with "
             "update_project once the tree is known, so a guess cannot claim a "
             "UNIQUE-indexed path another project owns. `charter` belongs to "
-            "set_project_charter; `provisional`/`active`/`indexed`/`roles`/"
-            "`design_profile` are lifecycle or instruction channels."
+            "set_project_charter; `provisional`/`active`/`indexed`/`roles` "
+            "are lifecycle or instruction channels."
         )
 
     db = get_db()

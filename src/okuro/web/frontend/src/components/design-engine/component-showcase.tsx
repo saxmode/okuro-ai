@@ -425,10 +425,16 @@ function Group({
         >
           {meta?.caption}
         </p>
+        {/* `ds-n8` RATHER THAN THE FRAME SHEET'S OWN `font-size`. The rule in
+            preview-frame.tsx typed 1.5rem, which is 12px against the frame's
+            50 % root and frozen at every rung — the build-time literal the rung
+            gate names. The engine emits `.ds-n8` at 1.5rem for the default rung
+            and at its own value for every other one, so this renders identically
+            today and follows the rung tomorrow. */}
         <dl className="showcase-contract">
-          <div><dt>Inherits</dt><dd>{contract.inherits}</dd></div>
-          <div><dt>Owns</dt><dd>{contract.owns}</dd></div>
-          <div><dt>Proof here</dt><dd>{contract.proof}</dd></div>
+          <div><dt className="ds-n8">Inherits</dt><dd className="ds-n8">{contract.inherits}</dd></div>
+          <div><dt className="ds-n8">Owns</dt><dd className="ds-n8">{contract.owns}</dd></div>
+          <div><dt className="ds-n8">Proof here</dt><dd className="ds-n8">{contract.proof}</dd></div>
         </dl>
         {/* THE ONE THING THE RUNG CAN ACTUALLY MOVE. `.type-body` compiles to
             `font-size: var(--type-body-size, …)`, read at the use site, so it
@@ -1432,7 +1438,9 @@ function ComponentContractTable() {
       <div className="component-contract-table">
         <table>
           <thead>
-            <tr><th>Family</th><th>Coverage</th><th>Inherited inputs</th><th>Local responsibility</th><th>Evidence on this page</th></tr>
+            {/* `ds-n8` for the same reason as the contract list above: the
+                header rule typed its size and could not follow the rung. */}
+            <tr><th className="ds-n8">Family</th><th className="ds-n8">Coverage</th><th className="ds-n8">Inherited inputs</th><th className="ds-n8">Local responsibility</th><th className="ds-n8">Evidence on this page</th></tr>
           </thead>
           <tbody>
             {GROUP_LABELS.map((group) => {
