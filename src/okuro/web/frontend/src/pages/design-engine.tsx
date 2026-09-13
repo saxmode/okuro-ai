@@ -48,6 +48,8 @@ import { PreviewFrame, type FrameMessage } from "@/components/design-engine/prev
 import { ScanKitDialog } from "@/components/design-engine/scan-kit-dialog";
 import { onboardingApi } from "@/lib/api";
 import { reloadEngineSheet } from "@/lib/theme";
+import { setActiveKit } from "@/lib/active-kit";
+import { useLeaveGuard } from "@/lib/leave-guard";
 import { toast } from "@/components/ui/toast";
 import { AuthoringRail, setPath, slotsNamedBy } from "@/components/design-engine/rail";
 import {
@@ -154,6 +156,10 @@ export function DesignEnginePage() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [pageError, setPageError] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
+  /* THE OTHER HALF OF "WORKED ON" for the leave rule — see lib/leave-guard.tsx.
+     Save clears `dirty`, so a kit edited, saved and never made live would
+     otherwise look untouched on the way out. */
+  const [savedThisSession, setSavedThisSession] = useState(false);
 
   const [ready, setReady] = useState("");
   const [appearance, setAppearance] = useState<"light" | "dark">("light");
@@ -372,6 +378,7 @@ export function DesignEnginePage() {
         setAppearance("light");
         setAuthoring(false);
         setDirty(false);
+        setSavedThisSession(false);
         runGrowth(resolved);
       } catch (err) {
         setGateError(engineError(err).message);
@@ -831,6 +838,7 @@ export function DesignEnginePage() {
       if (exists) await engineApi.save(brand);
       else await engineApi.create(brand);
       setDirty(false);
+      setSavedThisSession(true);
       const listed = await kits.refetch();
       const active = listed.data?.active ?? kits.data?.active ?? null;
       if (active === brand.id) {
@@ -851,6 +859,34 @@ export function DesignEnginePage() {
   useEffect(() => {
     document.title = "design engine · okuro";
   }, []);
+
+  /* LEAVING THE EDITOR WITH A SYSTEM YOU WORKED ON AND NEVER MADE LIVE.
+     His rule, 2026-09-12. The hook is shared with /ds-engine-codex — both are
+     authoring pages and both can leave one system edited while another paints
+     the app, so the semantics live in one module rather than in two pages that
+     will drift. `exists` is this page's word for "the kit is in the user store",
+     which is the same question as "a save can land": `store.save` refuses a
+     shipped id, so a draft over a shipped kit has nowhere to go but a fork. */
+  const { dialog: leaveDialog } = useLeaveGuard({
+    openedKit: brand?.id ?? null,
+    activeKit: kits.data?.active ?? boot.data?.active ?? null,
+    dirty,
+    savedThisSession,
+    editable: exists,
+    onSetDefault: async () => {
+      if (!brand) return;
+      if (dirty && exists) await save();
+      await setActiveKit(brand.id);
+      await kits.refetch();
+    },
+    /* THE EXISTING FORK DIALOG, from the draft on screen — `forkSource === null`
+       is this page's word for "the brand as displayed", which is what a curator
+       who has been tweaking a shipped kit wants carried into the copy. */
+    onDuplicate: () => {
+      setForkSource(null);
+      setForking(true);
+    },
+  });
 
   /* The inspector owns Escape while it is open — see `useAutoCollapsedChrome`. */
   const chrome = useAutoCollapsedChrome(Boolean(selected));
@@ -1301,6 +1337,10 @@ export function DesignEnginePage() {
           onCreate={fork}
         />
       )}
+
+      {/* THE LEAVE PROMPT. Mounted unconditionally; it renders nothing until a
+          navigation is intercepted. */}
+      {leaveDialog}
 
       {/* DUPLICATE FROM A WEBSITE. Mounted unconditionally, unlike the fork
           dialog: forking needs a source brand to copy, scanning starts from the

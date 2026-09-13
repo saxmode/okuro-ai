@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <sub><code>ALPHA · v3.0.1</code> &nbsp;·&nbsp; <code>LINUX · MACOS · WINDOWS</code> &nbsp;·&nbsp; <code>APACHE-2.0</code> &nbsp;·&nbsp; <code>CLAUDE CODE · CODEX · GEMINI · CURSOR</code></sub>
+  <sub><code>ALPHA · v3.0.2</code> &nbsp;·&nbsp; <code>LINUX · MACOS · WINDOWS</code> &nbsp;·&nbsp; <code>APACHE-2.0</code> &nbsp;·&nbsp; <code>CLAUDE CODE · CODEX · GEMINI · CURSOR</code></sub>
 </p>
 
 <p align="center">
@@ -106,7 +106,7 @@ If a release replaces the repository's history, the updater notices (the fetched
 
 ### Feature switches
 
-Occasionally a surface ships before it is ready to be presented, and arrives switched off. `okuro features` lists every switch on your install, whether it is on, and where that came from. Today it prints *(no features declared — everything is on)*.
+Occasionally a surface ships before it is ready to be presented, and arrives switched off. `okuro features` lists every switch on your install, whether it is on, what it is holding back, and where that came from.
 
 When something is listed, turn it on in `~/.okuro/config.yaml`:
 
@@ -116,6 +116,15 @@ features:
 ```
 
 Then restart okuro, or just reload the page for a web-only surface. Anything `okuro features` does not list is not gated — it is simply on.
+
+**`transcript-analysis` — ships off.** Turned on, okuro copies the transcripts your agent CLIs write (Claude Code, Codex, Gemini, antigravity) into its own database, then mines them on a schedule for behaviour findings and review-ready lessons: nine daemon jobs, the `okuro trace` and `okuro distill` commands, the trace and transcript MCP tools, and the Lessons page. It reads your own machine and spends your own model budget doing it, so it is yours to switch on:
+
+```yaml
+features:
+  transcript-analysis: true
+```
+
+Turning it back off stops the jobs and **deletes nothing** — everything already ingested stays, and turning it on again resumes against it. A job held back this way shows as *feature off* on the Scheduled page rather than disappearing.
 
 ## Prerequisites
 

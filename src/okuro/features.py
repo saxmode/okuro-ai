@@ -6,7 +6,8 @@
 #   points, so the public package carries it INERT rather than absent.
 # index: imports | class Feature | FEATURES | def _config_features |
 #   def feature_enabled | def feature_state | def _withheld |
-#   def withheld_tools | def withheld_commands | def withheld_routes
+#   def withheld_tools | def withheld_commands | def withheld_routes |
+#   def withheld_daemon_tasks
 # AGENT_HEADER_END -->
 """The release maturity switch — features that ship inert.
 
@@ -53,20 +54,33 @@ for every install. Schema always ships, on or off — the switch gates
 BEHAVIOUR. The corollary is worth stating plainly: shipping a feature's
 migration is the irreversible act, not enabling the feature.
 
-WHERE THE GATES SIT. Three registration points read this module, one per
+WHERE THE GATES SIT. Four registration points read this module, one per
 surface, so ONE declaration below hides a feature everywhere:
 
-===============  ======================  ==============================
-Declared on      Withheld by             Consumed at
-===============  ======================  ==============================
-``commands``     :func:`withheld_commands`  ``cli/main.py`` — dropped
-                                            from the click group
-``tools``        :func:`withheld_tools`     ``mcp/_registry.py`` — left
-                                            out of the tool list
-``routes``       :func:`withheld_routes`    ``GET /api/features`` — the
-                                            SPA filters its nav and
-                                            refuses the route
-===============  ======================  ==============================
+================  =============================  ==============================
+Declared on       Withheld by                    Consumed at
+================  =============================  ==============================
+``commands``      :func:`withheld_commands`      ``cli/main.py`` — dropped
+                                                 from the click group
+``tools``         :func:`withheld_tools`         ``mcp/_registry.py`` — left
+                                                 out of the tool list
+``routes``        :func:`withheld_routes`        ``GET /api/features`` — the
+                                                 SPA filters its nav and
+                                                 refuses the route
+``daemon_tasks``  :func:`withheld_daemon_tasks`  ``daemon/registry.py`` — left
+                                                 out of ``get_all_tasks()``,
+                                                 so the scheduler never arms
+                                                 the timer
+================  =============================  ==============================
+
+``daemon_tasks`` is the surface the other three cannot stand in for: a tool,
+a command and a route all wait to be ASKED, while a cron job acts on its own.
+A feature whose jobs are the feature — one that reads the machine and spends
+the install's model budget doing it — is not off until its timers are off,
+however thoroughly its UI is hidden. That is why the seam sits in
+``get_all_tasks()`` rather than in the scheduler: every enumerator of the
+registry goes through it, so there is one place to gate and no second path
+that keeps arming a withheld timer.
 
 ``routes`` are UI path PREFIXES (``/studio`` withholds ``/studio`` and
 ``/studio/anything``), matched on segment boundaries so ``/studio-lab``
@@ -110,6 +124,15 @@ class Feature(NamedTuple):
     someone arrives by URL. Prefix, not exact match, so a feature's detail
     routes (``/studio/draft-7``) travel with its index route without being
     listed one by one.
+
+    ``daemon_tasks`` are ``DaemonTask.id`` values from
+    :data:`okuro.daemon.registry.BUILTIN_TASKS`, matched EXACTLY — a task id is
+    a whole name, not a path, so there is no prefix rule here and
+    ``interaction-scan`` never withholds ``interaction-scanner``. Name a job
+    only if it is useless or harmful with the feature off: a job whose input
+    is the feature's own data qualifies, a job that merely touches it in
+    passing does not, and withholding a shared job to hide a feature stops
+    work no one asked to stop.
     """
 
     default: bool
@@ -117,6 +140,7 @@ class Feature(NamedTuple):
     tools: tuple[str, ...] = ()
     commands: tuple[str, ...] = ()
     routes: tuple[str, ...] = ()
+    daemon_tasks: tuple[str, ...] = ()
 
 
 # NAMING CONSTRAINT, and it bites silently. PyYAML follows YAML 1.1, where a
@@ -133,10 +157,9 @@ class Feature(NamedTuple):
 # Keep this list SHORT. An entry earns its place by being work-in-progress that
 # nonetheless has to live on main; a finished feature has no flag.
 #
-# EMPTY BY DECISION, not by omission. Every surface below is wired and tested;
-# nothing is currently declared because nothing currently needs hiding. The
-# mechanism exists so that the NEXT unfinished thing — a Studio rework, say —
-# can sit on main while a fix ships around it.
+# The register was EMPTY BY DECISION until 2026-09-13, when the transcript
+# pipeline became the first thing that had to ship inert rather than absent.
+# Everything else on main is presentable and therefore carries no flag.
 #
 # TO DECLARE ONE, add a single entry. Every field but the first two is optional
 # and each names a surface to withhold while the feature is off:
@@ -148,15 +171,80 @@ class Feature(NamedTuple):
 #             routes=("/studio",),                # UI path prefixes  -> the SPA
 #             tools=("studio_draft", ...),        # MCP tool names    -> _registry
 #             commands=("studio",),               # click command names -> cli
+#             daemon_tasks=("studio-render",),    # DaemonTask ids -> the scheduler
 #         ),
 #     }
 #
 # That is the whole job — nothing else changes. `okuro features` lists it, the
-# CLI drops the command, the MCP registry withholds the tools, and the web shell
-# drops the nav entries and refuses the route. Constraints: never a YAML 1.1
-# boolean word for a name (see above), routes start with "/", never gate a
-# migration (see the module docstring).
-FEATURES: dict[str, Feature] = {}
+# CLI drops the command, the MCP registry withholds the tools, the scheduler
+# never arms the timers, and the web shell drops the nav entries and refuses
+# the route. Constraints: never a YAML 1.1 boolean word for a name (see above),
+# routes start with "/", daemon_tasks are exact task ids that must exist in
+# BUILTIN_TASKS, never gate a migration (see the module docstring).
+FEATURES: dict[str, Feature] = {
+    # The transcript pipeline. okuro copies every agent transcript this machine
+    # produces — Claude Code, Codex, Gemini, antigravity — into its own
+    # database, then spends the install's model budget mining them for
+    # behaviour findings. That is a reasonable thing to want and an
+    # unreasonable thing to start doing to someone without asking, which is
+    # exactly what a maturity switch is for. It ships OFF; the developer's box
+    # opts in.
+    #
+    # SCOPE, and each tuple was decided by reading the handler rather than the
+    # name. The jobs are the ones whose INPUT is the trace store or a table
+    # derived from it (agent_events / agent_sessions -> interaction_markers ->
+    # interaction_findings; agent_events -> distill_facets -> distill_lessons).
+    # Deliberately NOT here: `session-retros`, whose input is okuro's own
+    # `sessions` telemetry and which degrades to a metadata-only summary when
+    # the trace store is empty (sense/retros.py:76-88); `memory-utility-decay`
+    # and `memory-recall-gate`, which touch no trace table at all; and
+    # `db-vacuum`, which is whole-database hygiene.
+    #
+    # TURNING IT OFF LATER DELETES NOTHING. The jobs stop; every row already
+    # ingested stays exactly where it is, and turning the feature back on
+    # resumes against it. There is no purge path here by design — see the
+    # `agent_events` constraint the daemon inherits.
+    "transcript-analysis": Feature(
+        default=False,
+        summary=(
+            "Store this machine's agent transcripts in okuro and mine them "
+            "for behaviour findings."
+        ),
+        daemon_tasks=(
+            "trace-ingest",
+            "interaction-bridge",
+            "interaction-scan",
+            "interaction-embed",
+            "interaction-analysis",
+            "interaction-improve",
+            "interaction-lifecycle",
+            "distill-pipeline",
+            "distill-lessons",
+        ),
+        tools=(
+            # okuro.trace.mcp_tools — the module's whole surface; every one of
+            # these reads agent_events / agent_sessions and nothing else.
+            "session_list",
+            "session_trace",
+            "trace_search",
+            "trace_stats",
+            "trace_index",
+            # okuro.sense.transcripts — the verbatim per-message store
+            # (transcript_messages). A second copy of the same subject matter,
+            # written by the same feature.
+            "transcript_sweep",
+            "transcript_search",
+            "transcript_adapters",
+            # The human half of the mining loop — reads and writes
+            # distill_lessons, which only the distill jobs populate.
+            "distill_lessons_review",
+            "distill_lesson_approve",
+            "distill_lesson_reject",
+        ),
+        commands=("trace", "distill"),
+        routes=("/lessons",),
+    ),
+}
 
 
 def _config_features() -> dict:
@@ -256,3 +344,40 @@ def withheld_routes() -> frozenset[str]:
     hiccups is worse than a preview page someone was not meant to see.
     """
     return _withheld("routes")
+
+
+def withheld_daemon_tasks() -> frozenset[str]:
+    """Daemon task ids the scheduler must not arm while their feature is off.
+
+    Read by :func:`okuro.daemon.registry.get_all_tasks`, which is the single
+    enumerator every scheduling path goes through — the scheduler at boot, the
+    same scheduler on SIGHUP reload, and the drift alarm. A withheld task is
+    therefore never armed, and flipping the config takes effect on the next
+    reload without restarting the daemon.
+
+    Withheld, not disabled. ``enabled=False`` is the USER's switch, persisted
+    in ``~/.okuro/daemon/config.yaml`` and theirs to flip on the Scheduled
+    page; this is the RELEASE's, and the two must not overwrite each other. So
+    nothing here writes that file: the task simply does not reach the
+    scheduler, and any override the user already saved survives untouched and
+    applies again the day the feature is turned on.
+    """
+    return _withheld("daemon_tasks")
+
+
+def feature_owning(attr: str, value: str) -> str | None:
+    """Name of the currently-OFF feature that withholds *value* on *attr*.
+
+    The inverse of :func:`_withheld`, and it exists for the same reason the
+    web payload carries per-feature ``routes``: a surface that has gone quiet
+    can only tell the user which config key to flip if something maps the
+    missing thing back to its owner. Matching is exact — callers that need
+    prefix semantics (routes) do their own longest-prefix walk.
+
+    Returns ``None`` when nothing withholds it, which is also the answer for a
+    feature that is currently ON.
+    """
+    for name, spec in FEATURES.items():
+        if value in getattr(spec, attr) and not feature_enabled(name):
+            return name
+    return None

@@ -2959,7 +2959,16 @@ def api_schedules():
     """List scheduled daemon tasks (builtins + user overrides).
 
     Powers Health / Schedules. Each row: id, description, cron, handler,
-    enabled, last_run (if tracked), next_run (computed from cron).
+    enabled, last_run (if tracked), next_run (computed from cron), and
+    ``withheld_by``.
+
+    WITHHELD TASKS ARE LISTED, not omitted. ``get_all_tasks()`` drops the jobs
+    of a switched-off feature because its job is to answer "what does the
+    scheduler arm"; this page answers a different question — "what jobs exist
+    and why is that one not running" — and a row that simply disappears turns
+    a deliberate switch into a mystery. So this is the one caller that passes
+    ``include_withheld=True``, and labels what came back with the config key
+    that would bring it back.
     """
     from datetime import datetime
     from okuro.daemon.registry import get_all_tasks
@@ -2969,20 +2978,24 @@ def api_schedules():
     except Exception:  # pragma: no cover — optional dep
         croniter = None
 
-    tasks = get_all_tasks()
+    from okuro.features import feature_owning
+
+    tasks = get_all_tasks(include_withheld=True)
     now = datetime.now()
 
     last_runs = _load_daemon_last_runs()
 
     rows = []
     for t in tasks:
+        withheld_by = feature_owning("daemon_tasks", t.id)
         next_run = None
-        if croniter is not None and t.enabled:
+        if croniter is not None and t.enabled and withheld_by is None:
             try:
                 next_run = croniter(t.cron, now).get_next(datetime).isoformat()
             except Exception:
                 next_run = None
         rows.append({
+            "withheld_by": withheld_by,
             "id": t.id,
             "description": t.description,
             "cron": t.cron,
@@ -3038,18 +3051,22 @@ def _schedule_row(task_id: str) -> dict | None:
     except Exception:
         croniter = None
 
+    from okuro.features import feature_owning
+
     now = datetime.now()
     last_runs = _load_daemon_last_runs()
-    for t in get_all_tasks():
+    for t in get_all_tasks(include_withheld=True):
         if t.id != task_id:
             continue
+        withheld_by = feature_owning("daemon_tasks", t.id)
         next_run = None
-        if croniter is not None and t.enabled:
+        if croniter is not None and t.enabled and withheld_by is None:
             try:
                 next_run = croniter(t.cron, now).get_next(datetime).isoformat()
             except Exception:
                 next_run = None
         return {
+            "withheld_by": withheld_by,
             "id": t.id,
             "description": t.description,
             "cron": t.cron,

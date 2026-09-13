@@ -939,6 +939,14 @@ def _active_kit_id() -> str:
     and the Settings control that wrote it was removed on 2026-09-06. Do not
     revive it here — one field answering two questions is how it went dead.
 
+    AND NOT `design.profile`. That was v0's design-profile id and this function
+    honoured it as a legacy fallback for installs made before `design.kit`
+    existed. v0 was deleted on 2026-09-06 and its ids resolve to nothing, so the
+    fallback could only ever return a name `store.load` refuses — a branch whose
+    success path had already stopped existing. The owner ruled it out on
+    2026-09-12 and the key is null-deleted from the profile in the same change.
+    A key that outlives its last reader is a defect waiting.
+
     Falls back to okuro's own kit whenever the profile is unreadable, names a
     kit that no longer exists, or names nothing — an app with no stylesheet is a
     worse failure than an app on the default one.
@@ -947,7 +955,7 @@ def _active_kit_id() -> str:
         from okuro.yu.profile import get_profile_raw
 
         design = (get_profile_raw() or {}).get("design") or {}
-        chosen = design.get("kit") or design.get("profile")
+        chosen = design.get("kit")
     except Exception:
         logger.warning("could not read the active kit; falling back to %s", OKURO_KIT)
         return OKURO_KIT

@@ -3,7 +3,7 @@
 # role: code
 # purpose: Daemon task registry — built-in tasks + user overrides from config.yaml.
 # index: imports | kinds+tiers | class DaemonTask | def load_user_overrides
-#   | def get_all_tasks
+#   | WITHHELD_TASK_IDS | def get_all_tasks
 # AGENT_HEADER_END -->
 """Daemon task registry — built-in tasks + user overrides from config.yaml."""
 
@@ -583,17 +583,64 @@ def load_user_overrides() -> dict[str, dict]:
 _OVERRIDE_FIELDS = {"cron", "enabled", "run_on_startup", "timeout_seconds"}
 
 
-def get_all_tasks(overrides: Optional[dict[str, dict]] = None) -> list[DaemonTask]:
+# Task ids dropped by the LAST call to get_all_tasks() because the feature
+# that declares them is switched off. Same job as
+# ``mcp._registry.WITHHELD_TOOL_NAMES``: without it, a job that vanishes from
+# the scheduler is indistinguishable from a job that was never written, and
+# the first question anyone asks is "where did it go".
+#
+# REBUILT, not appended. The MCP registry loads once per process, so appending
+# there is safe; get_all_tasks() runs on every daemon reload and on every hit
+# of /api/schedules, and an append-only list would grow without bound.
+WITHHELD_TASK_IDS: list[str] = []
+
+
+def get_all_tasks(
+    overrides: Optional[dict[str, dict]] = None,
+    include_withheld: bool = False,
+) -> list[DaemonTask]:
     """Return the merged task list (builtins + user overrides).
 
     Callers can pass *overrides* directly (useful for testing) or leave it
     ``None`` to read from the config file.
+
+    Tasks belonging to a switched-off feature are DROPPED. This is the single
+    enumerator every scheduling path goes through — ``Scheduler.__init__``,
+    ``Scheduler.reload`` and the kind-drift alarm — so gating here is what
+    makes the release maturity switch reach cron at all. A tool, a command and
+    a route all wait to be asked; a timer does not, so a feature whose jobs are
+    the feature is not off until they are.
+
+    *include_withheld* is for the surfaces that must show a withheld job AS
+    withheld rather than as missing (``GET /api/schedules``). Those callers
+    read :data:`WITHHELD_TASK_IDS`, or
+    :func:`okuro.features.feature_owning`, to label what they got back.
+
+    Withheld is not the same as ``enabled=False``: that flag is the user's,
+    saved in their own config, and nothing here writes it. A withheld task
+    keeps whatever override the user saved and picks it up again when the
+    feature is turned on.
     """
     if overrides is None:
         overrides = load_user_overrides()
 
+    # Import inside the call, not at module scope: okuro.features reads
+    # ~/.okuro/config.yaml fresh per call by design, and this module is
+    # imported by the CLI at startup where a config read is not wanted yet.
+    try:
+        from okuro.features import withheld_daemon_tasks
+
+        withheld = withheld_daemon_tasks()
+    except Exception as exc:  # noqa: BLE001 — a broken switch must not stop the daemon
+        log.warning("features: could not read the daemon-task switch (%s)", exc)
+        withheld = frozenset()
+
+    WITHHELD_TASK_IDS[:] = [t.id for t in BUILTIN_TASKS if t.id in withheld]
+
     tasks: list[DaemonTask] = []
     for task in BUILTIN_TASKS:
+        if task.id in withheld and not include_withheld:
+            continue
         merged = copy.copy(task)
         if task.id in overrides:
             patch = overrides[task.id]

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { ScheduleEditor } from "@/components/schedule/schedule-editor";
 import { KindBadge, TierBadge, EmbedsBadge } from "@/components/schedule/kind-badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import {
   IdentityCell,
   ScheduleCell,
@@ -44,11 +45,16 @@ export function DaemonJobsPanel() {
     return <EmptyState title="No scheduled tasks" />;
   }
 
-  const enabled = data.tasks.filter((t) => t.enabled).length;
-  const disabled = data.tasks.length - enabled;
+  // A withheld job never reaches the scheduler, so it is not "enabled" in any
+  // sense a reader cares about — counting it there would claim work that is
+  // not happening. It gets its own tile instead, because a job silently not
+  // running is exactly the thing these numbers exist to surface.
+  const withheld = data.tasks.filter((t) => t.withheld_by).length;
+  const enabled = data.tasks.filter((t) => t.enabled && !t.withheld_by).length;
+  const disabled = data.tasks.length - enabled - withheld;
   // Count only ENABLED tasks per kind — a disabled LLM task costs nothing, so
   // folding it into the model-call count would overstate what actually runs.
-  const live = data.tasks.filter((t) => t.enabled);
+  const live = data.tasks.filter((t) => t.enabled && !t.withheld_by);
   const byKind = (k: string) => live.filter((t) => t.kind === k).length;
   const callsModel = live.filter(
     (t) => t.kind === "llm" || t.kind === "mixed",
@@ -56,9 +62,10 @@ export function DaemonJobsPanel() {
 
   return (
     <section className="space-y-4">
-      <div className="grid grid-cols-3 gap-3">
+      <div className={withheld > 0 ? "grid grid-cols-4 gap-3" : "grid grid-cols-3 gap-3"}>
         <MetricCard label="Enabled" value={enabled} accent={enabled > 0} />
         <MetricCard label="Disabled" value={disabled} />
+        {withheld > 0 && <MetricCard label="Feature off" value={withheld} />}
         <MetricCard label="Total" value={data.tasks.length} />
       </div>
 
@@ -96,6 +103,15 @@ export function DaemonJobsPanel() {
       <p className="text-2xs text-tertiary">
         Changes apply live — the daemon reloads on save, no restart needed.
       </p>
+      {withheld > 0 && (
+        <p className="text-2xs text-tertiary">
+          Jobs marked <span className="font-bold uppercase tracking-wider text-warning">feature off</span>{" "}
+          belong to a feature this install has not switched on. Turn it on in{" "}
+          <span className="font-mono">~/.okuro/config.yaml</span> under{" "}
+          <span className="font-mono">features:</span> and they schedule again —
+          nothing they already wrote was removed.
+        </p>
+      )}
     </section>
   );
 }
@@ -140,25 +156,44 @@ function DaemonJobRow({ task }: { task: ScheduleTask }) {
     onError: failed("Failed to update schedule"),
   });
 
+  // The user's own switch is meaningless while a feature is holding the job
+  // back — flipping it would write an override, report success and change
+  // nothing anyone can see. Locked, and the badge says who holds the key.
+  const withheldBy = task.withheld_by;
+
   return (
     <>
       <tr className="border-t border-border-subtle">
         <td className="w-px px-3 py-2 align-top">
           <Switch
             size="sm"
-            checked={task.enabled}
+            checked={task.enabled && !withheldBy}
             onCheckedChange={(v) => toggleMutation.mutate(v)}
-            disabled={toggleMutation.isPending}
-            aria-label={task.enabled ? "Disable task" : "Enable task"}
+            disabled={toggleMutation.isPending || !!withheldBy}
+            aria-label={
+              withheldBy
+                ? `Withheld by the ${withheldBy} feature`
+                : task.enabled
+                  ? "Disable task"
+                  : "Enable task"
+            }
           />
         </td>
         {/* Description rides under the id instead of owning a greedy column
             — that column was what squeezed the id into wrapping. */}
-        <IdentityCell id={task.id} sub={task.description} />
+        <IdentityCell
+          id={task.id}
+          sub={
+            withheldBy
+              ? `switched off with the ${withheldBy} feature — ${task.description}`
+              : task.description
+          }
+        />
         <td className="px-3 py-2 align-top">
           <div className="flex items-center gap-1">
             <KindBadge kind={task.kind} />
             <EmbedsBadge embeds={task.embeds} />
+            {withheldBy && <StatusBadge tone="warning" label="feature off" />}
           </div>
         </td>
         <td className="px-3 py-2 align-top">
@@ -166,11 +201,13 @@ function DaemonJobRow({ task }: { task: ScheduleTask }) {
         </td>
         <ScheduleCell expr={task.cron} humanize={humanizeCron} />
         <td className="whitespace-nowrap px-3 py-2 align-top text-tertiary">
-          {task.next_run
-            ? parseApiDate(task.next_run).toLocaleString()
-            : task.enabled
-              ? "—"
-              : "disabled"}
+          {withheldBy
+            ? "withheld"
+            : task.next_run
+              ? parseApiDate(task.next_run).toLocaleString()
+              : task.enabled
+                ? "—"
+                : "disabled"}
         </td>
         <td className="w-px px-3 py-2 text-right align-top">
           <Button

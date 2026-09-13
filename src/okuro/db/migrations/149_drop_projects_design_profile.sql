@@ -1,0 +1,28 @@
+-- <!-- AGENT_HEADER
+-- role: code
+-- purpose: 149_drop_projects_design_profile — remove the column migration 069
+--   added for a reader that outlived every value it could hold.
+-- index: content
+-- AGENT_HEADER_END -->
+--
+-- A COLUMN NO WRITER COULD REACH. Migration 069 added projects.design_profile
+-- because build_design_profile (sense/bootstrap/sections.py) SELECTed it and no
+-- migration had ever created it, so every bootstrap logged "no such column".
+-- The column landed; a writer never did. sense/projects.py listed it in
+-- AGENT_REFUSED and said so in its own class comment — "written by nothing in
+-- src/" — so it has been NULL on every row since the day it was created, and
+-- the fallback branch that read it has always fallen through.
+--
+-- What it was a ref INTO is also gone: design v0 was deleted on 2026-09-06, so
+-- a value here could only name a profile that no longer resolves.
+--
+-- The owner ruled on 2026-09-12 that it and profile.design.profile both go. The
+-- readers are removed in the same commit: sections.py (the project section and
+-- the design-profile fallback chain) and status.py.
+--
+-- SQLite has supported DROP COLUMN since 3.35 (2021-03). The column carries no
+-- index, no constraint and no default, so the drop is a metadata change.
+-- Rollback: ALTER TABLE projects ADD COLUMN design_profile TEXT; every row was
+-- NULL, so nothing is lost by dropping it and nothing is restored by adding it.
+
+ALTER TABLE projects DROP COLUMN design_profile;

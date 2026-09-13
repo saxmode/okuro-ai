@@ -800,6 +800,10 @@ export interface ScheduleTask {
   kind: TaskKind;
   tier: TaskTier;
   embeds: boolean;
+  // Name of the switched-off feature holding this job back, or null. Distinct
+  // from `enabled`, which is the user's own switch: a withheld job keeps
+  // whatever the user saved and runs again when the feature is turned on.
+  withheld_by: string | null;
 }
 
 type ScheduleWriteResult = {

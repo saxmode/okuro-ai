@@ -821,9 +821,21 @@ def _check_keyring_step() -> tuple[bool, Optional[str]]:
 
 
 def _check_design() -> tuple[bool, Optional[str]]:
+    """Done = the user has chosen a design system.
+
+    THE KEY IS `design.kit`, AND IT IS THE ONE EVERY WRITER WRITES. This read
+    `design.profile` — v0's design-profile id. The onboarding design step
+    (`components/onboarding/steps/design.tsx:59`) patches `design.kit`, and so
+    does the Settings preset select; nothing has written `design.profile` since
+    v0 was retired on 2026-09-06. An install carrying the old key still reported
+    done, which is why the mismatch was invisible — a fresh one would have
+    completed the step and been told it had not. Ruled 2026-09-12:
+    `design.profile` is null-deleted and `design.kit` is the only appearance key
+    the profile carries, exactly as `design_engine.api::_active_kit_id` reads it.
+    """
     profile = _load_profile()
-    design_profile = profile.get("design", {}).get("profile")
-    return bool(design_profile), design_profile
+    kit = profile.get("design", {}).get("kit")
+    return bool(kit), kit
 
 
 def _check_canon_deploy() -> tuple[bool, Optional[str]]:

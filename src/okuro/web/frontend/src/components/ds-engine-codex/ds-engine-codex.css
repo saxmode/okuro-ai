@@ -170,6 +170,15 @@
 .dsc-config-head > div { display: flex; flex-direction: column; gap: 2px; }
 .dsc-config-head > div span { color: var(--dsc-muted); }
 .dsc-config-head strong { overflow: hidden; max-width: 190px; text-overflow: ellipsis; white-space: nowrap; }
+/* THE SET-AS-ACTIVE ROW — his ruling D-C, 2026-09-12. It sits directly under
+   the rail head because the head already names the kit this is about, and a
+   control that writes the profile must stand beside the identity it writes.
+   NO TYPED COLOUR: `--dsc-muted` and `--dsc-rule` are the page's own names,
+   both resolved from engine tokens at the top of this file. */
+.dsc-config-active { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 20px; border-bottom: 1px solid var(--dsc-rule); color: var(--dsc-muted); }
+.dsc-config-active span { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.dsc-config-active strong { color: var(--dsc-fg); }
+.dsc-config-active svg { width: 14px; flex: 0 0 auto; }
 .dsc-health { display: flex; align-items: center; gap: 7px; color: var(--dsc-muted); }
 .dsc-health i { width: 6px; height: 6px; border-radius: 50%; background: var(--color-status-success); }
 .dsc-health button { display: none; width: 30px; height: 30px; place-items: center; border: 0; border-radius: 6px; color: inherit; background: transparent; }

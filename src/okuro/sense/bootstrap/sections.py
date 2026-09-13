@@ -1516,7 +1516,7 @@ def build_project(project_slug: str = None) -> tuple[str, str, int]:
         from okuro.db import get_db
         db = get_db()
         row = db.fetchone(
-            "SELECT id, name, path, url, stack, port_range, roles, description, design_profile, charter "
+            "SELECT id, name, path, url, stack, port_range, roles, description, charter "
             "FROM projects WHERE id = ?",
             (project_slug,),
         )
@@ -1554,8 +1554,6 @@ def build_project(project_slug: str = None) -> tuple[str, str, int]:
         roles = json.loads(row["roles"]) if isinstance(row.get("roles"), str) else (row.get("roles") or [])
         if roles:
             lines.append(f"- **Roles**: {', '.join(roles)}")
-        if row.get("design_profile"):
-            lines.append(f"- **Design Profile**: `{row['design_profile']}`")
         content = "\n".join(lines)
         return ("project", content, estimate_tokens(content))
 
@@ -1707,6 +1705,18 @@ def build_distill_candidates(limit: int = 3) -> tuple[str, str, int]:
     whole section stays under ten rendered lines however long the queue gets.
     """
     def _gather():
+        # Silent when the feature that mines these is off. The queue can be
+        # NON-EMPTY in that state — an install that ingested before the switch
+        # was flipped keeps every row it mined, because turning the feature off
+        # stops the jobs and deletes nothing. Rendering it anyway would push a
+        # review queue nothing is still filling, and point at
+        # `okuro distill lessons`, a command the same switch has just removed
+        # from the CLI.
+        from okuro.features import feature_enabled
+
+        if not feature_enabled("transcript-analysis"):
+            return None
+
         from okuro.sense.distill.lessons import lessons_for_review
 
         rows = lessons_for_review(limit=max(limit, 1), status="candidate")
@@ -2117,56 +2127,42 @@ def build_design_profile(project_slug: str = None) -> tuple[str, str, int]:
     # The design system okuro ships. Was `architecture-noir`, a v0 profile,
     # until p10 deleted that layer (2026-09-06).
     _DEFAULT_PROFILE = "okuro-ds"
-    profile_id = None
 
-    # Fallback chain: project-bound projects.design_profile
-    #                 → user-level profile.design.kit (then .profile, legacy)
-    #                 → _DEFAULT_PROFILE (okuro-ds)
-    # Project binding wins because per-project stack decisions are the
-    # most specific. User-level selection applies when no project context
-    # is resolved (CLI default, fresh bootstrap). Without this fallback
-    # the user's onboarding Visual-Identity pick is a dead write —
-    # DesignStep patches profile.design.profile but nothing reads it.
+    # Fallback chain: user-level profile.design.kit → _DEFAULT_PROFILE.
+    #
+    # TWO RUNGS OF THIS CHAIN WERE DROPPED ON 2026-09-12, on the owner's ruling,
+    # and neither had a live answer to give:
+    #
+    #   projects.design_profile (migration 069) was READ here and written by
+    #   NOTHING in src/ — sense/projects.py lists it in AGENT_REFUSED and says
+    #   so in its own class comment. Always NULL, so the branch always fell
+    #   through. Migration 149 drops the column.
+    #
+    #   profile.design.profile held a v0 design-profile id. v0 was deleted on
+    #   2026-09-06, so the ids it could carry resolve to nothing and the
+    #   "legacy install" it existed for cannot be served either way. It is
+    #   null-deleted from the profile in the same change.
+    #
+    # A key that outlives its last reader is a defect waiting; a READER whose
+    # value can no longer exist is the same defect pointed the other way.
+    def _user_design():
+        from okuro.yu.profile import get_profile_raw
+        user_profile = get_profile_raw() or {}
+        user_design = user_profile.get("design") or {}
+        if isinstance(user_design, dict):
+            # `design.kit` IS THE ACTIVE DESIGN SYSTEM, and the only thing the
+            # profile says about appearance. Same single key, same reason, as
+            # design_engine.api::_active_kit_id.
+            candidate = user_design.get("kit")
+            if isinstance(candidate, str) and candidate.strip():
+                return candidate.strip()
+        return None
 
-    # 1. project-bound
-    if project_slug:
-        def _project_design():
-            from okuro.db import get_db
-            db = get_db()
-            row = db.fetchone(
-                "SELECT design_profile FROM projects WHERE id = ?",
-                (project_slug,),
-            )
-            if row and row.get("design_profile"):
-                return row["design_profile"]
-            return None
+    profile_id = _safe(
+        "sections.build_design_profile.user_profile",
+        _user_design,
+    )
 
-        profile_id = _safe(
-            "sections.build_design_profile.project_lookup",
-            _project_design,
-        )
-
-    # 2. user-level profile.design.profile
-    if not profile_id:
-        def _user_design():
-            from okuro.yu.profile import get_profile_raw
-            user_profile = get_profile_raw() or {}
-            user_design = user_profile.get("design") or {}
-            if isinstance(user_design, dict):
-                # `design.kit` IS THE ACTIVE DESIGN SYSTEM; `design.profile` is
-                # a legacy key, read only for installs made before it existed.
-                # Same order and same reason as design_engine.api::_active_kit_id.
-                candidate = user_design.get("kit") or user_design.get("profile")
-                if isinstance(candidate, str) and candidate.strip():
-                    return candidate.strip()
-            return None
-
-        profile_id = _safe(
-            "sections.build_design_profile.user_profile",
-            _user_design,
-        )
-
-    # 3. default
     if not profile_id:
         profile_id = _DEFAULT_PROFILE
 

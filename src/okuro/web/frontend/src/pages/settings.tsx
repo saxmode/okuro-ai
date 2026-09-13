@@ -57,9 +57,9 @@ import {
   applyPulseOutlineOverride,
   clearPulseOutlineOverride,
   PULSE_OUTLINE_DEFAULTS,
-  reloadEngineSheet,
   type PulseOutlineOverride,
 } from "@/lib/theme";
+import { setActiveKit } from "@/lib/active-kit";
 import {
   keyringApi,
   setKeyringSession,
@@ -2844,22 +2844,12 @@ function DesignTab() {
            not until F5. Persist first, re-fetch second. */
         onSelect={(id) => setSelectedPreset(id)}
         onPersist={async (id) => {
-          const current =
-            (profile.data?.design as DesignSection | undefined) ?? {};
-          // `design.kit` IS THE ACTIVE DESIGN SYSTEM, and after 2026-09-06 it
-          // is the ONLY thing the profile says about appearance. `brand` is
-          // null-deleted rather than merely left alone: the control that wrote
-          // it is gone, nothing has read it since v0, and a key that survives
-          // its last reader is the shape the last three defects had. `profile`
-          // stays — the engine reads it as a fallback for installs made before
-          // `kit` existed.
-          const next: DesignSection = { ...current, kit: id, brand: null };
-          await patchProfile({ design: next });
-          try {
-            reloadEngineSheet();
-          } catch {
-            /* no-op — dev env without the link */
-          }
+          // ONE WRITER, THREE CALLERS. The PATCH + `reloadEngineSheet` pair
+          // that used to live inline here is `lib/active-kit.ts`; the Design
+          // Engine's "Set as active" and its leave-prompt call the same
+          // function, so a change to what "set as default" means cannot reach
+          // one surface and miss two. See that module's header.
+          await setActiveKit(id);
           qc.invalidateQueries({ queryKey: ["onboarding", "profile"] });
           qc.invalidateQueries({ queryKey: ["design", "active"] });
         }}
@@ -3042,11 +3032,14 @@ function DesignPresetSection({
   const swatchQuery = useQuery({
     queryKey: ["design", "tokens", selected, appearance],
     queryFn: async () => {
-      if (!selected) return [];
+      if (!selected) return { colours: [], typeface: null };
       const css = await apiText(
         `/api/design-engine/sheet/${encodeURIComponent(selected)}.css`,
       );
-      return pickPreviewTokens(parseColorTokens(css, appearance));
+      return {
+        colours: pickPreviewTokens(parseColorTokens(css, appearance)),
+        typeface: typefaceIn(css),
+      };
     },
     enabled: Boolean(selected),
     staleTime: 2_000,
@@ -3119,15 +3112,41 @@ function DesignPresetSection({
         <FieldLabel>What it paints</FieldLabel>
         {swatchQuery.isLoading ? (
           <p className="text-2xs text-tertiary italic">Loading tokens…</p>
-        ) : (swatchQuery.data ?? []).length === 0 ? (
+        ) : (swatchQuery.data?.colours ?? []).length === 0 ? (
           <p className="text-2xs text-tertiary italic">
             No color tokens found for this design system.
           </p>
         ) : (
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {(swatchQuery.data ?? []).map((t) => (
+            {(swatchQuery.data?.colours ?? []).map((t) => (
               <ColorChip key={t.name} name={t.name} value={t.value} />
             ))}
+          </div>
+        )}
+        {/* SET IN ITSELF, which is the only honest way to show a typeface — a
+            name rendered in the app's font tells you what it is CALLED and
+            nothing about what it looks like. */}
+        {swatchQuery.data?.typeface && (
+          <div className="mt-2 flex items-center gap-2 rounded border border-border bg-surface p-1.5">
+            <span
+              className="inline-grid h-5 w-5 shrink-0 place-items-center rounded border border-border text-2xs"
+              style={{ fontFamily: swatchQuery.data.typeface.stack }}
+              aria-hidden
+            >
+              Aa
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate font-mono text-2xs text-fg">
+                --font-family-base
+              </span>
+              <span
+                className="block truncate text-2xs text-tertiary"
+                style={{ fontFamily: swatchQuery.data.typeface.stack }}
+                title={swatchQuery.data.typeface.stack}
+              >
+                {swatchQuery.data.typeface.name}
+              </span>
+            </span>
           </div>
         )}
       </div>
@@ -3345,6 +3364,30 @@ export function liveAppearance(): "dark" | "light" {
   return document.documentElement.getAttribute("data-appearance") === "light"
     ? "light"
     : "dark";
+}
+
+/**
+ * THE TYPEFACE THE SHEET SETS, SHOWN IN ITSELF.
+ *
+ * The preview answered "what does this system paint" with eight colours and
+ * nothing else, so two kits differing only in their typeface previewed
+ * identically — cosmetic, but it made the panel untrue about the one axis a
+ * fork changes as often as the colour. `--font-family-base` is emitted by every
+ * kit (`adapter.py`), in the same `:root` block the colours come out of.
+ *
+ * THE FAMILY NAME IS THE HEAD OF THE STACK, not the stack. The value is a CSS
+ * font stack — `"Lato", ui-monospace, …` — and the fallbacks are the machine's,
+ * not the brand's; naming them would be reading the local install back to the
+ * user as if it were a design decision. The quotes come off for display and
+ * stay on for the `fontFamily` that renders it.
+ */
+function typefaceIn(css: string): { name: string; stack: string } | null {
+  const base = css.match(/:root\s*\{([\s\S]*?)\}/);
+  const hit = /--font-family-base\s*:\s*([^;]+);/.exec(base ? base[1]! : css);
+  if (!hit) return null;
+  const stack = hit[1]!.trim();
+  const head = stack.split(",")[0]!.trim().replace(/^['"]|['"]$/g, "");
+  return head ? { name: head, stack } : null;
 }
 
 /** Pull the declarations out of one `:root…{ }` block. */
