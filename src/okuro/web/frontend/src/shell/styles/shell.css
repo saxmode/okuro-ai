@@ -3127,9 +3127,26 @@
    one vertically in the band's row". Anything not named is left exactly where
    its own page put it. */
 .c-band-actions .c-band-pin{top:50%;transform:translateY(-50%)}
+/* THE BACK ARROW HANGS IN THE RING, SO THE TITLE KEEPS THE CONTENT'S EDGE —
+   2026-09-19. The owner: *"the header-title is horizontally not well
+   aligned."* Measured on /work/tasks/{id} at 1600x1000: the band's content
+   edge and the leaf's first line both start at x=460, and the detail title
+   started at x=484. The 24 is not a stray number — it is this button's own
+   16px icon plus the row's 8px gap, because the arrow is a flex ITEM and the
+   title is the next one along.
+
+   So a detail leaf and an ordinary leaf published their headings on two
+   different left edges, in the same channel, one pane apart. Nothing was
+   broken; it just never lined up with the page underneath it.
+
+   The arrow moves into the ring rather than the title moving right: the ring
+   is 48px (`--sh-s-48`) and this spends 24 of it, so the arrow sits between
+   the frame edge and the text instead of in front of it. Written as the two
+   terms it is made of, never as `-24px`, so an icon or gap change carries. */
 .c-band-back{background:none;border:0;padding:0;cursor:pointer;
   display:flex;align-items:center;color:var(--sh-ink-dim);
   align-self:center;flex:0 0 auto;
+  margin-left:calc(-1 * (var(--sh-icon) + var(--sh-s-8)));
   transition:color var(--interaction-duration) var(--sh-curve)}
 .c-band-back:hover{color:var(--sh-ink)}
 .c-band-back > svg{width:var(--sh-icon);height:var(--sh-icon);stroke-width:1.5;fill:none}
