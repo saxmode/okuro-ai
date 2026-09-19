@@ -748,7 +748,38 @@ export function TaskDetailPage({
        it. That is why the fix is here rather than in the shell. The inset
        separators went full-bleed with it: a hairline indented to a gutter
        that no longer exists is just a short line. */
-    <div className="flex h-full flex-col">
+    /* AND THE HEIGHT IS COMPUTED HERE, FOR THE SAME REASON — 2026-09-19.
+       `h-full` was `height:100%` against a parent with no height of its own,
+       so it resolved to `auto` and this column grew to its content: 6699px
+       measured in a 1000px window. The `min-h-0` chain below was already
+       correct, so the inner region never had a chance — it inherited the
+       same unbounded height and `overflow-y-auto` had nothing to overflow.
+       The page rendered as one long document with a header that scrolled
+       away, which is not what any line of it was written for.
+
+       THE PANE HAS NO HEIGHT AND THAT IS THE CONTRACT, NOT A DEFECT. R2
+       moved the scroller out to `.content` (shell.css, THE PAGE BOX) so a
+       long document reaches the frame's scrollable overflow instead of
+       being clipped; `.c-inner` and `.c-panes` carry `flex:1 0 auto` on
+       purpose. Measured across five leaves, NO page in this shell gets a
+       bounded box — notes 1676, redline 864, prism 1980 — so the pattern
+       this page needs does not exist to inherit.
+
+       THE VIEWPORT IS THE ONLY HONEST SOURCE, and the term subtracted from
+       it is the shell's OWN token, not a number copied here. `--sh-plate-h`
+       is what `.content` already spends as `padding-top` — computed 136px,
+       the 64px menu row plus the 72px band — so the two can never drift.
+       That is the whole reason this is a token and not a literal: the same
+       seam split once already, when an install's port lived in the unit
+       file and was re-derived somewhere else.
+
+       Scoped to THIS page deliberately. Giving every pane a height is the
+       larger fix and it touches the code R2 argued for, across 31 leaves;
+       that is a separate decision with its own measurement. */
+    <div
+      className="flex flex-col"
+      style={{ height: "calc(100dvh - var(--sh-plate-h))" }}
+    >
       {/* THE HEADER IS ON THE PLATE NOW, NOT UNDER IT.
 
           The owner, 2026-09-17: *"Section titles need to be on top. so as the
