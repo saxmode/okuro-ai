@@ -784,7 +784,68 @@ fi
 phase "Native window bindings" "renders the dashboard as a real app window instead of a browser tab"
 
 WEBVIEW_OK=0
-if [ "$UNAME" = "Linux" ]; then
+
+# ─── the desktop interface: asked here, five steps before the wizard ───────
+#
+# WHY THE QUESTION LIVES AT THIS STEP AND NOT IN THE WIZARD. The wizard is
+# RENDERED IN THE WINDOW ([11/11] execs `okuro`, which opens it via
+# open_in_webview), so the renderer has to exist before the wizard can ask
+# anything. This step already installs the window bindings, so it is the only
+# place the question can be both asked and acted on.
+#
+# WHY IT IS A QUESTION AT ALL. The desktop extra is ~650 MB, of which 204 MB
+# is Chromium. A headless box never opens a window — web_launcher.has_display
+# gates the launch — so installing it there buys nothing. The default is YES
+# because the interface is the product; the opt-out exists for servers.
+#
+# STDIN IS CLOSED DURING THE PHASES. The log plumbing at :163 saves the real
+# terminal on fd 5 and the phases run with fd 0 closed, so a bare `read` here
+# would return EOF instantly and silently take the default. Reading from fd 5
+# is the same mechanism _flush_logs uses to hand the terminal to the wizard.
+DESKTOP_UI=""
+if [ -n "${OKURO_DESKTOP:-}" ]; then
+    # Scripted installs and CI: OKURO_DESKTOP=1/0 decides, nothing is asked.
+    [ "$OKURO_DESKTOP" = "1" ] && DESKTOP_UI="yes" || DESKTOP_UI="no"
+    step "desktop interface: ${DESKTOP_UI} (OKURO_DESKTOP=${OKURO_DESKTOP})"
+elif [ "$UNAME" = "Linux" ] && [ -z "${DISPLAY:-}" ] && [ -z "${WAYLAND_DISPLAY:-}" ]; then
+    # No display: the default flips, and the reason is printed rather than
+    # left for the user to infer from a missing window later.
+    DESKTOP_UI="no"
+    step "no DISPLAY / WAYLAND_DISPLAY — skipping the desktop interface (headless)"
+    printf "      ${C_DIM}install it later with: pip install -e '%s[desktop]'${C_RESET}\n" "$REPO_DIR"
+elif [ -t 5 ]; then
+    printf "\n  ${C_BOLD}Install the desktop interface?${C_RESET} [Y/n]\n"
+    printf "      ${C_DIM}yes — Chromium-based app window (adds ~650 MB)${C_RESET}\n"
+    printf "      ${C_DIM}no  — headless: services + CLI + browser UI${C_RESET}\n  > "
+    _ans=""
+    read -r _ans <&5 || _ans=""
+    case "$_ans" in
+        [Nn]*) DESKTOP_UI="no" ;;
+        *)     DESKTOP_UI="yes" ;;
+    esac
+else
+    # Piped installer, no terminal to ask with. Take the default and say so.
+    DESKTOP_UI="yes"
+    step "non-interactive — taking the default: desktop interface yes (OKURO_DESKTOP=0 to skip)"
+fi
+
+if [ "$DESKTOP_UI" = "yes" ]; then
+    step "installing the desktop interface (PySide6 / QtWebEngine)"
+    if PYTHONUNBUFFERED=1 "$VPY" -m pip install -e "${REPO_DIR}[desktop]" >/dev/null 2>&1; then
+        step "PySide6 installed — the window renders with Chromium"
+        record_event "fact" "desktop_ui" "ok" 0 "PySide6/QtWebEngine"
+        WEBVIEW_OK=1
+    else
+        record_event "fact" "desktop_ui" "warn" 0 "PySide6 install failed"
+        warn_msg "PySide6 install failed — falling back to the system webview below"
+    fi
+else
+    record_event "fact" "desktop_ui" "skip" 0 "headless by choice or no display"
+fi
+if [ "$UNAME" = "Linux" ] && [ "$WEBVIEW_OK" = "0" ]; then
+    # FALLBACK PATH ONLY. With the desktop extra installed the renderer is
+    # QtWebEngine and none of this applies — probing for WebKitGTK there would
+    # print an apt hint for a library okuro no longer renders with.
     # pywebview on Linux shells out to system WebKitGTK via Python GObject
     # bindings. These ship as apt/dnf/pacman packages and can't be pip-installed
     # cleanly. A .pth shim lets the venv resolve against the system build
@@ -834,7 +895,8 @@ if [ "$UNAME" = "Linux" ]; then
     fi
 fi
 
-if [ "$UNAME" = "Darwin" ]; then
+if [ "$UNAME" = "Darwin" ] && [ "$WEBVIEW_OK" = "0" ]; then
+# FALLBACK PATH ONLY — see the Linux branch above.
     # pyobjc WebKit/Cocoa drives the native WKWebView window. pywebview
     # declares them as extras, not hard deps, so a clean pip install from
     # PyPI can land without them. Surface the gap here instead of at first

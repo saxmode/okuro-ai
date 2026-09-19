@@ -322,10 +322,28 @@ def detect_capability_gap_from_panel(
 _NAMED_ROLE_TIMEOUT_SECONDS = 60
 
 
+def _canonical_tiers() -> tuple[str, ...]:
+    """The tier vocabulary — one helper, in the vocabulary module.
+
+    Lazy, because this module is otherwise import-light on purpose: it is
+    decision-pure and gets imported by the engine on paths that have no
+    reason to pull in the provider/tier machinery.
+    """
+    from okuro.roles.vocabulary import canonical_tiers
+
+    return canonical_tiers()
+
+
 def _build_named_role_prompt(description: str, role_index_text: str) -> str:
+    # Rendered, never retyped. A hand-written tier list in this prompt
+    # ("specialist|standard|support|fast") is where the live table's
+    # non-canonical tiers came from: two of those four words are not tiers,
+    # and `resolve_unit_tier` falls back to standard while logging a value
+    # every surface then displays as if okuro recognised it.
+    tiers = "|".join(_canonical_tiers())
     return (
         "You identify roles a user EXPLICITLY demands for a task and decide "
-        "whether the existing role catalog can fill each one.\n\n"
+        "whether the existing roles table can fill each one.\n\n"
         "## Existing roles (id — domain — purpose)\n"
         f"{role_index_text or '(none)'}\n\n"
         "## Task\n"
@@ -334,7 +352,7 @@ def _build_named_role_prompt(description: str, role_index_text: str) -> str:
         "1. Extract ONLY roles the user explicitly asks for — phrases like "
         "'use a X', 'I need a X', 'an X specialist', 'a beast in X', 'a X "
         "advisor'. Do NOT invent roles the user did not request.\n"
-        "2. For each demanded role, decide whether an existing catalog role "
+        "2. For each demanded role, decide whether an existing role in the table "
         "genuinely fills it (same domain AND expertise). A loose keyword "
         "overlap is NOT a fill — a security-auditor does NOT fill a 'legal "
         "advisor'.\n"
@@ -344,7 +362,7 @@ def _build_named_role_prompt(description: str, role_index_text: str) -> str:
         '{"missing_roles": [{"name": "<kebab-case-id>", "why": "<one line>", '
         '"domain": "<one of: c-level, content, design, documentation, '
         'engineering, marketing, planning, quality, research, system>", '
-        '"tier": "<specialist|standard|support|fast>"}]}\n'
+        f'"tier": "<{tiers}>"}}]}}\n'
         "If every demanded role is already covered, or the user demanded no "
         'specific role, return {"missing_roles": []}.'
     )
@@ -386,9 +404,9 @@ def detect_named_role_gaps(
 
     Unlike :func:`detect_capability_gap_from_panel` (whole-task zero-match),
     this fires per explicitly-named role even when other roles match. One LLM
-    call reads the task plus the existing role catalog and returns demanded
+    call reads the task plus the existing roles table and returns demanded
     roles that have no adequate existing role — judged against the real
-    catalog, not an embedding threshold (a short "legal advisor" query would
+    rows, not an embedding threshold (a short "legal advisor" query would
     otherwise spuriously match security-auditor).
 
     FAIL-OPEN: any LLM/parse failure returns ``None`` so an availability
@@ -478,12 +496,17 @@ def _phase0_description(gap: CapabilityGap, role: str, *, step: int) -> str:
                 "below (the panel re-includes the task by that exact id):\n"
                 + lines
             )
+        # The tier list is RENDERED from CANONICAL_TIERS, never retyped here.
+        # The previous literal offered "specialist" and "support", neither of
+        # which is a tier, and that prompt is the documented origin of the
+        # non-canonical tiers sitting in the live roles table.
+        tiers = "/".join(_canonical_tiers())
         if role == "role-researcher":
             return (
                 "Research the domain implied by the user's task description "
                 "and identify the role(s) the registry is missing. For each "
                 "missing slot deliver: purpose, expertise list, tier "
-                "(specialist/standard/support/fast), model tier "
+                f"({tiers}), model tier "
                 "(sonnet/haiku), tool requirements, and ≥3 evidence "
                 "citations (frameworks / specs / canonical libraries).\n\n"
                 f"Original task:\n{gap.payload.get('task_description', '')}\n\n"
@@ -494,14 +517,44 @@ def _phase0_description(gap: CapabilityGap, role: str, *, step: int) -> str:
                 "step (role-designer) reads it directly."
             ) + demand_note
         if role == "role-designer":
+            # Names the verb that can actually perform the act. The previous
+            # wording said "persist via okuro.roles.registry", and that module
+            # has no INSERT — list_roles, get_role, get_role_info,
+            # update_role_info, get_domains and nothing else. The step could
+            # not be carried out as written by any agent that obeyed it.
             return (
                 "Consume the role-researcher draft from the previous "
-                "Phase 0 step. Author production-ready role definitions "
-                "(V3 structure: AGENT_HEADER, purpose, expertise, "
-                "protocol, tools, constraints). Persist each new role "
-                "via okuro.roles.registry with maturity='draft'. After "
-                "the user approves them in the deliberation panel they "
-                "promote to 'active' and the original task's role-match "
-                "is re-run."
+                "Phase 0 step. Author production-ready role definitions and "
+                "persist each one with the `roles_create` MCP verb.\n\n"
+                "roles_create requires role_id (kebab-case), domain and "
+                f"description, and takes tier ({tiers}), model, tools, "
+                "prompt, lean_prompt, micro_prompt, panel_eligible and "
+                "maintenance_schedule. Roles are born maturity='draft' by "
+                "default — keep that default. A draft is invisible to "
+                "roles_match and to the panel until it is promoted, which "
+                "is what makes an unreviewed role safe to write.\n\n"
+                "WRITE THE DESCRIPTION FOR MATCHING. `description` is its own "
+                "required argument and is the ONLY text that gets embedded, "
+                "so it alone decides whether roles_match ever finds this "
+                "role. Name the purpose and the expertise in the words a "
+                "future task would be phrased in — not a label, and not a "
+                "restatement of the role_id.\n\n"
+                "AUTHOR ALL THREE GRADES. The role is audited against the "
+                "canonical structure per grade "
+                "(okuro.roles.designer.validate_role_structure):\n"
+                "- prompt (FULL) — IDENTITY, Personality with **Archetype:**, "
+                "a `### Traits (0-100)` table, Neurotype Balance, COGNITIVE "
+                "PROFILE, EXPERTISE, PROTOCOL, TOOLS.\n"
+                "- lean_prompt (LEAN) — CORE and PROTOCOL; no persona block.\n"
+                "- micro_prompt (MICRO) — flat YAML with `purpose` and "
+                "`expertise`.\n\n"
+                "A draft may be incomplete: roles_create returns the missing "
+                "required sections as `structure_missing`. Close them before "
+                "the role is promoted — a role only ships when it passes the "
+                "structure audit, and roles_promote REFUSES a role that does "
+                "not, naming what is absent. After the user approves them in "
+                "the deliberation panel they promote to 'active' (via "
+                "roles_promote, or the promote button in the web UI) and the "
+                "original task's role-match is re-run."
             ) + demand_note
     return f"Phase 0 step {step}: gap={gap.kind}"

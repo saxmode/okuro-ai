@@ -40,6 +40,7 @@ import { Plus, Users, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { PeopleGraph as PeopleGraphData } from "@/lib/people-api";
 import { targetGroupsApi } from "@/lib/handover-api";
+import { useGraphColorMode } from "@/lib/graph-theme";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -102,10 +103,10 @@ function MeNode({ data }: NodeProps<Node<MeNodeData>>) {
       <div
         className={
           "flex h-28 w-28 flex-col items-center justify-center rounded-full " +
-          "bg-accent/15 border-2 border-accent"
+          "bg-accent-subtle border-2 border-accent"
         }
       >
-        <div className="text-[10px] font-medium uppercase tracking-wider text-accent">
+        <div className="text-[10px] font-medium case-label tracking-wider text-accent">
           You
         </div>
         <div className="mt-1 max-w-[96px] truncate px-2 text-center text-sm font-semibold text-fg">
@@ -321,8 +322,8 @@ function TranslationEdge({
         fill="none"
         stroke={
           reveal
-            ? "var(--color-accent, #22c55e)"
-            : "var(--color-fg-subtle, #909090)"
+            ? "var(--color-accent)"
+            : "var(--color-fg-subtle)"
         }
         strokeWidth={reveal ? 2.2 : 1}
         // Two states only:
@@ -348,16 +349,16 @@ function TranslationEdge({
         cx={sx}
         cy={sy}
         r={ENDPOINT_DOT_R}
-        fill="var(--color-accent, #22c55e)"
-        stroke="var(--color-surface, #0a0a0a)"
+        fill="var(--color-accent)"
+        stroke="var(--color-surface)"
         strokeWidth={1}
       />
       <circle
         cx={tx}
         cy={ty}
         r={ENDPOINT_DOT_R}
-        fill="var(--color-accent, #22c55e)"
-        stroke="var(--color-surface, #0a0a0a)"
+        fill="var(--color-accent)"
+        stroke="var(--color-surface)"
         strokeWidth={1}
       />
       {reveal && (
@@ -1228,9 +1229,17 @@ function PeopleGraphInner({
     writeGroups(next);
   };
 
+  /* D1 — react-flow rendered `react-flow light` in BOTH appearances
+     (measured), so the vendor sheet picked its light block over the dark
+     ground and the person nodes read as near-invisible circles. The bridge
+     is shared, not local: see `lib/graph-theme.ts` for why, and for the
+     adoption ledger of the four mounts still to come. */
+  const colorMode = useGraphColorMode();
+
   return (
     <div className="people-graph h-full w-full">
       <ReactFlow
+        colorMode={colorMode}
         nodes={renderNodes}
         edges={edges}
         onNodesChange={wrappedOnNodesChange}
@@ -1254,7 +1263,7 @@ function PeopleGraphInner({
         zoomOnScroll
         proOptions={{ hideAttribution: true }}
       >
-        <Background gap={28} size={1} color="var(--color-border, #262626)" />
+        <Background gap={28} size={1} color="var(--color-border)" />
         <Controls showInteractive={false} />
 
         {/* Top-left toolbar — connection-style selector. */}
@@ -1337,7 +1346,7 @@ function PeopleGraphInner({
         {(groups.length > 0 || placeableGroups.length > 0) && (
           <Panel position="top-left" className="!mx-2 !mt-12">
             <div className="flex max-w-xs flex-col gap-1 rounded-md border border-border bg-surface-elevated px-2 py-1.5 text-xs">
-              <div className="text-2xs uppercase tracking-wider text-fg-subtle">
+              <div className="text-2xs case-label tracking-wider text-fg-subtle">
                 Groups
               </div>
               {groups.map((g) => (

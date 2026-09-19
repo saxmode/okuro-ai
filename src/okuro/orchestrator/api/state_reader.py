@@ -1249,6 +1249,53 @@ def _derive_engine_state(
     return "wedged"
 
 
+def _gate_snapshot(gate) -> Optional[dict]:
+    """One phase's decision gate as the pipeline view needs it.
+
+    The subject rides along so the view can name what a gate is about
+    without a request per phase, and the hash comes with it so a consumer
+    holding the previous value can tell a re-posed gate from the one it
+    rendered a moment ago.
+    """
+    if gate is None:
+        return None
+    return {
+        "id": gate.id,
+        "status": gate.status,
+        "prompt": gate.prompt,
+        "subject_artifact_id": getattr(gate, "subject_artifact_id", "") or "",
+        "subject_sha256": getattr(gate, "subject_sha256", "") or "",
+        "subject_title": _gate_subject_title(gate),
+        "basis_moved": _gate_basis_moved(gate),
+    }
+
+
+def _gate_subject_title(gate) -> str:
+    """The subject artifact's title for a gate, or ``""``."""
+    aid = getattr(gate, "subject_artifact_id", "") or ""
+    if not aid:
+        return ""
+    from okuro.orchestrator.gate_subject import subject_title
+
+    return subject_title(aid)
+
+
+def _gate_basis_moved(gate) -> bool:
+    """Would resolving this gate be refused right now?
+
+    Only asked for a PENDING gate that HAS a subject. A resolved gate's
+    basis is history — re-checking it would make a locked decision start
+    reporting a problem nobody can act on — and a subjectless gate has
+    nothing to check, so neither costs a query on this hot read path.
+    """
+    aid = getattr(gate, "subject_artifact_id", "") or ""
+    if not aid or getattr(gate, "status", "") != "pending":
+        return False
+    from okuro.orchestrator.gate_subject import basis_moved
+
+    return basis_moved(aid, getattr(gate, "subject_sha256", "") or "")
+
+
 def _derive_lifecycle_state(
     task_status: str, awaiting, phases_out: list[dict]
 ) -> str:
@@ -1611,6 +1658,18 @@ def read_task_snapshot(task_dir: Path, *, use_cache: bool = True) -> Optional[di
     except Exception:
         task_obj = None
 
+    # Decision gates come from the LOADED TASK, not from `state.phases`.
+    # The API's phase model has no `decision_gate` field, so the block
+    # below read `getattr(phase, "decision_gate", None)` off a model that
+    # never had one and emitted null for every phase — the key was in the
+    # snapshot and always empty. Keyed by phase id, which is what both
+    # sides agree on.
+    _gates_by_phase = {
+        p.id: p.decision_gate
+        for p in (getattr(task_obj, "phases", None) or [])
+        if getattr(p, "decision_gate", None) is not None
+    }
+
     phases_out: list[dict] = []
     parallel_running: list[int] = []
     for phase in (state.phases or []):
@@ -1702,14 +1761,11 @@ def read_task_snapshot(task_dir: Path, *, use_cache: bool = True) -> Optional[di
                 }
                 for s in (phase.subtasks or [])
             ],
-            "decision_gate": (
-                {
-                    "id": phase.decision_gate.id if getattr(phase, "decision_gate", None) else "",
-                    "status": phase.decision_gate.status if getattr(phase, "decision_gate", None) else "",
-                    "prompt": phase.decision_gate.prompt if getattr(phase, "decision_gate", None) else "",
-                }
-                if getattr(phase, "decision_gate", None) else None
-            ),
+            # S2 — the subject rides along so the pipeline view can name
+            # what a gate is about without a second request per phase. The
+            # hash is here too: a consumer that has the recorded value can
+            # tell a re-posed gate from the one it rendered a moment ago.
+            "decision_gate": _gate_snapshot(_gates_by_phase.get(phase.id)),
         })
 
     # Lifecycle block — what is the engine doing right now.

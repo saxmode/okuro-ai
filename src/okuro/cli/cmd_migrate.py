@@ -28,10 +28,15 @@ def migrate(check: bool):
     """Apply pending database migrations (writes a pre-migration snapshot first)."""
     from .db_helpers import get_db
 
+    from okuro.db.sqlite import MigrationLockTimeout
+
     try:
         db = get_db()
         try:
             if check:
+                # READ-ONLY, and it must stay that way: --check never takes the
+                # migration lock, so asking "is anything pending?" can never
+                # block behind a runner that is applying one.
                 pending = db.pending_migrations()
                 if pending:
                     warn(f"{len(pending)} migration(s) pending: {', '.join(pending)}")
@@ -43,6 +48,13 @@ def migrate(check: bool):
             db.close()
     except SystemExit:
         raise
+    except MigrationLockTimeout as e:
+        # NOT a failed migration. Another runner — typically the detached
+        # post-merge auto-deploy hook — still holds the apply lock. Nothing was
+        # applied and the schema is untouched, so this must not read like the
+        # damage report that `fail("Migration failed")` implies.
+        warn(f"Migration not attempted — {e}")
+        raise SystemExit(1)
     except Exception as e:  # noqa: BLE001
         fail(f"Migration failed: {e}")
         raise SystemExit(1)

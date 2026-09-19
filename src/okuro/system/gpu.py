@@ -11,6 +11,8 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from typing import Optional
 
+from okuro.system.proc_error import cli_error
+
 # GPU naming — configurable via ~/.okuro/config.yaml in future
 GPU_NAMES: dict[int, str] = {}
 
@@ -36,7 +38,7 @@ def get_gpu_status(
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
         if proc.returncode != 0:
             return {
-                "error": f"nvidia-smi failed: {proc.stderr.strip()}",
+                "error": cli_error("nvidia-smi", proc),
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 

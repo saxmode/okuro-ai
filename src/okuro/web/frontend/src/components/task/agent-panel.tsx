@@ -27,13 +27,13 @@ export function AgentPanel({ subtask, taskId }: AgentPanelProps) {
     <div className="space-y-3 p-3">
       {/* Header */}
       <div className="flex items-center justify-between gap-2">
-        <span className="text-2xs uppercase tracking-wider text-tertiary">
+        <span className="text-2xs case-label tracking-wider text-tertiary">
           Agent
         </span>
         <div className="flex items-center gap-2">
           {retries > 0 && (
             <span
-              className="rounded border border-warning/40 bg-warning/10 px-1.5 py-0.5 text-3xs font-bold uppercase tracking-wider text-warning"
+              className="rounded border border-warning/40 bg-warning/10 px-1.5 py-0.5 text-3xs font-bold case-label tracking-wider text-warning"
               title={`Succeeded after ${retries} retr${retries === 1 ? "y" : "ies"}`}
             >
               {retries}× retry
@@ -97,7 +97,7 @@ function Field({
 }) {
   return (
     <div className="flex gap-2">
-      <span className="w-20 shrink-0 text-2xs uppercase tracking-wider text-tertiary">
+      <span className="w-20 shrink-0 text-2xs case-label tracking-wider text-tertiary">
         {label}
       </span>
       <span
@@ -117,7 +117,7 @@ function StatusChip({ status }: { status: SubtaskStatus | string }) {
   // because the closed 5-token enum no longer lives here.
   const cfg = SUBTASK_STATUS_CONFIG[status as SubtaskStatus] ?? { icon: "?" };
   return (
-    <span className="text-3xs font-bold uppercase tracking-wider text-tertiary">
+    <span className="text-3xs font-bold case-label tracking-wider text-tertiary">
       {cfg.icon} {status}
     </span>
   );

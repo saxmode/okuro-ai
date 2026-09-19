@@ -18,10 +18,24 @@ import { featureForRoute } from "@/lib/features-api";
  * round trip, and says nothing about WHY the feature is off — that is the
  * install owner's business, not this page's.
  */
-export function FeatureOffPage() {
+/**
+ * `routes` — p2, 2026-09-14. WHICH ADDRESS TO NAME THE SWITCH FROM, and it is
+ * optional so no existing caller changes.
+ *
+ * The page's whole value is naming the config key, and it finds that key by
+ * matching a path against each feature's declared `routes`. Those declarations
+ * are the LIVE address space: `features.py:245` says `("/lessons",)`. Under the
+ * redesigned shell `useLocation().pathname` is `/know/lessons`, which matches
+ * nothing — so the page would still refuse the route correctly and then print
+ * the literal `<name>` placeholder, which is the one thing its own comment says
+ * a config key most needs filled in. The shell passes every spelling of the leaf
+ * (`shell/routes.ts::routeAliases`); the first that names a feature wins.
+ */
+export function FeatureOffPage({ routes }: { routes?: readonly string[] } = {}) {
   const { pathname } = useLocation();
   const { features } = useFeatures();
-  const name = featureForRoute(pathname, features);
+  const candidates = routes && routes.length > 0 ? routes : [pathname];
+  const name = candidates.map((p) => featureForRoute(p, features)).find(Boolean) ?? null;
   const summary = name ? features[name]?.summary : undefined;
 
   return (

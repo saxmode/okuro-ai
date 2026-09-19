@@ -42,11 +42,38 @@ export function SystemPanel() {
         const pct = totalMb > 0 ? Math.round((usedMb / totalMb) * 100) : 0;
         return (
           <div key={g.id} className="space-y-1">
-            <div className="flex items-center justify-between">
-              <span className="text-2xs font-medium text-fg-muted">
+            {/* THE SLOT AND THE HARDWARE ARE TWO DIFFERENT FIELDS, AND ONLY
+                ONE OF THEM WAS ON SCREEN. `/api/gpu` carries `name` — the slot,
+                "GPU0" — and `model`, the card. This panel rendered `name`
+                alone, so HEALTH's Machine tab read "GPU0" and "GPU1" and never
+                said what is in the machine. Memory 245d4942 flagged exactly
+                this field pair; it is the one half of its third fix that was
+                still open.
+
+                SLOT FIRST, because the slot is how every other okuro surface
+                addresses a GPU — the broker, the lease, the allocator — so leading
+                with the model would cost a cross-reference. The model
+                truncates with the native tooltip, which is the rule
+                `schedule/cells.tsx:8-10` already states for identifiers, and
+                it needs to: the live strings are "NVIDIA RTX 6000 Ada
+                Generation" and "NVIDIA RTX PRO 4000 Blackwell" in a row that
+                is already tight at a 751.63px pane.
+
+                This is WORK/AGENTS' panel too (`pages/dashboard.tsx`), so the
+                change is a two-leaf change by construction. */}
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="min-w-0 text-2xs font-medium text-fg-muted">
                 {g.name}
+                {g.model ? (
+                  <span
+                    className="ml-1.5 truncate font-normal text-tertiary"
+                    title={g.model}
+                  >
+                    · {g.model}
+                  </span>
+                ) : null}
               </span>
-              <span className="text-3xs text-tertiary">
+              <span className="shrink-0 text-3xs text-tertiary">
                 {g.temperature_c != null ? `${g.temperature_c}°C` : "—"}
               </span>
             </div>

@@ -733,6 +733,63 @@ def artifact_supersede(old_id: str, new_id: str) -> str:
     return f"Superseded: {old_id} -> {new_id}"
 
 
+def artifact_successor(artifact_id: str, *, max_depth: int = 50) -> str:
+    """The id of the NEWEST artifact that replaced this one, or ``""``.
+
+    Lives here because this module owns supersede semantics: it is what
+    writes the link (``artifact_supersede`` sets ``supersedes`` on the NEW
+    row) and what NULLs it again (``artifact_delete``, ``artifact_evict``).
+    A caller reading the column itself would be a second reader of a rule
+    that has already moved once.
+
+    Walks the CHAIN, not one hop. A → B → C answers C, because a reader
+    sent to B would still be reading a version that has been replaced.
+    Ordered by ``created_at`` so a row that superseded the same parent
+    twice resolves to the later one; ``id`` breaks ties, because two rows
+    written in the same second must not answer differently per query.
+    Cycles and runaway chains terminate on ``max_depth`` or a repeat.
+    """
+    from okuro.db import get_db
+
+    db = get_db()
+    seen = {artifact_id}
+    current = artifact_id
+    for _ in range(max_depth):
+        row = db.fetchone(
+            "SELECT id FROM artifacts WHERE supersedes = ? "
+            "ORDER BY created_at DESC, id DESC LIMIT 1",
+            (current,),
+        )
+        if not row:
+            break
+        nxt = str(row["id"])
+        if nxt in seen:
+            break
+        seen.add(nxt)
+        current = nxt
+    return "" if current == artifact_id else current
+
+
+def artifact_body_parts(artifact_id: str) -> tuple[str | None, bytes | None] | None:
+    """Return ``(body, body_blob)`` for content hashing, or None if absent.
+
+    ``artifact_get`` deliberately does not select ``body_blob`` — it is
+    the row a human or an LLM reads, and a megabyte of bytes has no place
+    there. But an artifact whose content lives ENTIRELY in the blob (an
+    image, a PDF) would hash as the empty string through that path, so
+    anything asking "did this content change" has to see both columns.
+    """
+    from okuro.db import get_db
+
+    row = get_db().fetchone(
+        "SELECT body, body_blob FROM artifacts WHERE id = ?",
+        (artifact_id,),
+    )
+    if not row:
+        return None
+    return row["body"], row["body_blob"]
+
+
 def artifact_evict(dry_run: bool = True, min_age_days: int = 7,
                    limit: int = 500) -> dict:
     """Evict superseded artifacts — the mirror of ``memory_hygiene``'s prune.

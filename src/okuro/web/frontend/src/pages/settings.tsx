@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { usePaneInterval } from "@/lib/pane-active";
+import { liveAppearance } from "@/lib/theme";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { useUrlTab } from "@/hooks/use-url-tab";
@@ -7,7 +9,6 @@ import {
   type Integration,
   type Challenge as IntegrationChallenge,
 } from "@/lib/integrations-api";
-import { PageHeader } from "@/components/shell/page-header";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
@@ -220,10 +221,16 @@ export function SettingsPage() {
   const { value: activeTab, onValueChange: setActiveTab } = useUrlTab("identity");
   return (
     <div className="page-shell space-y-8">
-      <PageHeader
-        title="Settings"
-        subtitle="Edit every field onboarding collected — identity, communication, principles, boundaries, and more."
-      />
+      {/* R1 (86b8f1f0) — THE LEAF TITLE IS THE SHELL'S. `TopicBar` renders
+          `<h1 class="c-title">Settings</h1>` above this pane, so the page's own
+          PageHeader h1 is gone. The sentence survives as content because it is
+          the only thing that tells a reader why fifteen unrelated tabs are one
+          leaf. `text-fg-muted` rather than `PageHeader`'s `text-tertiary` —
+          the standing AA failure, kit todo c581c9b2. */}
+      <p className="type-small text-fg-muted">
+        Edit every field onboarding collected — identity, communication,
+        principles, boundaries, and more.
+      </p>
 
       <Tabs
         value={activeTab}
@@ -345,7 +352,7 @@ function TabsRailLabel({ children }: { children: React.ReactNode }) {
   return (
     <span
       aria-hidden="true"
-      className="mt-4 mb-1 px-3 text-3xs font-semibold uppercase tracking-wider text-fg-subtle first:mt-0"
+      className="mt-4 mb-1 px-3 text-3xs font-semibold case-label tracking-wider text-fg-subtle first:mt-0"
     >
       {children}
     </span>
@@ -473,7 +480,7 @@ function StringListEditor({
               type="button"
               onClick={() => move(idx, -1)}
               disabled={idx === 0}
-              className="p-1 text-tertiary hover:text-fg disabled:opacity-30"
+              className="p-1 text-tertiary hover:text-fg disabled:text-fg-disabled"
               aria-label="Move up"
             >
               <ArrowUp className="h-3.5 w-3.5" />
@@ -482,7 +489,7 @@ function StringListEditor({
               type="button"
               onClick={() => move(idx, 1)}
               disabled={idx === value.length - 1}
-              className="p-1 text-tertiary hover:text-fg disabled:opacity-30"
+              className="p-1 text-tertiary hover:text-fg disabled:text-fg-disabled"
               aria-label="Move down"
             >
               <ArrowDown className="h-3.5 w-3.5" />
@@ -942,7 +949,7 @@ function CommunicationTab() {
 
       {/* Advanced protocols — collapsed by default */}
       <div className="space-y-0">
-        <h3 className="mb-3 text-2xs font-medium uppercase tracking-wider text-tertiary">
+        <h3 className="mb-3 text-2xs font-medium case-label tracking-wider text-tertiary">
           Advanced · how to respond to emotional signals
         </h3>
 
@@ -1739,7 +1746,7 @@ function PrinciplesTab() {
             {selectedRows.map((p, idx) => (
               <li
                 key={p.id}
-                className="flex items-start gap-2 rounded border border-accent/30 bg-accent-subtle px-3 py-2"
+                className="flex items-start gap-2 rounded border border-border bg-accent-subtle px-3 py-2"
               >
                 <span className="mt-0.5 w-5 shrink-0 text-2xs font-bold text-accent">
                   {idx + 1}.
@@ -1758,7 +1765,7 @@ function PrinciplesTab() {
                     onClick={() => moveUp(idx)}
                     disabled={idx === 0}
                     aria-label="Move up"
-                    className="p-1 text-tertiary hover:text-fg disabled:opacity-30"
+                    className="p-1 text-tertiary hover:text-fg disabled:text-fg-disabled"
                   >
                     <ArrowUp className="h-3.5 w-3.5" />
                   </button>
@@ -1767,7 +1774,7 @@ function PrinciplesTab() {
                     onClick={() => moveDown(idx)}
                     disabled={idx === selectedRows.length - 1}
                     aria-label="Move down"
-                    className="p-1 text-tertiary hover:text-fg disabled:opacity-30"
+                    className="p-1 text-tertiary hover:text-fg disabled:text-fg-disabled"
                   >
                     <ArrowDown className="h-3.5 w-3.5" />
                   </button>
@@ -2212,7 +2219,7 @@ function DecisionStyleTab({
             {keyPrinciples.map((id) => (
               <span
                 key={id}
-                className="rounded border border-accent/30 bg-accent-subtle px-2 py-0.5 text-2xs font-semibold text-accent"
+                className="rounded border border-border bg-accent-subtle px-2 py-0.5 text-2xs font-semibold text-accent"
               >
                 {id}
               </span>
@@ -2736,7 +2743,9 @@ function UrlCard({
 // THIS TAB CHOOSES. IT DOES NOT AUTHOR — the charter's rule, applied on
 // 2026-09-06 to the one screen that had never got it. A design system is
 // created, edited, forked, scanned from a website and deleted in ONE place,
-// /design-engine, and okuro-ds is duplicated rather than adjusted.
+// DESIGN (/ds-engine-codex), and okuro-ds is duplicated rather than adjusted.
+// It read `/design-engine` until wave 6 deleted that page; the rule did not
+// change, only which surface it names.
 //
 // Four controls left with that ruling and each was untrue in its own way:
 //   Active brand      — wrote design.brand; measured, nothing has read that key
@@ -2748,7 +2757,7 @@ function UrlCard({
 //                       but three; the two that still matter have their own
 //                       control below (the pulse outline).
 //   Scrape a design   — forks a kit from a website. Real, and authoring: it now
-//                       lives on /design-engine beside Duplicate.
+//                       lives on DESIGN beside Duplicate.
 //
 // What is left is the choice, the preview of what that choice paints, and the
 // two pulse knobs, which are a canvas preference rather than a design token.
@@ -2904,8 +2913,8 @@ function DictationTab() {
         {info.data ? (
           <>
             <div className="flex items-center gap-2">
-              <span className="text-xs uppercase tracking-wider text-fg-tertiary">Active</span>
-              <span className="font-mono text-fg-primary uppercase">{info.data.effective}</span>
+              <span className="text-xs case-label tracking-wider text-fg-tertiary">Active</span>
+              <span className="font-mono text-fg-primary case-label">{info.data.effective}</span>
               <span className="text-fg-tertiary text-xs">
                 · this machine runs up to {info.data.recommended.toUpperCase()} ({info.data.recommended_device})
               </span>
@@ -2917,7 +2926,10 @@ function DictationTab() {
         )}
       </div>
       <Link
-        to="/settings/stt"
+        /* THE SHELL ADDRESS, NOT THE LEGACY PATH. `/settings/stt` still
+           resolves (LEGACY_VIEWS maps it), but it costs a redirect hop and it
+           was the last reason this file sat on the canonical-link ratchet. */
+        to="/system/settings?view=stt"
         className="inline-flex items-center gap-1 text-xs text-accent hover:underline"
       >
         Choose dictation tier →
@@ -2945,12 +2957,12 @@ function VoicesTab() {
         {d ? (
           <>
             <div className="flex items-center gap-2">
-              <span className="text-xs uppercase tracking-wider text-fg-tertiary">okuro</span>
+              <span className="text-xs case-label tracking-wider text-fg-tertiary">okuro</span>
               <span className="text-fg-primary">{label(okuro)}</span>
               <span className="text-fg-tertiary text-xs">· {d.okuro_gender}</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs uppercase tracking-wider text-fg-tertiary">Co-host</span>
+              <span className="text-xs case-label tracking-wider text-fg-tertiary">Co-host</span>
               <span className="text-fg-primary">{label(coHost)}</span>
               <span className="text-fg-tertiary text-xs">
                 · {d.speed === 1 ? "normal pace" : `${d.speed}× pace`}
@@ -2962,7 +2974,8 @@ function VoicesTab() {
         )}
       </div>
       <Link
-        to="/settings/tts"
+        /* Same — the direct section address. */
+        to="/system/settings?view=tts"
         className="inline-flex items-center gap-1 text-xs text-accent hover:underline"
       >
         Choose voices →
@@ -3355,16 +3368,11 @@ function pickPreviewTokens(
   return out.length ? out : tokens.slice(0, 8);
 }
 
-/** The appearance the browser is showing, read off the attribute the engine
- *  keys its blocks on. NOT `currentThemeMode()`: that consults the stored
- *  choice and falls back to inferring one, which is a second answer to a
- *  question `<html data-appearance>` already answers. */
-export function liveAppearance(): "dark" | "light" {
-  if (typeof document === "undefined") return "dark";
-  return document.documentElement.getAttribute("data-appearance") === "light"
-    ? "light"
-    : "dark";
-}
+/* `liveAppearance` MOVED TO `lib/theme.ts` in the p4-SYSTEM pass — it reads the
+   attribute `setAppearance` writes, so it belongs beside it, and SYSTEM/DESIGN
+   needs it too. Re-exported here because this page's own tests import it from
+   this module. */
+export { liveAppearance };
 
 /**
  * THE TYPEFACE THE SHEET SETS, SHOWN IN ITSELF.
@@ -3464,7 +3472,10 @@ function KeyringTab() {
     queryFn: keyringApi.status,
     // Poll every 30s so we reflect server-side session expiry without
     // needing push. Cheap and never hits the encrypted vault.
-    refetchInterval: 30_000,
+        // L4 / T9 — Law 3 keeps all five topic panes mounted, so an unguarded
+    // interval polls from four topics away. MEASURED off-screen before the
+    // guard; see the pass report for the A/B.
+    refetchInterval: usePaneInterval(30_000),
   });
 
   const status: KeyringStatus | undefined = statusQ.data;
@@ -3810,7 +3821,7 @@ function KeyringUnlockedPane({
         <div className="rounded border border-border bg-surface">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border text-2xs uppercase tracking-wider text-tertiary">
+              <tr className="border-b border-border text-2xs case-label tracking-wider text-tertiary">
                 <th className="px-3 py-2 text-left font-medium">Name</th>
                 <th className="px-3 py-2 text-left font-medium">Value</th>
                 <th className="px-3 py-2 text-right font-medium">Actions</th>
@@ -4147,7 +4158,10 @@ function IntegrationsTab() {
   const listQ = useQuery({
     queryKey: ["integrations", "list"],
     queryFn: integrationsApi.list,
-    refetchInterval: 10_000,
+        // L4 / T9 — Law 3 keeps all five topic panes mounted, so an unguarded
+    // interval polls from four topics away. MEASURED off-screen before the
+    // guard; see the pass report for the A/B.
+    refetchInterval: usePaneInterval(10_000),
   });
 
   if (listQ.isLoading) return <LoadingPane />;
@@ -4182,13 +4196,13 @@ function IntegrationsTab() {
 function StatusPill({ state }: { state: string }) {
   const tone =
     state === "running"
-      ? "text-accent border-accent/40"
+      ? "text-accent border-border"
       : state === "error"
-        ? "text-error border-error/40"
+        ? "text-error border-border"
         : "text-tertiary border-border";
   return (
     <span
-      className={`inline-flex items-center rounded px-2 py-0.5 text-2xs uppercase tracking-wider border ${tone}`}
+      className={`case-label inline-flex items-center rounded px-2 py-0.5 text-2xs tracking-wider border ${tone}`}
     >
       {state}
     </span>
@@ -4229,10 +4243,23 @@ function IntegrationCard({
     onError: (e) => toast.error(e instanceof Error ? e.message : "failed"),
   });
 
+  /**
+   * R5 (372ccdb2), REVERSIBLE BRANCH — AN ARM, KEYED PER CHAT.
+   *
+   * Revoking drops a live integration and okuro has no undo button for it, but
+   * it IS recoverable by re-pairing, so Q-S4's ruling sends it to the arm
+   * rather than to a modal. It fired on ONE click, in a list where the rows
+   * are adjacent 8px targets.
+   *
+   * KEYED PER ID, not one flag: with a single flag, arming chat A turns the
+   * next click on chat B into a revoke (`tasks.tsx:188`).
+   */
+  const [armedRevoke, setArmedRevoke] = useState<number | null>(null);
   const revoke = useMutation({
     mutationFn: (id: number) => integrationsApi.revoke(integration.channel, id),
     onSuccess: () => {
       toast.success("Chat revoked");
+      setArmedRevoke(null);
       onMutated();
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "failed"),
@@ -4242,6 +4269,12 @@ function IntegrationCard({
     <section className="rounded border border-border bg-surface-elevated p-4 space-y-4">
       <header className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
+          {/* `capitalize` STAYS, and it is not the case ruling's subject.
+              0d37d05e steers the case of LABELS from the kit; this turns a
+              channel ID from the API ("slack") into a heading a person reads
+              ("Slack"), which is a data presentation and not a type tier.
+              `case-label` here would render "SLACK" under the active kit. Named
+              rather than swept. */}
           <h3 className="text-sm font-semibold text-fg capitalize">
             {integration.channel}
           </h3>
@@ -4260,7 +4293,7 @@ function IntegrationCard({
       </header>
 
       {integration.pending_chat_id !== null && (
-        <div className="rounded border border-warning/30 bg-warning/5 p-3 space-y-2">
+        <div className="rounded border border-border bg-warning-subtle p-3 space-y-2">
           <div className="text-2xs text-warning">
             Pending approval — chat_id{" "}
             <code className="font-mono">{integration.pending_chat_id}</code> wants to send messages.
@@ -4298,11 +4331,26 @@ function IntegrationCard({
                 <code className="font-mono text-fg">{id}</code>
                 <button
                   type="button"
-                  className="text-2xs text-tertiary hover:text-error"
-                  onClick={() => revoke.mutate(id)}
+                  className={
+                    armedRevoke === id
+                      ? "text-2xs font-medium text-error"
+                      : "text-2xs text-tertiary hover:text-error"
+                  }
+                  onClick={() => {
+                    if (armedRevoke !== id) {
+                      setArmedRevoke(id);
+                      return;
+                    }
+                    revoke.mutate(id);
+                  }}
                   disabled={revoke.isPending}
+                  aria-label={
+                    armedRevoke === id
+                      ? `Confirm revoke chat ${id}`
+                      : `Revoke chat ${id}`
+                  }
                 >
-                  revoke
+                  {armedRevoke === id ? "revoke for good" : "revoke"}
                 </button>
               </li>
             ))}
@@ -4365,6 +4413,13 @@ function ChallengesSection({ channel }: { channel: string }) {
     onError: (e) => toast.error(e instanceof Error ? e.message : "failed"),
   });
 
+  /**
+   * R5 — SAME ARM, AND HERE THE CONSEQUENCE IS SHARPER THAN REVOKE'S. The
+   * panel's own copy says it: "orchestrator dispatches will be refused until
+   * you add one". Removing the last challenge therefore disables the channel,
+   * and it fired on one click.
+   */
+  const [armedRemove, setArmedRemove] = useState<number | null>(null);
   const remove = useMutation({
     mutationFn: async (idx: number) => {
       if (!session) throw new Error("Keyring locked");
@@ -4372,6 +4427,7 @@ function ChallengesSection({ channel }: { channel: string }) {
     },
     onSuccess: () => {
       toast.success("Challenge removed");
+      setArmedRemove(null);
       qc.invalidateQueries({ queryKey: ["integrations", channel, "challenges"] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "failed"),
@@ -4413,11 +4469,30 @@ function ChallengesSection({ channel }: { channel: string }) {
               </div>
               <button
                 type="button"
-                className="text-2xs text-tertiary hover:text-error shrink-0"
-                onClick={() => remove.mutate(i)}
+                className={
+                  armedRemove === i
+                    ? "shrink-0 text-2xs font-medium text-error"
+                    : "shrink-0 text-2xs text-tertiary hover:text-error"
+                }
+                onClick={() => {
+                  if (armedRemove !== i) {
+                    setArmedRemove(i);
+                    return;
+                  }
+                  remove.mutate(i);
+                }}
                 disabled={remove.isPending}
+                aria-label={
+                  armedRemove === i
+                    ? `Confirm remove challenge ${i + 1}`
+                    : `Remove challenge ${i + 1}`
+                }
               >
-                remove
+                {armedRemove === i
+                  ? items.length === 1
+                    ? "remove the last one"
+                    : "remove for good"
+                  : "remove"}
               </button>
             </li>
           ))}

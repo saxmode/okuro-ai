@@ -9,12 +9,14 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { MarkdownContent } from "@/components/ui/markdown-content";
 import { KnowledgePanel } from "@/components/roles/knowledge-panel";
 import { MaintenancePanel } from "@/components/roles/maintenance-panel";
+import { FitBar, FitPanel } from "@/components/role/role-fit";
 
 type GradeTab =
   | "full"
   | "lean"
   | "micro"
   | "entries"
+  | "fit"
   | "maintenance";
 
 const TABS: { key: GradeTab; label: string }[] = [
@@ -22,6 +24,7 @@ const TABS: { key: GradeTab; label: string }[] = [
   { key: "lean", label: "LEAN" },
   { key: "micro", label: "MICRO" },
   { key: "entries", label: "KNOWLEDGE" },
+  { key: "fit", label: "FIT" },
   { key: "maintenance", label: "MAINTENANCE" },
 ];
 
@@ -43,6 +46,14 @@ export function RoleViewer({ roleId, onClose }: RoleViewerProps) {
   const { data: role, isLoading } = useQuery({
     queryKey: ["role", roleId],
     queryFn: () => roleApi.get(roleId),
+  });
+
+  /* Fetched alongside the role rather than only when the Fit tab opens: the
+     header bar renders it on every tab, and it is one small read. */
+  const { data: fit } = useQuery({
+    queryKey: ["role-fit", roleId],
+    queryFn: () => roleApi.fit(roleId),
+    staleTime: 30_000,
   });
 
   const getContent = (r: RoleDetail): string => {
@@ -103,6 +114,19 @@ export function RoleViewer({ roleId, onClose }: RoleViewerProps) {
                 </span>
               </>
             )}
+            {fit && (
+              <button
+                type="button"
+                onClick={() => {
+                  setTab("fit");
+                  setEditing(false);
+                }}
+                className="flex items-center gap-1.5 text-2xs text-tertiary transition-colors hover:text-fg-muted focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+              >
+                <FitBar scores={fit.scores} rubricVersion={fit.rubric_version} />
+                fit {fit.overall}
+              </button>
+            )}
           </div>
           <div className="flex items-center gap-2">
             {!editing && isMarkdownTab && (
@@ -149,7 +173,7 @@ export function RoleViewer({ roleId, onClose }: RoleViewerProps) {
                 setTab(t.key);
                 setEditing(false);
               }}
-              className={`px-3 py-2 text-2xs font-medium uppercase tracking-wider transition-colors ${
+              className={`px-3 py-2 text-2xs font-medium case-label tracking-wider transition-colors ${
                 tab === t.key
                   ? "border-b-2 border-accent text-accent"
                   : "text-tertiary hover:text-fg-muted"
@@ -168,6 +192,14 @@ export function RoleViewer({ roleId, onClose }: RoleViewerProps) {
             <p className="text-sm text-tertiary">Role not found</p>
           ) : tab === "entries" ? (
             <KnowledgePanel roleId={roleId} />
+          ) : tab === "fit" ? (
+            <ScrollArea className="h-full">
+              {fit ? (
+                <FitPanel fit={fit} />
+              ) : (
+                <p className="text-sm text-tertiary">Computing fit…</p>
+              )}
+            </ScrollArea>
           ) : tab === "maintenance" ? (
             <ScrollArea className="h-full">
               <MaintenancePanel roleId={roleId} role={role} />

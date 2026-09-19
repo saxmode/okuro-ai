@@ -54,6 +54,20 @@ export function ThoughtsPanel({
   const [showAll, setShowAll] = useState(false);
   const [active, setActive] = useState<Thought | null>(null);
   const [launchOpen, setLaunchOpen] = useState(false);
+  /**
+   * R5 (372ccdb2) — TWO-STEP ARM, KEYED PER ACTION.
+   *
+   * Resolve and Dismiss both take a thought out of the inbox partition on one
+   * click, and p3 filed that as defect B6. They are REVERSIBLE — the status can
+   * be set back — so R5 gives them the arm rather than a modal, and the modal
+   * stays for permanent deletions.
+   *
+   * ONE STATE HOLDING WHICH ACTION IS ARMED, never a boolean per button: the
+   * TASKS pattern's cross-arm bug is arming one control and confirming with
+   * another, and a single slot cannot express that. It also resets whenever the
+   * modal closes or another thought is opened, so an arm cannot travel.
+   */
+  const [armed, setArmed] = useState<"resolved" | "dismissed" | null>(null);
   const qc = useQueryClient();
 
   useEffect(() => {
@@ -62,10 +76,16 @@ export function ThoughtsPanel({
     if (match) setActive(match);
   }, [autoOpenId, thoughts]);
 
+  /* An arm belongs to ONE open thought. Opening another — by click or by the
+     `?id=` deep link — or closing the modal disarms, so a confirm can never
+     land on a thought the user did not arm. */
+  useEffect(() => setArmed(null), [active?.id]);
+
   const mutate = useMutation({
     mutationFn: ({ id, status }: { id: string; status: ThoughtStatus }) =>
       thoughtsApi.setStatus(id, status),
     onSuccess: (_d, vars) => {
+      setArmed(null);
       qc.invalidateQueries({ queryKey: ["dashboard", "brain"] });
       if (vars.status === "resolved" || vars.status === "dismissed") {
         setActive(null);
@@ -91,13 +111,13 @@ export function ThoughtsPanel({
       {variant === "timeline" ? (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-3xs uppercase tracking-wider text-tertiary">
+            <span className="case-label text-3xs tracking-wider text-tertiary">
               {showAll ? "all" : "inbox"} · {filtered.length}
             </span>
             <button
               type="button"
               onClick={() => setShowAll((v) => !v)}
-              className="text-3xs uppercase tracking-wider text-tertiary hover:text-fg-muted"
+              className="case-label text-3xs tracking-wider text-tertiary hover:text-fg-muted"
             >
               {showAll ? "show inbox" : "show all"}
             </button>
@@ -137,13 +157,13 @@ export function ThoughtsPanel({
       ) : (
         <div className="space-y-1">
           <div className="flex items-center justify-between pb-1">
-            <span className="text-3xs uppercase tracking-wider text-tertiary">
+            <span className="case-label text-3xs tracking-wider text-tertiary">
               {showAll ? "all" : "inbox"} · {filtered.length}
             </span>
             <button
               type="button"
               onClick={() => setShowAll((v) => !v)}
-              className="text-3xs uppercase tracking-wider text-tertiary hover:text-fg-muted"
+              className="case-label text-3xs tracking-wider text-tertiary hover:text-fg-muted"
             >
               {showAll ? "show inbox" : "show all"}
             </button>
@@ -156,7 +176,7 @@ export function ThoughtsPanel({
                 key={t.id}
                 type="button"
                 onClick={() => setActive(t)}
-                className="flex w-full items-center gap-2 rounded px-1 py-0.5 text-left text-2xs hover:bg-surface/60"
+                className="flex w-full items-center gap-2 rounded px-1 py-0.5 text-left text-2xs hover:bg-surface-subtle"
               >
                 <span className="text-tertiary">
                   {STATUS_MARK[t.status] ?? "○"}
@@ -231,26 +251,50 @@ export function ThoughtsPanel({
                 >
                   In progress
                 </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={mutate.isPending}
-                  onClick={() =>
-                    mutate.mutate({ id: active.id, status: "resolved" })
-                  }
-                >
-                  Resolve
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  disabled={mutate.isPending}
-                  onClick={() =>
-                    mutate.mutate({ id: active.id, status: "dismissed" })
-                  }
-                >
-                  Dismiss
-                </Button>
+                {armed === "resolved" ? (
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    disabled={mutate.isPending}
+                    aria-label="Confirm resolve"
+                    onClick={() =>
+                      mutate.mutate({ id: active.id, status: "resolved" })
+                    }
+                  >
+                    Confirm resolve
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={mutate.isPending}
+                    onClick={() => setArmed("resolved")}
+                  >
+                    Resolve
+                  </Button>
+                )}
+                {armed === "dismissed" ? (
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    disabled={mutate.isPending}
+                    aria-label="Confirm dismiss"
+                    onClick={() =>
+                      mutate.mutate({ id: active.id, status: "dismissed" })
+                    }
+                  >
+                    Confirm dismiss
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={mutate.isPending}
+                    onClick={() => setArmed("dismissed")}
+                  >
+                    Dismiss
+                  </Button>
+                )}
               </div>
             </DetailSection>
           </>

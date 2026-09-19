@@ -39,13 +39,24 @@ from .gemini import ingest as ingest_gemini
 logger = logging.getLogger(__name__)
 
 
-def ingest_all() -> dict:
+def ingest_all(*, force: bool = False) -> dict:
     """Run every known provider ingester. Returns a per-provider summary.
 
     Each provider runs in its own try/except so one failed ingester does
     not silently kill the others — partial coverage is better than none.
-    Failures are surfaced as ``{"error": "<msg>"}`` in the result dict and
-    logged at WARNING.
+    Failures are surfaced as ``{"error": "<Type>: <msg>"}`` in the result dict
+    and logged with their traceback.
+
+    The exception TYPE is in both, deliberately. ``str(KeyError(0))`` is the
+    single character ``0``; the antigravity walk reported exactly that for
+    seven weeks and it named neither the fault nor the line. A report that
+    cannot be acted on is the same as no report.
+
+    ``force`` re-reads sources whose mtime the store already holds. It lives
+    HERE rather than at the caller because ``trace_index`` used to hand-roll
+    its own forced pass over a hand-written provider list — and that list had
+    dropped antigravity, so a forced re-index silently skipped the one
+    provider whose data was stale. One list, in the module that owns it.
     """
     results: dict = {}
     for name, fn in (
@@ -55,10 +66,10 @@ def ingest_all() -> dict:
         ("gemini", ingest_gemini),
     ):
         try:
-            results[name] = fn()
+            results[name] = fn(force=force)
         except Exception as e:
-            logger.warning("trace: ingester %s failed: %s", name, e)
-            results[name] = {"error": str(e)}
+            logger.exception("trace: ingester %s failed", name)
+            results[name] = {"error": f"{type(e).__name__}: {e}"}
     return results
 
 

@@ -33,9 +33,38 @@ export function parseApiDate(iso: string): Date {
   return new Date(s);
 }
 
+/**
+ * WHAT AN ABSENT TIMESTAMP RENDERS AS, and it was "Invalid Date" until now.
+ *
+ * `parseApiDate("")` returns `new Date(NaN)` deliberately — that is the honest
+ * answer to "parse nothing". What was NOT honest is what the two formatters
+ * below did with it: `toLocaleTimeString` on an invalid Date returns the
+ * literal string "Invalid Date", and the arithmetic in `formatAge` returns
+ * `NaN`, so a missing `ts` printed "Invalid Date" or "NaNd ago" INTO THE UI.
+ *
+ * Measured on /work/tasks/{id} 2026-09-15: the activity feed rendered
+ * "ORCHESTRATOR_STATE  Invalid Date" — one event arrives without a `ts`, and
+ * `formatTime` handed the user a JavaScript error message as a value. It is a
+ * CLASS defect, not one page's: `formatTime` has four call sites (the activity
+ * feed, both intervention-card timestamps, the log stream) and `formatAge`
+ * has more.
+ *
+ * A dash is the answer, and it is the project's existing one: R7 (372ccdb2)
+ * says an unknown value renders as a dash, and `lib/capped-count.ts` already
+ * exports that exact character for counts.
+ */
+export const UNKNOWN_TIME = "—";
+
+/** True when `parseApiDate` could not make a date of it. */
+function isUnknown(d: Date): boolean {
+  return Number.isNaN(d.getTime());
+}
+
 /** Format ISO timestamp to relative age string. */
 export function formatAge(iso: string): string {
-  const diff = (Date.now() - parseApiDate(iso).getTime()) / 1000;
+  const d = parseApiDate(iso);
+  if (isUnknown(d)) return UNKNOWN_TIME;
+  const diff = (Date.now() - d.getTime()) / 1000;
   if (diff < 60) return "just now";
   if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
   if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
@@ -44,7 +73,9 @@ export function formatAge(iso: string): string {
 
 /** Format ISO timestamp to short time (HH:MM:SS) in the user's locale. */
 export function formatTime(iso: string): string {
-  return parseApiDate(iso).toLocaleTimeString("en-GB", {
+  const d = parseApiDate(iso);
+  if (isUnknown(d)) return UNKNOWN_TIME;
+  return d.toLocaleTimeString("en-GB", {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",

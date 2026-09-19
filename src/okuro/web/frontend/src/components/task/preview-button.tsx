@@ -318,7 +318,7 @@ function PreviewLogDrawer({ taskId, open, onToggle, tailing }: PreviewLogDrawerP
           ) : (
             <ChevronUp className="h-3 w-3 text-tertiary" />
           )}
-          <span className="text-2xs uppercase tracking-wider text-tertiary">
+          <span className="text-2xs case-label tracking-wider text-tertiary">
             Preview log
           </span>
           {open && (

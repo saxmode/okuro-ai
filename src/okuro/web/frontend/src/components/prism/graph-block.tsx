@@ -14,6 +14,7 @@ import { useMemo, useState } from "react";
 import "@xyflow/react/dist/style.css";
 
 import type { Block } from "@/lib/prism-api";
+import { useGraphColorMode } from "@/lib/graph-theme";
 
 type GraphData = Extract<Block, { type: "graph" }>;
 type GNode = GraphData["nodes"][number];
@@ -93,6 +94,14 @@ function layout(gnodes: GNode[], gedges: GEdge[]): Map<string, { x: number; y: n
 
 /** M2/C1 interactive-graph module. `accent` threads brand accent. */
 export default function GraphBlock({ data, accent = "var(--color-accent)" }: { data: GraphData; accent?: string }) {
+  // R6 (372ccdb2): ONE theme bridge for every `@xyflow/react` mount in okuro.
+  // The vendor sheet carries its own light and dark blocks and defaults to
+  // `light`, so a mount without this draws a light canvas on the dark ground —
+  // which is what made PEOPLE's nodes near-invisible circles before
+  // `lib/graph-theme.ts` existed. Read ONCE into a const here: a hook called
+  // inline in JSX sits one refactor away from a conditional-hook violation,
+  // which is the trap the p4 DELIVER pane-gate adoption hit out loud.
+  const graphColorMode = useGraphColorMode();
   const hasClusters = useMemo(() => (data.nodes ?? []).some((n) => n.group), [data.nodes]);
   const groups = useMemo(() => [...new Set((data.nodes ?? []).map((n) => n.group).filter(Boolean))] as string[], [data.nodes]);
   const [alt, setAlt] = useState<Altitude>("full");
@@ -189,6 +198,7 @@ export default function GraphBlock({ data, accent = "var(--color-accent)" }: { d
         <div className="min-w-0 flex-1">
           <ReactFlowProvider>
             <ReactFlow
+              colorMode={graphColorMode}
               nodes={nodes} edges={edges} fitView fitViewOptions={{ padding: 0.2 }}
               nodesConnectable={false} edgesFocusable={false} proOptions={{ hideAttribution: true }} minZoom={0.2}
               onNodeClick={(_, n) => setSelected((cur) => cur === n.id ? null : n.id)}

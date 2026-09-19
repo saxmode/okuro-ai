@@ -109,7 +109,7 @@ export function MobileProcessView({
               <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", dot(phase.color_class))} />
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm font-medium text-fg">{phase.name}</div>
-                <div className="text-2xs uppercase tracking-wider text-tertiary">
+                <div className="text-2xs case-label tracking-wider text-tertiary">
                   {phase.label ?? phase.status} · {done}/{subs.length}
                 </div>
               </div>

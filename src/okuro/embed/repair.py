@@ -656,6 +656,32 @@ def ensure_vec_dims(dry_run: bool = False, empty_only: bool = False) -> dict:
             _rebuild_shape_only(db, spec, target_dim, entry)
             continue
 
+        # THE TABLE DOES NOT EXIST YET (cur is None). `empty_only` exists to
+        # stop a re-embed from wiping vectors an install already has while
+        # the embed service might be down — but there are no vectors here to
+        # protect, and deferring leaves every caller querying a table that is
+        # simply absent. Create it empty and let the rows arrive from a
+        # backfill that CAN reach the service.
+        #
+        # This became reachable when migration 155 wrote 87 roles in: before
+        # it, `roles` was still empty at post-migrate time, so vec_roles fell
+        # into the fresh-install branch below and got created. A source table
+        # that a MIGRATION fills is the general case, so the guard is fixed
+        # here rather than special-cased for vec_roles.
+        if cur is None and empty_only and src_n > 0:
+            entry["action"] = (
+                f"create empty at {target_dim} ({src_n} row(s) to embed later "
+                f"— a backfill or `python -m okuro.embed.repair` fills them)"
+            )
+            summary["tables"].append(entry)
+            if dry_run:
+                continue
+            with db.write():
+                db.execute(
+                    _create_vec_sql(spec.vec_table, target_dim, spec.partition)
+                )
+            continue
+
         if empty_only and src_n > 0:
             entry["action"] = (
                 f"defer ({cur}→{target_dim}, {src_n} rows — run "

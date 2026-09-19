@@ -9,9 +9,20 @@
 
 import { api } from "./api";
 
+/**
+ * THE BACKEND'S `TYPE_WEIGHT` KEYS, and that is not a comment — it is asserted.
+ *
+ * `src/__tests__/correctness/inbox-kind-vocabulary.test.ts` reads
+ * `okuro/sense/inbox/scorer.py` and fails if this union, `KIND_LABEL`,
+ * `KIND_TONE` and `KIND_ORDER` do not cover exactly its keys. `commitment` was
+ * missing here for months while the live API served ten of it per fifty rows:
+ * every one rendered a badge with a dot and no text, and no chip could reach
+ * them. The gate exists so kind ten cannot land the same way.
+ */
 export type InboxKind =
   | "continue"
   | "note"
+  | "commitment"
   | "task"
   | "saved"
   | "signal"
@@ -103,10 +114,19 @@ export const inboxApi = {
     return api<{ inbox: InboxItem[] }>(`/api/inbox${q ? `?${q}` : ""}`);
   },
 
-  dispose: (id: string, action: InboxAction, snooze_until?: string) =>
+  /**
+   * `snooze_until` IS GONE FROM THIS SIGNATURE, ruled by the owner (START
+   * summary S4). It was accepted here and no caller ever passed it, so
+   * "Defer" always deferred to the server's default — a parameter that
+   * outlived its last reader, which is the shape three post-p10 defects had.
+   * The endpoint still accepts it (`DisposeBody.snooze_until`), so wiring a
+   * real until-picker later needs no backend change and no re-decision; it
+   * just does not pretend to exist in the client until something calls it.
+   */
+  dispose: (id: string, action: InboxAction) =>
     api<InboxItem>(`/api/inbox/${id}/dispose`, {
       method: "POST",
-      body: JSON.stringify({ action, snooze_until }),
+      body: JSON.stringify({ action }),
     }),
 
   /**

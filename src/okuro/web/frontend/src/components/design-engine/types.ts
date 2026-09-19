@@ -360,9 +360,19 @@ export interface BrandJson {
     foregrounds?: Record<string, string> | null;
   };
   neutrals: { black: string; white: string };
-  /** The brand's opening rung, per viewport class. The mother table is locked;
-   *  this is the pointer into it that a brand still owns. */
-  defaults: { rung: { desktop: string; mobile: string } };
+  /* NO `defaults` FIELD — a brand no longer states a rung (2026-09-17). The
+     viewer's rung arrives on the boot payload as `viewport.rungs`, not on the
+     brand.
+
+     THIS TYPE IS WHAT SHOULD HAVE CAUGHT THE DEAD PAGE. `defaults` was removed
+     from the Pydantic model and left here as a REQUIRED field, so TypeScript
+     went on believing the key existed and two readers survived the deletion --
+     `/system/design` threw on first paint and the ErrorBoundary ate the whole
+     page, including the control this change adds. 1550 green frontend tests did
+     not see it, because their fixtures hand-write the old shape.
+
+     So: this file is a hand-maintained mirror of `schema.Brand`, and a field
+     deleted there is not done until it is deleted here. */
   brand: {
     canonical: string;
     on_light: string | null;
@@ -391,6 +401,19 @@ export interface BrandJson {
    * and the sheet publishes both facts on the same `.ds-{band}` class.
    */
   case: { titles: boolean; headings: boolean; leads: boolean; paragraphs: boolean };
+  /**
+   * LETTER-SPACING PER BAND, in em — his ruling of 2026-09-07. Same four keys
+   * as `weights` and `case`, for the same reason: one band key carries weight,
+   * case and tracking onto one `.ds-{band}` class.
+   *
+   * DECLARED HERE BECAUSE THE SERVER HAS BEEN SENDING IT AND NOTHING SAID SO.
+   * Found by the contract gate added with the viewport-rung change, not by a
+   * reader — it is the same class as the `defaults` field that gate exists to
+   * catch, pointing the other way: a field the frontend could not see rather
+   * than one it wrongly believed in. Harmless in that direction, which is why it
+   * sat here undeclared; declaring it is what makes the gate mean something.
+   */
+  tracking: { titles: number; headings: number; leads: number; paragraphs: number };
   /** FACTORS of the system base, not pixels. On base 8: 1/2/4/8 px. */
   border: { weight_factors: [number, number, number, number]; opacity: number };
   /** S/M/L are factors of the RADIUS base, which is its own authored number. */
@@ -406,24 +429,20 @@ export interface BrandJson {
   };
   shadow_anchors: { solid: number; blurred: number };
   /**
-   * The authored factor tables.
+   * NO `sizes`, NO `base`, NO `root_percent`, NO `defaults` — four things that
+   * left the authored brand, each by its own ruling.
    *
-   * `text_factors` is his own 168 cells, keyed rung -> style -> factor. A
-   * component cell is still `rung_factor x role_ratio`, because he authored no
-   * component table. Both are factors of `base`, never pixels.
-   */
-  sizes: {
-    text_factors: Record<string, Record<string, number>>;
-    component_anchor_factor: number;
-    component_rung_step: number;
-    role_ratios: Record<string, number>;
-    component_rung_factor: Record<string, number> | null;
-  };
-  /*
-   * NO `base` AND NO `root_percent`. Both left the authored brand with his
-   * ruling of 2026-08-17 — "Brands do not change their base. Base is always
-   * the same." They are `BASE` and `ROOT_PERCENT` in ./scale, and the engine
-   * still reports them under `sizes` so the tables can state the rule.
+   * `base` and `root_percent` went on 2026-08-17: "Brands do not change their
+   * base. Base is always the same." `defaults` (the rung) and `sizes` (the five
+   * factor slots) went on 2026-09-17, which is one ruling in two halves: the
+   * rung became the viewer's, and the TABLE became the engine's, because "the
+   * font sizes are everywhere the same" cannot be true while a kit can rewrite
+   * the table.
+   *
+   * THE ENGINE STILL REPORTS ALL OF IT under the resolved model's `sizes`, so
+   * the page can document the system. Reporting is not authoring: there is no
+   * brand field behind those numbers to write back to, and this type says so by
+   * not having one.
    */
 }
 

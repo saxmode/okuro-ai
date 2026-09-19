@@ -22,21 +22,37 @@ export function takeStreamDraw(): string | null {
  * Start a live flow draw from anywhere: queue the prompt, then either draw in
  * the already-mounted canvas or navigate so one mounts and drains the queue.
  *
- * A mounted FlowDesigner requires an `id` or `new` param — bare `/flow` is the
- * GALLERY, which never drains the queue. Checking `pathname.startsWith("/flow")`
- * alone silently no-ops on the gallery (and on any non-flow page). Centralised
- * here so every caller (chat draw action, handover dialog) shares the one
- * correct predicate.
+ * A mounted FlowDesigner requires a DOCUMENT or the new-canvas section — bare
+ * `/work/flow` is the GALLERY, which never drains the queue. Centralised here
+ * so every caller (chat draw action, handover dialog) shares the one correct
+ * predicate.
+ *
+ * THE OLD PREDICATE WAS ALREADY WRONG UNDER THE SHELL, in a way that could not
+ * be seen from the outside. It tested `pathname.startsWith("/flow")`, and the
+ * shell mounts this leaf at `/work/flow` — so it was FALSE on the canvas as
+ * well as off it, and every chat-draw took the navigate branch instead of
+ * dispatching to the editor that was already open. It re-mounted the canvas
+ * each time, which looks like the feature working.
+ *
+ * The grammar it now matches (ruled jointly with WORKFLOWS, FLOW spec Q1):
+ * a document is `/work/flow/{id}`, a blank canvas is `/work/flow?view=new`,
+ * and `?id=`/`?new=1` stay READABLE for the bookmarks that spell them.
  */
+const FLOW_LEAF = "/work/flow";
+
 export function startFlowDraw(prompt: string, navigate: (to: string) => void): void {
   queueStreamDraw(prompt);
-  const onCanvas =
-    window.location.pathname.startsWith("/flow") &&
-    /[?&](id|new)=/.test(window.location.search);
-  if (onCanvas) {
+  const path = window.location.pathname;
+  const search = window.location.search;
+  const onLeaf = path === FLOW_LEAF || path.startsWith(FLOW_LEAF + "/");
+  const hasDoc =
+    path.startsWith(FLOW_LEAF + "/") ||               // the document is in the path
+    /[?&](id|new)=/.test(search) ||                   // a legacy bookmark
+    /[?&]view=new(&|$)/.test(search);                 // the blank-canvas section
+  if (onLeaf && hasDoc) {
     window.dispatchEvent(new CustomEvent("okuro:flow-draw-stream", { detail: { prompt } }));
   } else {
-    navigate("/flow?new=1");
+    navigate(`${FLOW_LEAF}?view=new`);
   }
 }
 

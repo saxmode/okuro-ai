@@ -14,7 +14,7 @@ what to keep, what to cut, how deep to go, the framing, and the one takeaway.
 Writes no prose and picks no modules — it decides scope, so the architect that
 follows structures only what matters to THIS recipient.
 
-Mirrors the ``prism-audience-strategist`` charter (roles/catalog).
+Mirrors the ``prism-audience-strategist`` charter (the roles table).
 """
 
 from __future__ import annotations

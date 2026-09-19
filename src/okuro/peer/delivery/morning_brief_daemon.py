@@ -253,13 +253,31 @@ def _mark_todos_surfaced(todo_ids: list[str]) -> None:
 
 
 def _new_discoveries(limit: int = 3) -> list[dict]:
-    """Unacknowledged model discoveries — the weekly scan's fresh fits."""
+    """Unacknowledged model discoveries — the weekly scan's fresh fits.
+
+    ``variants='hide'`` is the default and stays the default here: the brief is
+    read aloud over breakfast, and ruling 3's toggle belongs on the page, not
+    in the kitchen. The rows still exist and the Discover panel shows them.
+    """
     try:
         from okuro.ai_models import list_discoveries
 
         return list_discoveries(status="new", limit=limit)
     except Exception:  # noqa: BLE001
         return []
+
+
+def _discovery_label(d: dict) -> str:
+    """A discovery's name plus its relation badge, when one was computed."""
+    name = d.get("display_name") or d.get("catalog_id") or ""
+    rel = d.get("relation")
+    if not rel or rel == "unrelated":
+        # `unrelated` is a real verdict, but it adds nothing to a spoken line;
+        # NULL means the lineage pass has not seen the row at all.
+        why = (d.get("interesting_why") or "").strip()
+        return f"{name} ({why})" if d.get("interesting") and why else name
+    target = (d.get("relation_target") or "").split(":", 1)[-1].split("/")[-1]
+    return f"{name} ({rel}{' ' + target if target else ''})"
 
 
 def _safe(fn, *args):
@@ -331,7 +349,12 @@ def _raw_digest(hours: int, todos: list[dict]) -> tuple[str, dict]:
         _clip(r.get("content", "")) for r in thoughts if r.get("content")
     ])
     if discoveries:
-        names = ", ".join(d.get("display_name", "") for d in discoveries if d.get("display_name"))
+        # Each name now carries WHY it is here — the lineage relation to what
+        # is already installed. "Qwen3-8B (variant-of a model you have)" is a
+        # different sentence from "Qwen3-8B", and it is the one that says
+        # whether to look.
+        names = ", ".join(_discovery_label(d) for d in discoveries
+                          if d.get("display_name"))
         _section("NEW MODELS (scan found fits)", [f"{len(discoveries)} new: {names}"])
     _section("OPEN TODOS (candidate actions for today)", [
         _clip(t.get("title", "")) for t in todos if t.get("title")

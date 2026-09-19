@@ -90,10 +90,29 @@ def main() -> None:
         )
         return
 
+    try:
+        _run(app, HOST, PORT)
+    except OSError as exc:
+        # BIND FAILURE — name the holder before exiting. A bare
+        # "[Errno 98] address already in use" in the journal cannot tell a
+        # stale copy of THIS install from a second install owned by another
+        # account, and that ambiguity cost hours on 2026-09-16.
+        from okuro.system.install_identity import (
+            SERVICE_ORCHESTRATOR,
+            bind_failure_line,
+        )
+
+        logger.error("%s", bind_failure_line(SERVICE_ORCHESTRATOR, PORT, exc))
+        raise
+
+
+def _run(app, host: str, port: int) -> None:
+    import uvicorn
+
     uvicorn.run(
         app,
-        host=HOST,
-        port=PORT,
+        host=host,
+        port=port,
         # Do NOT trust X-Forwarded-For. uvicorn's default (proxy_headers=True,
         # trust loopback) rewrites request.client to the XFF value with port 0,
         # which (a) makes a Caddy-proxied phone appear as its LAN IP → fails the

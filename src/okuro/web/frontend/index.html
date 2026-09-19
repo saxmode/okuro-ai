@@ -50,6 +50,71 @@
          Not under /api/*: a stylesheet fetch cannot attach a bearer. See
          okuro/design_engine/api.py::engine_css. -->
     <link rel="stylesheet" href="/engine.css" />
+    <!-- DOES THIS ENGINE ACTUALLY PAINT `backdrop-filter`? `@supports` CANNOT
+         ANSWER THAT, AND THAT IS MEASURED, NOT ASSUMED.
+         ==================================================================
+         The desktop app is pywebview on WebKitGTK. Probed there 2026-09-17
+         (WebKit2 4.1, offscreen window, this machine):
+
+           CSS.supports('backdrop-filter','blur(10px)')      -> true
+           CSS.supports('-webkit-backdrop-filter', …)        -> true
+           getComputedStyle(plate).backdropFilter            -> "blur(16px)"
+           @supports not ((backdrop-filter:…)) block applied -> NO
+
+         It claims support, accepts the value, and paints nothing. So the
+         `@supports not` fallback that was supposed to darken the plate where
+         there is no glass can NEVER fire on the one engine that needs it —
+         the app got no blur AND no compensating veil, which is exactly what
+         "still no blur" looked like.
+
+         THERE IS NO FEATURE TEST FOR A PAINT. A page cannot rasterise itself,
+         so the only honest in-page signal left is which engine this is. The UA
+         is unambiguous here: WebKit without Chrome on X11/Linux is WebKitGTK or
+         WPE — real Safari does not run on X11. Chrome and Chromium carry
+         "Chrome", Firefox carries neither token.
+
+         IT ONLY EVER DOWNGRADES A DECORATION. Wrong on this line means a
+         slightly darker plate, never a broken layout — which is why a sniff is
+         affordable here and would not be for anything load-bearing.
+
+         INLINE AND IN `<head>` ON PURPOSE: the attribute has to exist before
+         the first paint, or the plate flashes translucent on every launch.
+         pywebview's own on-load JS hook runs too late for that. -->
+    <!-- AND: DOES THIS ENGINE HONOUR THE REM BASE? WEBKIT DOES NOT, AND THE
+         CONSEQUENCE IS EVERY DIMENSION IN THE DESKTOP APP.
+         ==================================================================
+         The base is authored as a PERCENTAGE on purpose — the owner: *"the base
+         value was calculated with % to make the users settings accurate"* — so
+         it follows whatever font size the user has set. WebKit clamps a
+         RELATIVE root font size to its `minimumLogicalFontSize`, which defaults
+         to 9px, and does not clamp an absolute one. 50% of 16 is 8, so:
+
+           engine          authored   used     1rem
+           Chromium 145    50%        8px      8px
+           WebKitGTK 4.1   50%        9px      9px      <- +12.5%, everywhere
+
+         Measured 2026-09-17 against the built bundle in a WebKit2 4.1 window:
+         --sh-strip-h read 72 instead of 64, --sh-s-72 read 81 instead of 72,
+         --sh-s-48 read 54 instead of 48. Every pixel of the shell's geometry
+         was out by an eighth in the one place it ships. In the SAME engine,
+         `font-size:8px` computes to 8px — only the relative form is clamped.
+
+         SO THE REPAIR IS TO RESTATE THE SAME NUMBER ABSOLUTELY, and only when
+         the engine got it wrong. The authored percentage is still the source:
+         it is read back out of the cascade rather than assumed, so changing
+         `50%` in the sheets changes this too and there is no second copy of
+         the base to keep in sync. On an engine that computes it correctly
+         nothing is written at all and the pure cascade stands.
+
+         `minimum-font-size` in WebKitSettings is 0 and does not govern this;
+         `minimumLogicalFontSize` is not exposed by WebKitSettings 4.1, so it
+         cannot be turned off from the host side. -->
+    <!-- A FILE, NOT AN INLINE SCRIPT, AND THAT IS A CSP FACT RATHER THAN A
+         STYLE ONE: okuro serves `script-src 'self'` with no 'unsafe-inline',
+         so an inline block here is blocked and reports nothing. Classic tag,
+         no defer, after /engine.css — it reads the authored base out of that
+         sheet and its attributes must exist before the first paint. -->
+    <script src="/boot.js"></script>
   </head>
   <body>
     <div id="root"></div>

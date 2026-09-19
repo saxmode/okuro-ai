@@ -23,6 +23,7 @@
 #   def maintenance_status_endpoint
 #   def maintenance_mandate_endpoint
 #   def _load_role_refresh_mandate
+#   def spawn_role_task
 #   def _spawn_role_researcher_task
 # AGENT_HEADER_END -->
 """Roles API — single-router home for all /api/roles HTTP endpoints.
@@ -59,7 +60,6 @@ The lightweight preview path remains available under
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import os
 import sys
@@ -112,27 +112,69 @@ def _knowledge_row_to_dict(row) -> dict:
     }
 
 
-def _role_summary(r: dict) -> dict:
+def _role_summary(r: dict, checks_by_role: dict[str, list[dict]] | None = None) -> dict:
     """Extend a list_roles() row with stale flag + knowledge_count.
 
     Kept cheap — is_stale() and knowledge_count are both SELECTs, so we run
     them inline. 56 roles × 2 queries is ~100 queries per /api/roles call;
     fine for SQLite and avoids a schema migration.
+
+    ``checks_by_role`` is READ, never fetched. The caller lists 104 roles and
+    has to do the grouped read once; doing it here would have added a third
+    per-role query to a function whose docstring already apologises for two,
+    and ``check_summaries_by_role`` exists precisely so a fleet-wide page does
+    not have to. Absent, the fit is computed without checks — a missing defect
+    line, not a wrong number.
     """
     from okuro.roles.knowledge import is_stale
+    from okuro.roles.fit import compute_fit, fit_summary
+    from okuro.orchestrator.api.roles_fit import SOURCED_DEFINITION
     from okuro.db import get_db
 
     db = get_db()
-    row = db.fetchone(
-        "SELECT COUNT(*) AS cnt FROM role_knowledge "
-        "WHERE role_id = ? AND confidence > 0.0",
-        (r["id"],),
-    )
-    knowledge_count = row["cnt"] if row else 0
+    # Was a COUNT(*). The rows themselves are what the knowledge fit segment
+    # needs, and len() is the same number — so this stays one query, not two.
+    #
+    # NO `confidence > 0` FILTER. Suppressed rows are counted and named inside
+    # compute_fit instead, so the fit view's total matches the table's count.
+    # As a SQL filter it silently shrank the total and nothing said why.
+    knowledge_rows = [
+        dict(k)
+        for k in db.fetchall(
+            "SELECT content, source_url, created_at, confidence "
+            "FROM role_knowledge WHERE role_id = ?",
+            (r["id"],),
+        )
+    ]
+    knowledge_count = len(knowledge_rows)
+
+    # The list row renders a five-segment bar, so it needs five numbers per
+    # role. fit_summary drops the defect strings — those are what
+    # GET /api/roles/{id}/fit is for, and shipping 103 roles' worth of them
+    # into a list nobody reads them from is the payload nobody asked for.
+    fit: dict | None = None
+    try:
+        bodies = db.fetchone(
+            "SELECT prompt, lean_prompt, micro_prompt FROM roles WHERE role_id = ?",
+            (r["id"],),
+        )
+        fit = fit_summary(
+            compute_fit(
+                {**r, **(dict(bodies) if bodies else {})},
+                knowledge_rows,
+                sourced_definition=SOURCED_DEFINITION,
+                check_rows=(checks_by_role or {}).get(r["id"], []),
+            )
+        )
+    except Exception as exc:  # noqa: BLE001 — analytics must not 500 the list
+        logger.exception("fit computation failed for role %s", r["id"])
+        fit = {"error": str(exc)}
+
     return {
         **r,
         "stale": is_stale(r["id"]),
         "knowledge_count": knowledge_count,
+        "fit": fit,
     }
 
 
@@ -163,11 +205,37 @@ class RoleCreateRequest(BaseModel):
 
 
 class KnowledgeCreate(BaseModel):
+    """The REST shape of a knowledge write.
+
+    It carries ``outcome`` and ``run_id`` for the same reason ``roles_learn``
+    does: both doors call ``write_knowledge``, so a parameter missing from one
+    of them does not make that door safer, it makes it LIE. Before this, a
+    no-change report posted over HTTP could not say so and had to hope the text
+    heuristic caught it, and a cited URL could never earn ``fetch_verified``
+    however honestly it was fetched — the same write meant two different things
+    depending on which door it came through.
+    """
+
     type: str = Field(default="research")
     content: str
     source_url: Optional[str] = None
     confidence: Optional[float] = Field(default=0.7, ge=0.0, le=1.0)
     supersedes: Optional[str] = None
+    outcome: Optional[str] = Field(
+        default=None,
+        description=(
+            "no_change | error | skipped. Set when this entry reports an "
+            "OUTCOME rather than carrying a fact; it is filed as a check, and "
+            "only no_change resets the role's maintenance clock."
+        ),
+    )
+    run_id: Optional[str] = Field(
+        default=None,
+        description=(
+            "The maintenance run this entry belongs to. Required together "
+            "with source_url for fetch_verified."
+        ),
+    )
 
 
 # ── Maintenance job tracker ──────────────────────────────────────────
@@ -222,12 +290,14 @@ def _load_role_refresh_mandate() -> str:
     )
 
 
-def _spawn_role_researcher_task(
+def spawn_role_task(
     description: str,
     *,
     role_scope_label: str,
+    required_role: str = "role-researcher",
+    task_prefix: str = "rolemaint",
 ) -> Optional[str]:
-    """Spawn the orchestrator engine with a role-researcher task.
+    """Spawn the orchestrator engine with ONE required role.
 
     Reuses the same subprocess path ``POST /api/tasks`` does (see
     ``spawn_orchestrator`` in ``okuro.orchestrator.api.main``). Returns the
@@ -236,6 +306,15 @@ def _spawn_role_researcher_task(
     ``role_scope_label`` is a short human tag used only in log context and
     the task directory name suffix (e.g. ``rolemaint-<role-id>``). It does
     NOT affect the decomposer — scope is in the description.
+
+    **Why the role name is a parameter now.** This function had
+    ``role-researcher`` written into its argv, which made it the
+    role-refresh spawner rather than the role spawner. The structure-research
+    dispatch needs the identical machinery — pre-create the task dir, same
+    subprocess path, same failure handling — against a DIFFERENT required
+    role. Copying it would have produced two spawners that agree today and
+    drift on the first edit to either, which is the class DP10/DP11 names.
+    The default keeps both existing callers byte-identical in behaviour.
     """
     # Deferred imports to avoid a circular import with main.py at module load.
     from okuro.orchestrator.api.main import (  # type: ignore
@@ -246,7 +325,7 @@ def _spawn_role_researcher_task(
     safe = "".join(c if c.isalnum() or c in "-_" else "-" for c in role_scope_label)
     safe = safe.strip("-")[:40] or "stale"
     task_id = (
-        f"task-rolemaint-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{safe}"
+        f"task-{task_prefix}-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{safe}"
     )
 
     # Pre-create the task dir so engine startup never races.
@@ -261,21 +340,97 @@ def _spawn_role_researcher_task(
         "--task-id",
         task_id,
         "--required-roles",
-        "role-researcher",
+        required_role,
         "--yes",
         description,
     ]
 
     pid = spawn_orchestrator(cmd, task_id)
     if not pid:
-        logger.error("Failed to spawn role-researcher engine for %s", task_id)
+        logger.error("Failed to spawn %s engine for %s", required_role, task_id)
         return None
     logger.info(
-        "Spawned role-researcher task %s for maintenance scope=%s",
+        "Spawned %s task %s for scope=%s",
+        required_role,
         task_id,
         role_scope_label,
     )
     return task_id
+
+
+def _spawn_role_researcher_task(
+    description: str,
+    *,
+    role_scope_label: str,
+) -> Optional[str]:
+    """The role-refresh spawn, kept as its own name at its two call sites."""
+    return spawn_role_task(description, role_scope_label=role_scope_label)
+
+
+def _api_base_url() -> str:
+    """Where a dispatched subagent reaches this API.
+
+    Read from ``port_registry.orchestrator_port()``, which is the one place
+    that resolves ``OKURO_PORT`` → config → default, rather than written into
+    the brief as a literal. The host is loopback because the endpoint the brief
+    points at is loopback-only; a brief naming any other host would be telling
+    the agent to do something the guard refuses.
+
+    The first version of this brief said "POST to /api/roles/knowledge-fetch"
+    with no scheme, host or port. An agent in a subprocess has no browser
+    origin to resolve that against, so it either guessed a port or gave up —
+    and giving up looks exactly like an agent that chose not to cite anything.
+    """
+    from okuro.system.port_registry import orchestrator_port
+
+    return f"http://127.0.0.1:{orchestrator_port()}"
+
+
+def _maintenance_run_brief(run_id: str) -> str:
+    """The paragraph that lets a sweep agent EARN verification instead of claim it.
+
+    Three things the sweep could not previously express, all of them now
+    mechanical rather than rhetorical:
+
+    * a no-change outcome has a parameter, so the agent stops writing a
+      knowledge row that says nothing;
+    * a failed check has its own outcome, so six weeks of a broken feed stop
+      reading as six quiet weeks;
+    * a citation can be BACKED, by asking the server to fetch the page and
+      store the body, after which ``fetch_verified`` is a join rather than a
+      courtesy.
+
+    The run_id is a correlation key, not a credential — it is the server that
+    fetches, so minting an id buys an agent nothing but the ability to tie its
+    own citations to its own fetches.
+    """
+    return (
+        f"\n\nrun_id for this sweep: {run_id}\n"
+        "Pass run_id='" + run_id + "' on EVERY roles_learn call in this run.\n"
+        "- Found nothing material: roles_learn(..., outcome='no_change'). That "
+        "is the correct and expected output and it resets the role's clock. Do "
+        "NOT write a knowledge entry that says 'no significant change' — it is "
+        "filed as a check now, not as a learning, and manufacturing a finding "
+        "to avoid the word is the failure this run is judged on.\n"
+        "- Could not check (fetch failed, source down, search unusable): "
+        "outcome='error'. Did not check at all: outcome='skipped'. Neither "
+        "resets the clock, which is the point — a dead source must stay "
+        "visible.\n"
+        "- Found something real: cite it. To make the citation count, first\n"
+        "    curl -sS -X POST " + _api_base_url() + "/api/roles/knowledge-fetch \\\n"
+        "      -H 'Content-Type: application/json' \\\n"
+        "      -d '{\"url\": \"<the page>\", \"run_id\": \"" + run_id + "\"}'\n"
+        "  The SERVER fetches and stores the body; you do not send one. Then "
+        "pass that same url as source_url together with run_id on roles_learn. "
+        "Only then does the entry read fetch_verified.\n"
+        "- A fetch you cannot record is NOT a reason to skip the finding and "
+        "NOT a reason to invent a citation. The server refuses addresses that "
+        "point inward, non-web ports, oversize bodies and pages it cannot "
+        "reach, and an entry whose fetch did not land simply reads "
+        "fetch_verified=0. That is the design: the row still says what you "
+        "found and the store does not claim to have checked something it "
+        "never saw. Write the finding either way.\n"
+    )
 
 
 def _count_learnings_since(
@@ -377,7 +532,9 @@ def list_roles_endpoint(domain: Optional[str] = None):
 
     Raw-list shape (frontend contract — not ``{roles, count}``).
     """
+    from okuro.db import get_db
     from okuro.roles import list_roles
+    from okuro.roles.checks import check_summaries_by_role
 
     try:
         rows = list_roles(domain=domain)
@@ -385,7 +542,15 @@ def list_roles_endpoint(domain: Optional[str] = None):
         logger.exception("list_roles failed")
         raise HTTPException(500, f"Role listing failed: {exc}")
 
-    return [_role_summary(r) for r in rows]
+    # ONE grouped read for the whole page, not one per row. The lean variant,
+    # because this renders a count and a defect line and never the prose.
+    try:
+        checks = check_summaries_by_role(get_db())
+    except Exception as exc:  # noqa: BLE001 — a listing without checks still lists
+        logger.warning("check summaries unavailable for the roles list: %s", exc)
+        checks = {}
+
+    return [_role_summary(r, checks) for r in rows]
 
 
 @router.get("/maintenance")
@@ -504,6 +669,9 @@ def run_all_stale_endpoint(request: Request):
             "role_ids": [],
         }
 
+    from okuro.roles.source_poll import new_run_id
+
+    run_id = new_run_id()
     mandate_prose = _load_role_refresh_mandate()
     description = (
         f"{mandate_prose}\n\n"
@@ -511,6 +679,7 @@ def run_all_stale_endpoint(request: Request):
         f"{', '.join(stale_ids)}. "
         "Do not call roles_maintenance() without filters; iterate only these "
         "role_ids, execute each mandate, and call roles_learn() per finding."
+        + _maintenance_run_brief(run_id)
     )
 
     task_id = _spawn_role_researcher_task(
@@ -519,6 +688,7 @@ def run_all_stale_endpoint(request: Request):
 
     _MAINTENANCE_JOBS[job_id] = {
         "job_id": job_id,
+        "run_id": run_id,
         "role_ids": stale_ids,
         "role_count": len(stale_ids),
         "status": "running" if task_id else "failed",
@@ -568,18 +738,25 @@ def get_role_endpoint(role_id: str):
 
 @router.put("/{role_id}")
 def update_role_endpoint(role_id: str, req: RoleUpdateRequest, request: Request):
-    """Update role fields."""
+    """Update role fields.
+
+    Goes through ``roles.write.update_role_fields``, which is what makes this
+    endpoint equal to POST rather than a hole beside it. Before that it was a
+    bare UPDATE: no vocabulary gate (a tier POST refuses at 422 was reachable
+    by editing an existing role), no re-embed (a rewritten description left
+    ``vec_roles`` matching the old wording forever) and no ``updated_at``
+    (every staleness reader believed the row was as old as its last sweep).
+    """
     _require_localhost_rl(request)
 
-    from okuro.db import get_db
     from okuro.roles.registry import get_role as _get_role
+    from okuro.roles.write import RoleWriteRefused, update_role_fields
 
     try:
         role = _get_role(role_id)
         if not role:
             raise HTTPException(status_code=404, detail=f"Role '{role_id}' not found")
 
-        db = get_db()
         updates: dict = {}
         for field in (
             "description",
@@ -589,20 +766,24 @@ def update_role_endpoint(role_id: str, req: RoleUpdateRequest, request: Request)
             "lean_prompt",
             "micro_prompt",
             "domain",
+            "tools",
         ):
             val = getattr(req, field, None)
             if val is not None:
                 updates[field] = val
-        if req.tools is not None:
-            updates["tools"] = json.dumps(req.tools)
 
         if not updates:
             return {"status": "no changes"}
 
-        set_clause = ", ".join(f"{k} = ?" for k in updates)
-        values = list(updates.values()) + [role_id]
-        db.execute(f"UPDATE roles SET {set_clause} WHERE role_id = ?", values)
-        return {"status": "updated", "role_id": role_id, "fields": len(updates)}
+        result = update_role_fields(role_id, updates, actor="api:PUT /api/roles")
+        return {
+            "status": "updated",
+            "role_id": role_id,
+            "fields": len(result["fields"]),
+            "embedded": result["embedded"],
+        }
+    except RoleWriteRefused as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
     except HTTPException:
         raise
     except Exception as exc:  # noqa: BLE001
@@ -623,7 +804,8 @@ def promote_role_endpoint(role_id: str, request: Request):
     """
     _require_localhost_rl(request)
 
-    from okuro.roles.registry import get_role as _get_role, update_role_info
+    from okuro.roles.registry import get_role as _get_role
+    from okuro.roles.write import RolePromotionRefused, promote_role as _promote
 
     role = _get_role(role_id)
     if not role:
@@ -642,40 +824,45 @@ def promote_role_endpoint(role_id: str, request: Request):
             ),
         )
 
-    update_role_info(role_id, {"maturity": "active"})
-
-    # Backfill the vec_roles embedding if missing. Roles loaded via
-    # seed_from_catalog (the path role-designer uses when writing
-    # catalog YAML) populate the `roles` table but not the vector
-    # index — so even after promotion the proposer's match_roles()
-    # vec_search returns nothing for them. Without this, "promoted"
-    # roles are invisible to the panel proposer.
+    # The helper owns the transition AND everything promotion exposes: tags,
+    # the vector, updated_at. It embeds when the vector is missing OR STALE —
+    # this endpoint used to check only for missing, so a role edited while in
+    # draft went live matching the wording it had before the edit.
+    # Promotion itself must not fail on a derived step.
     try:
-        from okuro.db import get_db
-        db = get_db()
-        existing_vec = db.fetchone(
-            "SELECT id FROM vec_roles WHERE id = ?", (role_id,)
+        result = _promote(role_id, actor="api:POST /api/roles/{id}/promote")
+        embedded = result["embedded"]
+    except RolePromotionRefused as exc:
+        # MUST be caught ABOVE the fallback below. That fallback exists so a
+        # dead embed service cannot block a promotion, and it does its job by
+        # setting maturity='active' by hand — which means that catching the
+        # structure refusal there would have promoted the very role the gate
+        # just refused, and reported "embedded: failed" as if the only problem
+        # were the vector. The gate would have been unreachable through HTTP.
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": (
+                    f"Role '{role_id}' is not structurally complete enough to "
+                    f"promote. Nothing was changed; it is still a draft."
+                ),
+                "missing": exc.missing,
+            },
         )
-        if not existing_vec:
-            description = (role.get("description") or "").strip()
-            if description:
-                from okuro.embed import embed_one
-                from okuro.embed.client import to_bytes
-                emb = embed_one(description)
-                db.execute(
-                    "INSERT INTO vec_roles (id, embedding) VALUES (?, ?)",
-                    (role_id, to_bytes(emb)),
-                )
-    except Exception as exc:
-        # Promotion already succeeded; embedding backfill is a
-        # convenience. Log but don't fail the request.
-        import logging
-        logging.getLogger(__name__).warning(
-            "promote_role: vec_roles backfill failed for %s: %s",
-            role_id, exc,
-        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("promote_role: post-steps failed for %s: %s", role_id, exc)
+        from okuro.roles.registry import update_role_info
 
-    return {"status": "promoted", "role_id": role_id, "from": "draft", "to": "active"}
+        update_role_info(role_id, {"maturity": "active"})
+        embedded = "failed"
+
+    return {
+        "status": "promoted",
+        "role_id": role_id,
+        "from": "draft",
+        "to": "active",
+        "embedded": embedded,
+    }
 
 
 @router.post("")
@@ -683,8 +870,8 @@ def create_role_endpoint(req: RoleCreateRequest, request: Request):
     """Create a new role."""
     _require_localhost_rl(request)
 
-    from okuro.db import get_db
     from okuro.roles.registry import get_role as _get_role
+    from okuro.roles.write import RoleWriteRefused, upsert_role
 
     try:
         existing = _get_role(req.role_id)
@@ -693,25 +880,55 @@ def create_role_endpoint(req: RoleCreateRequest, request: Request):
                 status_code=409, detail=f"Role '{req.role_id}' already exists"
             )
 
-        db = get_db()
-        tools_json = json.dumps(req.tools) if req.tools else None
-        db.execute(
-            "INSERT INTO roles (role_id, domain, description, tier, model, tools, "
-            "prompt, lean_prompt, micro_prompt, maturity, sessions, learnings, maintenance_schedule) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 0, 0, 'monthly')",
-            (
-                req.role_id,
-                req.domain,
-                req.description,
-                req.tier,
-                req.model,
-                tools_json,
-                req.prompt,
-                req.lean_prompt,
-                req.micro_prompt,
-            ),
+        # The vocabulary gate, the vector and the tags all live in the write
+        # helper now. They used to be installed here, which is why the three
+        # other birth paths each shipped without some of them — the guarantees
+        # belonged to this endpoint rather than to the table.
+        #
+        # `embedded` is still REPORTED rather than swallowed. If the embed
+        # service is down the role exists but cannot be matched, and answering
+        # a bare 201 would tell the caller the opposite of what is true. It
+        # self-heals at the next daemon start, which is a restart the caller
+        # did not ask for and would otherwise never hear about.
+        written = upsert_role(
+            {
+                "role_id": req.role_id,
+                "domain": req.domain,
+                "description": req.description,
+                "tier": req.tier,
+                "model": req.model,
+                "tools": req.tools,
+                "prompt": req.prompt,
+                "lean_prompt": req.lean_prompt,
+                "micro_prompt": req.micro_prompt,
+                "maturity": "active",
+                "maintenance_schedule": "monthly",
+            },
+            actor="api:POST /api/roles",
         )
-        return {"status": "created", "role_id": req.role_id}
+        result = {
+            "status": "created",
+            "role_id": req.role_id,
+            "embedded": written["embedded"],
+        }
+        # `embedded` is a STRING ("written"/"unchanged"/"failed"/"skipped").
+        # A truthiness test here would be permanently False and the warning
+        # would never fire — the exact silence this block exists to break.
+        if written["embedded"] == "failed":
+            result["warning"] = (
+                "role created but not embedded — it will not be returned by "
+                "roles_match until a vector exists. The next daemon start "
+                "backfills it; `python -m okuro.embed.repair` forces it sooner."
+            )
+        elif written["embedded"] == "skipped":
+            result["warning"] = (
+                "role created with no description, so there was nothing to "
+                "embed — it will never be returned by roles_match. Give it a "
+                "description via PUT /api/roles/{role_id}."
+            )
+        return result
+    except RoleWriteRefused as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
     except HTTPException:
         raise
     except Exception as exc:  # noqa: BLE001
@@ -721,19 +938,19 @@ def create_role_endpoint(req: RoleCreateRequest, request: Request):
 
 @router.delete("/{role_id}")
 def delete_role_endpoint(role_id: str, request: Request):
-    """Hard-delete a role."""
+    """Hard-delete a role, vector included.
+
+    Deleting only the ``roles`` row left an orphan in ``vec_roles`` that kept
+    answering similarity queries for a role that no longer existed — and a
+    later role reusing the id would have inherited the dead one's embedding.
+    """
     _require_localhost_rl(request)
 
-    from okuro.db import get_db
-    from okuro.roles.registry import get_role as _get_role
+    from okuro.roles.write import delete_role as _delete
 
     try:
-        existing = _get_role(role_id)
-        if not existing:
+        if not _delete(role_id, actor="api:DELETE /api/roles"):
             raise HTTPException(status_code=404, detail=f"Role '{role_id}' not found")
-
-        db = get_db()
-        db.execute("DELETE FROM roles WHERE role_id = ?", (role_id,))
         return {"status": "deleted", "role_id": role_id}
     except HTTPException:
         raise
@@ -810,8 +1027,15 @@ def create_knowledge_endpoint(role_id: str, body: KnowledgeCreate, request: Requ
             source_url=body.source_url,
             supersedes=body.supersedes,
             confidence=body.confidence if body.confidence is not None else 0.7,
+            outcome=body.outcome,
+            run_id=body.run_id,
         )
         return result
+    except ValueError as exc:
+        # An unknown `outcome` — write_knowledge names the bad word, and a
+        # caller who typed it deserves a 400 rather than a 500 that reads like
+        # okuro broke.
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except HTTPException:
         raise
     except Exception as exc:  # noqa: BLE001
@@ -896,6 +1120,9 @@ def run_maintenance_endpoint(role_id: str, request: Request):
     if not role:
         raise HTTPException(status_code=404, detail=f"Role '{role_id}' not found")
 
+    from okuro.roles.source_poll import new_run_id
+
+    run_id = new_run_id()
     mandate_prose = _load_role_refresh_mandate()
     description = (
         f"{mandate_prose}\n\n"
@@ -903,6 +1130,7 @@ def run_maintenance_endpoint(role_id: str, request: Request):
         f"'{role_id}') for the mandate, execute the searches, and call "
         f"roles_learn(role_id='{role_id}', ...) with each genuine finding. "
         "Do not iterate other roles."
+        + _maintenance_run_brief(run_id)
     )
 
     job_id = uuid.uuid4().hex
@@ -912,6 +1140,7 @@ def run_maintenance_endpoint(role_id: str, request: Request):
 
     _MAINTENANCE_JOBS[job_id] = {
         "job_id": job_id,
+        "run_id": run_id,
         "role_id": role_id,
         "role_ids": [role_id],
         "status": "running" if task_id else "failed",

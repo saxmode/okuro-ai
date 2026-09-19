@@ -15,9 +15,18 @@ import { cn } from "@/lib/utils";
 /** Header-cell classes — one geometry for every panel's <th>. */
 export const TH = "px-3 py-2 font-medium whitespace-nowrap";
 
-/** Header-row classes — one geometry for every panel's header <tr>. */
+/**
+ * Header-row classes — one geometry for every panel's header <tr>.
+ *
+ * CASE COMES FROM THE KIT (`case-label`), not from a literal `uppercase` —
+ * ruled `0d37d05e`. The fallback inside `.case-label` is `uppercase`, so under
+ * the active `standard` kit (which publishes `--type-label-transform:
+ * uppercase`) this renders byte-identically to the literal it replaces.
+ * ONE LINE, FOUR TABLE SURFACES — Recurring, Daemon and Timers on SCHEDULED
+ * plus Daemon again on HEALTH `?view=schedules`.
+ */
 export const THEAD_ROW =
-  "text-left text-2xs uppercase tracking-wider text-tertiary";
+  "case-label text-left text-2xs tracking-wider text-tertiary";
 
 /**
  * Identity column: a non-wrapping identifier with an optional secondary
@@ -44,8 +53,38 @@ export function IdentityCell({
   // `truncate` resolve against the real available width instead of a
   // guessed ch cap. Every other column carries `whitespace-nowrap` and so
   // takes its natural width.
+  //
+  // AND THAT IS ALSO HOW IT BECAME THE ONLY COLUMN THAT CAN BE DELETED.
+  // Shrinkable plus `table-layout: auto` plus a 751.63px pane means this
+  // column absorbs the WHOLE deficit, and past some width the deficit is
+  // larger than its content. Measured at window 1366 before this line
+  // (isolated chromium, `standard` kit, pathname asserted):
+  //
+  //   table            id column   clipped text nodes   worst cell
+  //   Recurring runs      50px            4             224 -> 23  (201px gone)
+  //   Daemon jobs         50px           94            1645 -> 23  (1622px gone)
+  //   System timers       58px           46             581 -> 30  (551px gone)
+  //
+  // 144 cells rendering one character and an ellipsis. The docstring above
+  // promises "it truncates with an ellipsis and keeps its full value in the
+  // native tooltip" — a 23px ellipsis is not a truncation, it is a deletion,
+  // and the tooltip is the only copy left.
+  //
+  // THE FLOOR IS WHAT MAKES THE WRAPPER SCROLL. `min-width` beats
+  // `max-width` in the cascade, so the cell stops at `--field-sm` (240px,
+  // the engine's own name — D1, and the narrowest field tier wide enough to
+  // read an identifier) and the table then exceeds its `.overflow-x-auto`
+  // wrapper, which is what that wrapper was added for. This is Q2's ruled
+  // "B then A": the floor first, the sanctioned inner scroller for whatever
+  // still does not fit. ONE LINE, FOUR TABLE SURFACES — Recurring, Daemon
+  // and Timers on SCHEDULED plus Daemon again on HEALTH `?view=schedules`.
   return (
-    <td className={cn("w-full max-w-0 px-3 py-2 align-top", className)}>
+    <td
+      className={cn(
+        "w-full min-w-[var(--field-sm)] max-w-0 px-3 py-2 align-top",
+        className,
+      )}
+    >
       <div className="flex items-center gap-1.5">
         <span
           className={cn("truncate whitespace-nowrap text-fg", mono && "font-mono")}

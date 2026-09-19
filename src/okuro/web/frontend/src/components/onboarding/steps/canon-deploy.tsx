@@ -14,7 +14,6 @@ import { OnboardingPage } from "../page";
  * We ask explicit consent because it writes to the user's home directory:
  *   - Appends okuro to each CLI's MCP server registry (config files)
  *   - Generates / updates CLAUDE.md, AGENTS.md and hook files for each provider
- *   - Writes ~/.okuro/TOOL-PROTOCOL.md (shared, provider-independent)
  */
 export function CanonDeployStep({ onAfterDeploy }: { onAfterDeploy?: () => void }) {
   const [targets, setTargets] = useState<Array<{ id: string; name: string; detected: boolean }> | null>(null);
@@ -73,10 +72,6 @@ export function CanonDeployStep({ onAfterDeploy }: { onAfterDeploy?: () => void 
               <code>CLAUDE.md</code>, <code>AGENTS.md</code>, or equivalent
               — short instruction files telling the agent to call{" "}
               <code>bootstrap()</code> first
-            </li>
-            <li>
-              <code>~/.okuro/TOOL-PROTOCOL.md</code> — shared tool-usage guide
-              every adapter reads
             </li>
           </ul>
           <p>

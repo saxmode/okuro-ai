@@ -45,7 +45,7 @@ export function GatePanel({ taskId }: { taskId: string }) {
 
       {resolved.length > 0 && (
         <details className="rounded border border-border bg-surface p-2">
-          <summary className="cursor-pointer text-2xs uppercase tracking-wider text-tertiary">
+          <summary className="cursor-pointer text-2xs case-label tracking-wider text-tertiary">
             Locked Decisions ({resolved.length})
           </summary>
           <div className="mt-2 space-y-1.5">
@@ -55,6 +55,52 @@ export function GatePanel({ taskId }: { taskId: string }) {
           </div>
         </details>
       )}
+    </div>
+  );
+}
+
+/**
+ * S2 — the artifact this decision is made AGAINST, named above the
+ * question. A gate whose basis is unnamed is how an approval ends up
+ * attached to text nobody read, so the title leads and the id follows as
+ * the handle you fetch it by. Clicking the id copies it in full; only a
+ * prefix is shown because a bare UUID in a sentence is clutter.
+ *
+ * Renders nothing for a gate with no subject — every legacy gate.
+ */
+function GateSubjectLine({ gate }: { gate: DecisionGateInfo }) {
+  const [copied, setCopied] = useState(false);
+  const id = gate.subject_artifact_id;
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(id);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard blocked (no permission, insecure origin). The prefix
+      // stays on screen, so the user is never left with nothing.
+    }
+  };
+
+  if (!id) return null;
+
+  return (
+    <div className="mt-1 flex items-baseline gap-1.5">
+      <span className="text-3xs case-label tracking-wider text-tertiary">
+        basis
+      </span>
+      <span className="text-xs text-fg-muted">
+        {gate.subject_title || "untitled artifact"}
+      </span>
+      <button
+        type="button"
+        onClick={copy}
+        title={`Copy artifact id ${id}`}
+        className="font-mono text-3xs text-tertiary underline decoration-dotted underline-offset-2 hover:text-fg-muted"
+      >
+        {copied ? "copied" : id.slice(0, 8)}
+      </button>
     </div>
   );
 }
@@ -87,10 +133,21 @@ function PendingGateCard({
   return (
     <div className="rounded border border-accent/40 bg-accent-subtle p-3">
       <div className="flex items-baseline justify-between">
-        <div className="text-2xs font-medium uppercase tracking-wider text-accent">
+        <div className="text-2xs font-medium case-label tracking-wider text-accent">
           decision gate · {STEP_LOWER} {gate.phase_id}
         </div>
       </div>
+      <GateSubjectLine gate={gate} />
+      {gate.basis_moved && (
+        // Said BEFORE the options, not after the submit. Letting someone
+        // read, weigh and pick, then answering 409, spends their attention
+        // on a decision that was never going to be accepted.
+        <p className="mt-1.5 rounded border border-warning/40 bg-warning-subtle px-2 py-1 text-xs text-fg">
+          What this decision is about has changed since the question was
+          asked. Answering will be refused — the gate has to be posed again
+          against the current version, or skipped.
+        </p>
+      )}
       <p className="mt-1 text-sm text-fg">{gate.prompt}</p>
 
       <div className="mt-3 space-y-1.5">
@@ -113,11 +170,11 @@ function PendingGateCard({
                       active ? "bg-accent" : "bg-border"
                     }`}
                   />
-                  <span className="text-2xs font-medium uppercase tracking-wider text-fg">
+                  <span className="text-2xs font-medium case-label tracking-wider text-fg">
                     {opt.label}
                   </span>
                   {opt.recommended && (
-                    <span className="rounded bg-accent/20 px-1.5 py-0.5 text-3xs uppercase tracking-wider text-accent">
+                    <span className="rounded bg-accent/20 px-1.5 py-0.5 text-3xs case-label tracking-wider text-accent">
                       recommended
                     </span>
                   )}
@@ -187,10 +244,10 @@ function ResolvedGateRow({ gate }: { gate: DecisionGateInfo }) {
   return (
     <div className="rounded border border-border bg-surface px-2.5 py-1.5">
       <div className="flex items-center justify-between">
-        <div className="text-2xs uppercase tracking-wider text-fg-muted">
+        <div className="text-2xs case-label tracking-wider text-fg-muted">
           {STEP_LOWER} {gate.phase_id}
         </div>
-        <div className="text-3xs uppercase tracking-wider text-tertiary">
+        <div className="text-3xs case-label tracking-wider text-tertiary">
           {gate.status}
         </div>
       </div>
@@ -202,6 +259,9 @@ function ResolvedGateRow({ gate }: { gate: DecisionGateInfo }) {
           )}
         </div>
       )}
+      {/* The locked decision keeps naming its basis: an ADR read six
+          weeks later is only as good as the text it points at. */}
+      <GateSubjectLine gate={gate} />
     </div>
   );
 }

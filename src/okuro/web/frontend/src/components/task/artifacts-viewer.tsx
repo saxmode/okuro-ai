@@ -326,7 +326,7 @@ export const ArtifactsViewer = memo(function ArtifactsViewer({
       {/* Filter banner — only when scoped to a subtask */}
       {tab !== "deliveries" && selectedSubtaskId && (
         <div className="flex h-row-dense items-center gap-2 border-b border-accent/40 bg-accent/10 px-3 text-2xs">
-          <span className="uppercase tracking-wider text-accent">Filtered</span>
+          <span className="case-label tracking-wider text-accent">Filtered</span>
           <span className="text-fg">{selectedSubtaskId}</span>
           <span className="text-tertiary">
             {sorted.length} of {artifacts.length}
@@ -336,7 +336,7 @@ export const ArtifactsViewer = memo(function ArtifactsViewer({
               type="button"
               onClick={onClearSubtaskFilter}
               aria-label="Clear part filter"
-              className="ml-auto flex items-center gap-1 rounded px-1.5 py-0.5 text-3xs uppercase tracking-wider text-tertiary hover:bg-surface-elevated/40 hover:text-fg-muted"
+              className="ml-auto flex items-center gap-1 rounded px-1.5 py-0.5 text-3xs case-label tracking-wider text-tertiary hover:bg-surface-elevated/40 hover:text-fg-muted"
             >
               <XCircle className="h-3 w-3" />
               Clear
@@ -348,7 +348,7 @@ export const ArtifactsViewer = memo(function ArtifactsViewer({
       {/* Toolbar — sort/view apply to the artifact tabs, not the deliveries list */}
       {tab !== "deliveries" && (
       <div className="flex h-row-dense flex-wrap items-center gap-2 border-b border-border px-3">
-        <span className="text-2xs uppercase tracking-wider text-tertiary">
+        <span className="text-2xs case-label tracking-wider text-tertiary">
           Documents ({sorted.length}
           {selectedSubtaskId && sorted.length !== byAudience.length
             ? ` / ${byAudience.length}`
@@ -363,7 +363,7 @@ export const ArtifactsViewer = memo(function ArtifactsViewer({
               key={k}
               onClick={() => setSortKey(k)}
               className={cn(
-                "rounded px-1.5 py-0.5 text-3xs uppercase tracking-wider",
+                "rounded px-1.5 py-0.5 text-3xs case-label tracking-wider",
                 sortKey === k
                   ? "bg-accent text-inverse"
                   : "text-tertiary hover:text-fg-muted",
@@ -380,7 +380,7 @@ export const ArtifactsViewer = memo(function ArtifactsViewer({
               key={m}
               onClick={() => setViewMode(m)}
               className={cn(
-                "rounded px-1.5 py-0.5 text-3xs uppercase tracking-wider",
+                "rounded px-1.5 py-0.5 text-3xs case-label tracking-wider",
                 viewMode === m
                   ? "bg-accent text-inverse"
                   : "text-tertiary hover:text-fg-muted",
@@ -439,7 +439,7 @@ export const ArtifactsViewer = memo(function ArtifactsViewer({
           <div className="px-3 py-2">
             {grouped.map(([day, items]) => (
               <div key={day} className="mb-3 last:mb-0">
-                <div className="mb-1 text-3xs uppercase tracking-wider text-tertiary">
+                <div className="mb-1 text-3xs case-label tracking-wider text-tertiary">
                   {formatDayLabel(day)}
                 </div>
                 <ol>
@@ -513,7 +513,7 @@ function ArtifactRow({
         >
           <span
             className={cn(
-              "shrink-0 rounded px-1 py-0.5 text-3xs font-bold uppercase tracking-wider text-inverse",
+              "shrink-0 rounded px-1 py-0.5 text-3xs font-bold case-label tracking-wider text-inverse",
               extColor(ext),
             )}
           >
@@ -524,7 +524,7 @@ function ArtifactRow({
           </span>
           {aud !== "user" && (
             <span
-              className="shrink-0 rounded border border-border px-1 py-0.5 text-3xs uppercase tracking-wider text-tertiary"
+              className="shrink-0 rounded border border-border px-1 py-0.5 text-3xs case-label tracking-wider text-tertiary"
               title={`audience: ${aud}`}
             >
               {aud}
@@ -532,7 +532,7 @@ function ArtifactRow({
           )}
           {versions > 1 && (
             <span
-              className="shrink-0 rounded border border-border px-1 py-0.5 text-3xs uppercase tracking-wider text-tertiary"
+              className="shrink-0 rounded border border-border px-1 py-0.5 text-3xs case-label tracking-wider text-tertiary"
               title={`${versions} review rounds — showing the latest`}
             >
               {versions} versions
@@ -552,7 +552,7 @@ function ArtifactRow({
             disabled={handingOver}
             aria-label="Hand over to another tool"
             title="Hand over → another tool"
-            className="flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-3xs uppercase tracking-wider text-accent hover:bg-accent/10 disabled:opacity-50"
+            className="flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-3xs case-label tracking-wider text-accent hover:bg-accent/10 disabled:opacity-50"
           >
             <Share2 className="h-3 w-3" />
             <span>{handingOver ? "…" : "Hand over"}</span>
@@ -564,7 +564,7 @@ function ArtifactRow({
             onClick={onToggleExpand}
             aria-label={`Toggle ${deliveries.length} deliveries`}
             className={cn(
-              "flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-3xs uppercase tracking-wider",
+              "flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-3xs case-label tracking-wider",
               expanded
                 ? "bg-accent text-inverse"
                 : "text-accent hover:bg-accent/10",
@@ -594,7 +594,7 @@ function DeliveriesPanel({ deliveries }: { deliveries: DeliveryInfo[] }) {
         >
           <span
             className={cn(
-              "shrink-0 rounded px-1 py-0.5 uppercase tracking-wider",
+              "shrink-0 rounded px-1 py-0.5 case-label tracking-wider",
               d.success ? "bg-accent/20 text-accent" : "bg-error/20 text-error",
             )}
           >
@@ -619,7 +619,7 @@ function DeliveriesPanel({ deliveries }: { deliveries: DeliveryInfo[] }) {
           </span>
           {d.success && (
             <a
-              className="shrink-0 rounded px-1.5 py-0.5 uppercase tracking-wider text-accent hover:bg-accent/10"
+              className="shrink-0 rounded px-1.5 py-0.5 case-label tracking-wider text-accent hover:bg-accent/10"
               href={`/api/deliveries/${encodeURIComponent(d.id)}`}
               target="_blank"
               rel="noreferrer noopener"
@@ -674,13 +674,13 @@ function TimelineArtifactItem({
         </span>
         {versions > 1 && (
           <span
-            className="shrink-0 rounded border border-border px-1 text-3xs uppercase tracking-wider text-tertiary"
+            className="shrink-0 rounded border border-border px-1 text-3xs case-label tracking-wider text-tertiary"
             title={`${versions} review rounds — showing the latest`}
           >
             {versions} versions
           </span>
         )}
-        <span className="shrink-0 text-3xs uppercase tracking-wider text-tertiary">
+        <span className="shrink-0 text-3xs case-label tracking-wider text-tertiary">
           {ext}
         </span>
         <span className="ml-auto shrink-0 text-3xs text-tertiary">
@@ -763,7 +763,7 @@ function RedlineButton({ artifactId }: { artifactId: string }) {
           setBusy(false);
         }
       }}
-      className="rounded px-1.5 py-0.5 text-3xs uppercase tracking-wider text-tertiary hover:text-fg-muted disabled:opacity-50"
+      className="rounded px-1.5 py-0.5 text-3xs case-label tracking-wider text-tertiary hover:text-fg-muted disabled:opacity-50"
     >
       {busy ? "opening…" : "redline"}
     </button>
@@ -900,7 +900,7 @@ function ArtifactOverlay({
             close control + filename in view. */}
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border bg-surface-elevated/95 px-6 py-3 backdrop-blur">
           <div className="min-w-0 flex-1">
-            <div className="truncate text-xs uppercase tracking-wider text-tertiary">
+            <div className="truncate text-xs case-label tracking-wider text-tertiary">
               Artifact
             </div>
             <div className="truncate text-base font-semibold text-fg">
@@ -914,7 +914,7 @@ function ArtifactOverlay({
                   key={m}
                   onClick={() => setHtmlView(m)}
                   className={cn(
-                    "rounded px-1.5 py-0.5 text-3xs uppercase tracking-wider",
+                    "rounded px-1.5 py-0.5 text-3xs case-label tracking-wider",
                     htmlView === m
                       ? "bg-accent text-inverse"
                       : "text-tertiary hover:text-fg-muted",

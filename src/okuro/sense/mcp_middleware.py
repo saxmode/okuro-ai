@@ -138,8 +138,8 @@ _PRE_BOOTSTRAP_ALLOWLIST = {
 # preview. `bootstrap` now returns the core; `bootstrap_project` the other half.
 #
 # WHY THE SECOND CALL IS GATED AND NOT SUGGESTED. Same corpus, 1,383 sessions:
-# cortex — instructed in the packet, in TOOL-PROTOCOL.md, and in every provider
-# file — was used in 194. The GATED bootstrap was called in 845. A pull the
+# cortex — instructed on every surface okuro emitted at the time — was used in
+# 194. The GATED bootstrap was called in 845. A pull the
 # agent is merely told to make is a pull that mostly does not happen, so
 # splitting without gating would have deleted the project half from the session
 # rather than moved it. This is the same mechanism that produces the 845.

@@ -13,6 +13,29 @@ import {
   updateElement,
   type AlignMode,
 } from "./scene-ops";
+import { deckAccent, deckBackground, elementInk } from "./deck-theme";
+
+/* `<input type="color">` accepts ONLY `#rrggbb`. A deck colour may legitimately
+   be `rgb()`, a gradient, or a kit token that resolved to a short hex, and the
+   element silently shows BLACK for anything it cannot parse -- so normalise
+   rather than hand it through. The previous code hard-coded okuro's retired
+   green as the default swatch instead. */
+function swatch(value: string | undefined): string {
+  const v = (value ?? "").trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(v)) return v.toLowerCase();
+  if (/^#[0-9a-fA-F]{3}$/.test(v)) {
+    const [r, g, b] = v.slice(1).split("");
+    return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
+  }
+  const m = v.match(/^rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/);
+  if (m) {
+    const h = (n: string) => Math.max(0, Math.min(255, Number(n))).toString(16).padStart(2, "0");
+    return `#${h(m[1]!)}${h(m[2]!)}${h(m[3]!)}`;
+  }
+  /* Nothing parseable: mid grey, which reads as "no colour chosen" rather than
+     as a decision. Documented local -- the engine has no name for that. */
+  return "#808080";
+}
 
 // Font choices for the family select: deck font + theme fonts + common stacks.
 const SYSTEM_FONTS = [
@@ -72,15 +95,18 @@ function parseRows(text: string): string[][] {
 
 // "Can't-lie" gate verdict pill. Hover shows the reason ("why this is true").
 const PROV_STYLE: Record<ElementProvenance["status"], { label: string; cls: string; tip: string }> = {
-  grounded: { label: "grounded", cls: "border-[var(--color-status-success,#11d425)] text-[var(--color-status-success,#11d425)]", tip: "Supported by the deck's grounding source." },
-  inferred: { label: "inferred", cls: "border-[var(--color-status-warning,#c52998)] text-[var(--color-status-warning,#c52998)]", tip: "Plausible, but not explicitly stated in the source." },
-  fabricated: { label: "unsupported", cls: "border-[var(--color-status-error,#f92f77)] text-[var(--color-status-error,#f92f77)]", tip: "The grounding source does NOT support this claim." },
+  /* The kit publishes these three as NAMES. An arbitrary
+     `-[var(--color-status-error,#f92f77)]` utility carries a dead fallback and
+     is the class the p4 WORK pass drove to zero platform-wide. */
+  grounded: { label: "grounded", cls: "border-success text-success", tip: "Supported by the deck's grounding source." },
+  inferred: { label: "inferred", cls: "border-warning text-warning", tip: "Plausible, but not explicitly stated in the source." },
+  fabricated: { label: "unsupported", cls: "border-error text-error", tip: "The grounding source does NOT support this claim." },
   unverified: { label: "unverified", cls: "border-border text-tertiary", tip: "No grounding source was available to check against." },
 };
 function ProvenanceBadge({ p }: { p: ElementProvenance }) {
   const s = PROV_STYLE[p.status] ?? PROV_STYLE.unverified;
   return (
-    <div className={`flex items-center gap-1 self-start rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide ${s.cls}`} title={p.why?.trim() || s.tip}>
+    <div className={`flex items-center gap-1 self-start rounded-full border px-2 py-0.5 text-[10px] case-label tracking-wide ${s.cls}`} title={p.why?.trim() || s.tip}>
       <span aria-hidden>◆</span>
       {s.label}
     </div>
@@ -139,7 +165,7 @@ export function ElementInspector({
     const dist = (a: "h" | "v") => onChange(distributeElements(deck, slideId, selectedIds, a));
     return (
       <div className="flex flex-col gap-3 p-3 text-sm">
-        <span className="text-xs uppercase tracking-wide text-accent">{selectedIds.length} selected</span>
+        <span className="text-xs case-label tracking-wide text-accent">{selectedIds.length} selected</span>
         <div>
           <div className="mb-1 text-xs text-tertiary">align</div>
           <div className="flex flex-wrap gap-1">
@@ -183,8 +209,8 @@ export function ElementInspector({
     return (
       <div className="flex flex-col gap-3 p-3 text-sm">
         <div className="flex items-center justify-between">
-          <span className="text-xs uppercase tracking-wide text-accent">frame</span>
-          <button onClick={() => { onChange(removeElement(deck, slideId, sel.id)); onSelect([]); }} className="rounded border border-border px-2 py-0.5 text-xs text-[var(--color-status-error,#f92f77)] hover:border-[var(--color-status-error,#f92f77)]">Delete</button>
+          <span className="text-xs case-label tracking-wide text-accent">frame</span>
+          <button onClick={() => { onChange(removeElement(deck, slideId, sel.id)); onSelect([]); }} className="rounded border border-border px-2 py-0.5 text-xs text-error hover:border-error">Delete</button>
         </div>
         <label className="flex items-center gap-2 text-xs text-tertiary">
           auto-layout
@@ -249,10 +275,10 @@ export function ElementInspector({
   return (
     <div className="flex flex-col gap-3 p-3 text-sm">
       <div className="flex items-center justify-between">
-        <span className="text-xs uppercase tracking-wide text-accent">{sel.kind}</span>
+        <span className="text-xs case-label tracking-wide text-accent">{sel.kind}</span>
         <button
           onClick={() => { onChange(removeElement(deck, slideId, sel.id)); onSelect([]); }}
-          className="rounded border border-border px-2 py-0.5 text-xs text-[var(--color-status-error,#f92f77)] hover:border-[var(--color-status-error,#f92f77)]"
+          className="rounded border border-border px-2 py-0.5 text-xs text-error hover:border-error"
         >
           Delete
         </button>
@@ -420,8 +446,8 @@ export function ElementInspector({
             </select>
           </label>
         )}
-        <label className="flex items-center gap-1">text<input type="color" value={sel.color ?? "#eafff0"} onChange={(e) => patch({ color: e.target.value })} /></label>
-        <label className="flex items-center gap-1">fill<input type="color" value={(sel.bg ?? "#10231a").startsWith("#") ? (sel.bg ?? "#10231a") : "#10231a"} onChange={(e) => patch({ bg: e.target.value })} /></label>
+        <label className="flex items-center gap-1">text<input type="color" value={swatch(elementInk(sel))} onChange={(e) => patch({ color: e.target.value })} /></label>
+        <label className="flex items-center gap-1">fill<input type="color" value={swatch(sel.bg ?? deckAccent())} onChange={(e) => patch({ bg: e.target.value })} /></label>
       </div>
 
       {sel.kind === "box" && (
@@ -429,8 +455,8 @@ export function ElementInspector({
           <div className="flex items-center justify-between gap-2">
             <span>border</span>
             <div className="flex items-center gap-1">
-              <input type="number" min={0} title="width (0 = none)" value={sel.border?.width ?? 0} onChange={(e) => { const w = Math.max(0, Number(e.target.value) || 0); patch({ border: w > 0 ? { width: w, color: sel.border?.color ?? "#8ff0a4" } : undefined }); }} className="w-16 rounded border border-border bg-transparent px-1.5 py-0.5 text-fg" />
-              <input type="color" value={sel.border?.color ?? "#8ff0a4"} onChange={(e) => patch({ border: { width: sel.border?.width || 1, color: e.target.value } })} />
+              <input type="number" min={0} title="width (0 = none)" value={sel.border?.width ?? 0} onChange={(e) => { const w = Math.max(0, Number(e.target.value) || 0); patch({ border: w > 0 ? { width: w, color: sel.border?.color ?? deckAccent() } : undefined }); }} className="w-16 rounded border border-border bg-transparent px-1.5 py-0.5 text-fg" />
+              <input type="color" value={swatch(sel.border?.color ?? deckAccent())} onChange={(e) => patch({ border: { width: sel.border?.width || 1, color: e.target.value } })} />
             </div>
           </div>
           <label className="flex items-center justify-between gap-2">
@@ -444,7 +470,7 @@ export function ElementInspector({
           </label>
           <div className="flex items-center justify-between gap-2">
             <label className="flex items-center gap-1">
-              <input type="checkbox" checked={!!sel.gradient} onChange={(e) => patch({ gradient: e.target.checked ? { from: sel.gradient?.from ?? sel.bg ?? "#10231a", to: sel.gradient?.to ?? "#0b0f0c", angle: sel.gradient?.angle ?? 180 } : undefined })} className="accent-accent" />
+              <input type="checkbox" checked={!!sel.gradient} onChange={(e) => patch({ gradient: e.target.checked ? { from: sel.gradient?.from ?? sel.bg ?? deckAccent(), to: sel.gradient?.to ?? deckBackground(deck), angle: sel.gradient?.angle ?? 180 } : undefined })} className="accent-accent" />
               gradient
             </label>
             {sel.gradient && (

@@ -127,7 +127,7 @@ export function LayerPanel({
     <div className="border-b border-border">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center justify-between px-3 py-2 text-xs uppercase tracking-wide text-tertiary hover:text-accent"
+        className="flex w-full items-center justify-between px-3 py-2 text-xs case-label tracking-wide text-tertiary hover:text-accent"
       >
         <span>layers</span>
         <span>{open ? "▾" : "▸"}</span>

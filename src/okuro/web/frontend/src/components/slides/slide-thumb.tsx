@@ -4,6 +4,7 @@ import { elementStyle } from "./slides-editor";
 import { flattenElements } from "./flatten";
 import { renderRich } from "./rich-text";
 import { tokenizeApiSrc } from "@/lib/slides-api";
+import { deckBackground } from "./deck-theme";
 
 /**
  * SlideThumb — a static, non-interactive mini render of one slide for the
@@ -16,7 +17,7 @@ export function SlideThumb({ deck, slideIndex, width = 150 }: { deck: Deck; slid
   return (
     <div
       className="relative overflow-hidden rounded"
-      style={{ width, height: canvasH * scale, background: deck.background ?? "#0b0f0c" }}
+      style={{ width, height: canvasH * scale, background: deckBackground(deck) }}
     >
       <div
         className="absolute left-0 top-0 origin-top-left"

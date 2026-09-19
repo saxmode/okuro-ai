@@ -14,7 +14,7 @@ brief) and decides the SPLIT + SEQUENCE — the topic tree every later stage fil
 It writes no prose and invents no facts: each topic is a MECE cluster of existing
 claim ids, named memorably, ordered to a deliberate arc.
 
-Mirrors the ``prism-structure-architect`` charter (roles/catalog).
+Mirrors the ``prism-structure-architect`` charter (the roles table).
 """
 
 from __future__ import annotations

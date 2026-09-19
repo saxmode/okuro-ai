@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   CornerDownLeft,
@@ -8,7 +8,6 @@ import {
   NotebookPen,
   TriangleAlert,
 } from "lucide-react";
-import { PageHeader } from "@/components/shell/page-header";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
@@ -16,8 +15,12 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { sectionSlugs } from "@/shell/views/sections";
+import type { LeafViewProps } from "@/shell/views/registry";
 import { cn } from "@/lib/utils";
+import { usePaneFirstActive } from "@/lib/pane-active";
 import { displayAgent, parseApiDate } from "@/lib/format";
+import { useSectionTitle } from "@/shell/components/PageTitle";
 import {
   applyWindow,
   boardState,
@@ -216,7 +219,7 @@ function ProjectCard({ row }: { row: ProjectRow }) {
       <div className="flex items-center gap-2">
         <StateDot row={row} />
         <span className="truncate font-medium text-fg">{row.slug}</span>
-        <Badge className={cn("shrink-0 text-[10px] tracking-wide", meta.chip)}>
+        <Badge className={cn("shrink-0 text-2xs tracking-wide", meta.chip)}>
           {meta.label}
         </Badge>
         {row.kind && (
@@ -360,11 +363,29 @@ function DeltaRibbon({
 
 // ── Filters ──────────────────────────────────────────────────────────
 
-const WINDOWS: { label: string; days: number | null }[] = [
-  { label: "14 days", days: 14 },
-  { label: "90 days", days: 90 },
-  { label: "All", days: null },
+/**
+ * THE TIME WINDOW IS THE SECTION — ruled (spec Q3). The three pills became the
+ * shell's section rail, resolved FROM the declared list rather than pinned to
+ * 0..2, so inserting a section cannot silently select another window. Same
+ * shape KNOWLEDGE, BRAIN and MODELS use.
+ *
+ * `?tab=` works without this file doing anything: `routes.ts:605` reads
+ * `params.get("view") ?? params.get("tab")`.
+ */
+const WINDOWS: { slug: string; days: number | null }[] = [
+  { slug: "touched", days: 14 },
+  { slug: "quarter", days: 90 },
+  { slug: "all", days: null },
 ];
+const WINDOW_SLUGS = sectionSlugs("work", "projects");
+/** Index 0 is the default window, and it is named rather than indexed so an
+ *  out-of-range section falls back to a value the compiler can see. */
+const DEFAULT_DAYS = 14;
+const DAYS_OF_SECTION = (index: number): number | null => {
+  const slug = WINDOW_SLUGS[index];
+  const hit = WINDOWS.find((w) => w.slug === slug);
+  return hit ? hit.days : DEFAULT_DAYS;
+};
 
 function FilterPill({
   active,
@@ -419,8 +440,11 @@ function CoverageNote({
 
 // ── Page ─────────────────────────────────────────────────────────────
 
-export function ProjectsPage() {
-  const [windowDays, setWindowDays] = useState<number | null>(14);
+export function ProjectsPage({ view: section }: Partial<LeafViewProps> = {}) {
+  /* Local fallback for every context without the shell — `?embed=1`, a unit
+     test — exactly as `pane-active`'s default is `true`. */
+  const [localSection] = useState(0);
+  const windowDays = DAYS_OF_SECTION(section ?? localSection);
   const [stateFilter, setStateFilter] = useState<BoardState | null>(null);
   const [query, setQuery] = useState("");
 
@@ -438,16 +462,48 @@ export function ProjectsPage() {
     since: string | null;
     firstVisit: boolean;
   } | null>(null);
-  const visitMarked = useRef(false);
 
-  useEffect(() => {
-    if (visitMarked.current) return;
-    visitMarked.current = true;
-    let cancelled = false;
+  // THE REF GUARD AND A `cancelled` FLAG CANNOT BOTH BE HERE, and having both
+  // is why this board rendered ZERO of 114 projects on the dev server.
+  //
+  // `main.tsx:30` wraps the app in `<StrictMode>`, which double-invokes
+  // effects IN DEVELOPMENT ONLY. The sequence was: invoke 1 fires the POST ->
+  // StrictMode's cleanup sets `cancelled = true` -> invoke 2 returns at the
+  // ref guard, so it never starts a second request -> invoke 1's response
+  // arrives and is DISCARDED by `if (cancelled) return`. `setReference` is
+  // therefore never called and `enabled: reference !== null` stays false for
+  // the life of the page. Measured on :3071, settle 3,500 ms:
+  //
+  //   /api/visits/projects   requested
+  //   /api/projects          NEVER REQUESTED
+  //   <li> in the pane       0        pane text   143 chars
+  //
+  // and the production build at :13333 rendered 48 cards from the same data,
+  // which is what proved it dev-only rather than a port regression. The catch
+  // branch was swallowed the same way, so even the degraded path could not
+  // save it.
+  //
+  // THE REF GUARD IS THE ONE THAT MATTERS: it makes this effect idempotent
+  // across the double invoke, which is exactly what it is for. The cancel flag
+  // was guarding against a setState after unmount, and React 18 no longer
+  // warns about that — it is a no-op. So the flag goes and the guard stays.
+  //
+  // AND THE GUARD NOW LIVES IN `usePaneFirstActive`, WITH A SECOND CONDITION
+  // IT WAS MISSING (2026-09-15). The ref made this idempotent per MOUNT, and
+  // under Law 3 a mount is not a visit: the shell keeps five panes live, so a
+  // fresh document load of ANY address remounts the remembered WORK leaf and
+  // posted a visit for a board nobody was looking at. Measured: 41 POSTs
+  // across an 81-address sweep, one on every address after this one. Since
+  // `previous_seen_at` is what Zone 1 below diffs against, each of those moved
+  // the reference for "what changed since you last looked".
+  //
+  // The hook keeps the StrictMode guard exactly as it was and adds the
+  // question this file could not ask — is this pane the ADDRESS — which is the
+  // only thing that separates a real visit from an incidental mount.
+  usePaneFirstActive(() => {
     projectsApi
       .markVisit("projects")
       .then((v) => {
-        if (cancelled) return;
         setReference({
           since: v.previous_seen_at,
           // No previous visit means no reference point, whether this is the
@@ -458,12 +514,9 @@ export function ProjectsPage() {
       .catch(() => {
         // The board is still fully useful without Zone 1 — degrade to "no
         // reference" rather than blocking the read the user came for.
-        if (!cancelled) setReference({ since: null, firstVisit: true });
+        setReference({ since: null, firstVisit: true });
       });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  });
 
   // One fetch for the whole registry; the window pills re-filter in place.
   // Waits for the reference so the rows arrive already carrying their deltas —
@@ -501,12 +554,50 @@ export function ProjectsPage() {
 
   const withResume = useMemo(() => inWindow.filter(hasResume).length, [inWindow]);
 
+  /* THE FILTER ROW GOES TO THE PLATE — the state pills and the slug filter
+     are this leaf's `[ FILTER | SEARCH ]` slot. The counts travel with the
+     pills because a filter that does not say how much it would hide is a
+     filter you have to try to understand. */
+  const header = useMemo(
+    () => ({
+      actions: (
+        <>
+          {STATE_ORDER.filter((s) => stateCounts[s]).map((s) => (
+            <FilterPill
+              key={s}
+              active={stateFilter === s}
+              onClick={() => setStateFilter(stateFilter === s ? null : s)}
+            >
+              {STATE_META[s].label} {stateCounts[s]}
+            </FilterPill>
+          ))}
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Filter by slug"
+            aria-label="Filter projects by slug"
+            className="w-36 rounded-md border border-border bg-surface px-2.5 type-small outline-none focus:border-accent"
+          />
+        </>
+      ),
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [stateFilter, stateCounts, query],
+  );
+  useSectionTitle(header);
+
   return (
     <div className="page-shell space-y-8">
-      <PageHeader
-        title="Projects"
-        subtitle="Where you left off — the last thing each agent said to do next, newest first by what is worth acting on."
-      />
+      {/* R1 (86b8f1f0) — THE LEAF TITLE IS THE SHELL'S. `TopicBar` renders
+          `<h1 class="c-title">Projects</h1>` above this pane, so the page's
+          own 28px h1 is gone; it was stacked 88px under the shell's 32px one.
+          The subtitle stays as the first content line: it states the RULE of
+          this board (the agent's own next step, verbatim, ranked by
+          actionability) and nothing else on screen says that. */}
+      <p className="type-small text-fg-muted">
+        Where you left off — the last thing each agent said to do next, newest
+        first by what is worth acting on.
+      </p>
 
       {/* Zone 1 — the diff, above the board. Reads the WHOLE registry, never
           the windowed subset: something that moved while you were away is news
@@ -520,40 +611,9 @@ export function ProjectsPage() {
       )}
 
       <div className="space-y-3">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <div className="flex items-center gap-1.5">
-            <span className="type-small text-tertiary">Touched</span>
-            {WINDOWS.map((w) => (
-              <FilterPill
-                key={w.label}
-                active={windowDays === w.days}
-                onClick={() => setWindowDays(w.days)}
-              >
-                {w.label}
-              </FilterPill>
-            ))}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-1.5">
-            {STATE_ORDER.filter((s) => stateCounts[s]).map((s) => (
-              <FilterPill
-                key={s}
-                active={stateFilter === s}
-                onClick={() => setStateFilter(stateFilter === s ? null : s)}
-              >
-                {STATE_META[s].label} {stateCounts[s]}
-              </FilterPill>
-            ))}
-          </div>
-
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Filter by slug"
-            className="ml-auto w-44 rounded-md border border-border bg-surface px-2.5 py-1 type-small outline-none focus:border-accent"
-          />
-        </div>
-
+        {/* THE STATE PILLS AND THE SLUG FILTER ARE ON THE PLATE — see the
+            memo above. The coverage note stays: it is a statement about the
+            list, not a control over it. */}
         {data && (
           <CoverageNote
             shown={visible.length}

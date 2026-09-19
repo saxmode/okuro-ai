@@ -47,7 +47,22 @@ HOME = Path.home()
 # user's HOME and must keep following it.
 OKURO_HOME = _okuro_home()
 OKURO_DB = Path(os.environ.get("OKURO_DB", str(OKURO_HOME / "okuro.db")))
-ORCH_PORT = int(os.environ.get("OKURO_PORT", "13333"))
+def _orch_port() -> int:
+    """This install's orchestrator port — env, then config, then default.
+
+    Was ``int(os.environ.get("OKURO_PORT", "13333"))``: a bare literal that
+    ignored the install's declared port entirely, so on a host where this
+    install runs on a reassigned port the report probed someone else's.
+    """
+    try:
+        from okuro.system.port_registry import orchestrator_port
+
+        return orchestrator_port()
+    except Exception:
+        return int(os.environ.get("OKURO_PORT", "13333"))
+
+
+ORCH_PORT = _orch_port()
 
 # The wizard writes here at /complete time. Stable path so support requests
 # always paste the same file. Overwrites on every /complete run; the install
@@ -256,39 +271,32 @@ def probe_3_instruction_files(rendered: str) -> ProbeResult:
                 missing_lines = [d for d in distinctive if d not in text]
                 ev["distinctive_lines_present"] = len(missing_lines) == 0
                 ev["missing_distinctive_lines"] = missing_lines
-            ev["tool_protocol_ref"] = "TOOL-PROTOCOL" in text  # informational
         files_evidence.append(ev)
-    tp_md = OKURO_HOME / "TOOL-PROTOCOL.md"
-    tp_evidence = {
-        "path": str(tp_md), "exists": tp_md.exists(),
-        "size_bytes": tp_md.stat().st_size if tp_md.exists() else 0,
-    }
+    # A fourth artefact was probed here: ~/.okuro/TOOL-PROTOCOL.md, plus a
+    # per-file flag recording whether an instruction file pointed at it. The
+    # file is no longer generated — its doctrine renders into the packet and
+    # into every file listed above — so both checks would now report a missing
+    # file as a contract failure.
     files_present = [e for e in files_evidence if e["exists"]]
     if not files_present:
         return ProbeResult(
             3, "instruction_files", "fail",
             "no instruction files written (canon_deploy never ran)",
-            {"distinctive_lines_grepped": distinctive,
-             "files": files_evidence, "tool_protocol_md": tp_evidence},
+            {"distinctive_lines_grepped": distinctive, "files": files_evidence},
             fix_hint="Run the canon_deploy wizard step or `okuro canon deploy`",
         )
     content_miss = [e["path"] for e in files_present if e.get("distinctive_lines_present") is False]
     issues = []
     if content_miss:
         issues.append(f"rendered content missing in: {', '.join(content_miss)}")
-    if not tp_evidence["exists"]:
-        issues.append(f"{tp_md} missing")
     evidence = {
         "distinctive_lines_grepped": distinctive,
         "files": files_evidence,
-        "tool_protocol_md": tp_evidence,
     }
     if issues:
         fix = None
         if content_miss:
             fix = "Re-run canon_deploy — instruction files are stale relative to the live profile"
-        elif not tp_evidence["exists"]:
-            fix = "providers/__init__.py:generate_all calls generate_tool_protocol — verify it ran"
         return ProbeResult(3, "instruction_files", "fail", "; ".join(issues), evidence, fix)
     return ProbeResult(
         3, "instruction_files", "pass",

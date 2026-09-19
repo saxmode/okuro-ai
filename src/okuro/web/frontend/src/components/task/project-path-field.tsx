@@ -176,7 +176,7 @@ interface SuggestionListProps {
 function SuggestionList({ suggestions, onPick, disabled }: SuggestionListProps) {
   return (
     <div className="flex flex-col gap-1 rounded border border-border bg-surface-elevated/20 p-1.5">
-      <div className="flex items-center gap-1 text-3xs uppercase tracking-wider text-tertiary">
+      <div className="flex items-center gap-1 text-3xs case-label tracking-wider text-tertiary">
         <Sparkles className="h-2.5 w-2.5" />
         <span>Candidates from task signals</span>
       </div>

@@ -27,7 +27,6 @@
 #   def _project_has_brand
 #   def build_brand
 #   def build_behavioral_section
-#   def build_tool_protocol_doc
 # AGENT_HEADER_END -->
 """Bootstrap section builders — each produces (name, content, token_estimate)."""
 
@@ -516,7 +515,7 @@ def build_role_assignment(task_hint: str | None) -> tuple[str, str, int]:
             "",
             "| # | Option | Pros | Cons |",
             "|---|---|---|---|",
-            "| 1 | Design a role now — `roles_learn` / the role-designer role | "
+            "| 1 | Design a role now — `roles_create` / the role-designer role | "
             "fits the task exactly; reusable for every future session on it | "
             "costs one turn up front |",
             f"| 2 | Adopt the closest existing role — `roles_get('{best['id']}')` | "
@@ -1124,7 +1123,16 @@ def build_tool_protocol(project_slug: str | None = None) -> tuple[str, str, int]
     # live coverage line (doc count / project binding) is dynamic per session
     # and is injected as the prefix. No routing prose is hardcoded here.
     from .rules import render_rule
-    content = render_rule("tool_routing", prefix=coverage)
+    # `agent_doctrine` carries the resource, shell, workflow and subagent rules
+    # that used to exist only in _TOOL_PROTOCOL_TAIL — one file, one provider.
+    # Rendering it here is what puts them in front of every agent that
+    # bootstraps, on every provider, rather than only the ones told to open a
+    # file. Same call in providers/template.py, so the two cannot disagree.
+    content = (
+        render_rule("tool_routing", prefix=coverage)
+        + "\n\n"
+        + render_rule("agent_doctrine")
+    )
     return ("tool_protocol", content, estimate_tokens(content))
 
 
@@ -1165,6 +1173,34 @@ def build_hardware() -> tuple[str, str, int]:
         return out
 
     lines.extend(_safe("sections.build_hardware.storage", _storage_lines, default=[]) or [])
+
+    # Daemon liveness — the ONLY place a stdio session can learn its own
+    # install's services are dead. The MCP surface a session talks to is a
+    # stdio child of the client, so it keeps working while okuro-daemon,
+    # okuro-embed and okuro-orchestrator are all down; and when a SECOND
+    # install on the host holds their ports, every probe still answers 200.
+    # That combination made the 2026-09-16 outage invisible from inside a
+    # session for hours. One line, three states, rendered every bootstrap.
+    def _daemon_lines():
+        from okuro.system.install_identity import verify_all
+
+        # Short timeout: a bootstrap must not wait on a hung listener.
+        verdicts = verify_all(timeout=0.5)
+        out = []
+        order = ["daemon", "orchestrator", "embed"]
+        for service in order:
+            verdict = verdicts.get(service)
+            if verdict is None:
+                continue
+            if verdict.state == "ours":
+                out.append(f"- **{service}**: up (this install)")
+            elif verdict.state == "down":
+                out.append(f"- **{service}**: down")
+            else:
+                out.append(f"- **{service}**: DOWN — {verdict.line()}")
+        return out
+
+    lines.extend(_safe("sections.build_hardware.daemon", _daemon_lines, default=[]) or [])
 
     if len(lines) == 1:
         lines.append("- System info: use system tools for live data")
@@ -1943,11 +1979,14 @@ def build_codebase() -> tuple[str, str, int]:
 
 def build_during_work() -> tuple[str, str, int]:
     """Build agent behavior protocol — how to interact with the user and system."""
+    # `### Context Check` WAS HERE until 2026-09-18. It stated the intake rule
+    # in one wording; providers/template.py's `## Session Protocol` stated it
+    # in another; neither reached the other's surface. The rule now lives once,
+    # in `close_out` under "Before you start", and renders into this packet via
+    # build_protocol AND into all four provider files via
+    # providers.template._build_close_out_section. Restating it here would make
+    # it the third wording and the second copy in this one packet.
     content = """## Agent Behavior
-
-### Context Check
-- If this bootstrap packet includes an **Intake** section with questions, present P0 questions before starting work
-- User can say "just go" to skip — respect that immediately
 
 ### Capture & Persist
 - **User rules** — if user says NEVER/ALWAYS/must → persist as memory via `write_memory`
@@ -3118,155 +3157,6 @@ def build_session() -> tuple[str, str, int]:
 
     content = "\n".join(lines)
     return ("session", content, estimate_tokens(content))
-
-
-# ---------------------------------------------------------------------------
-# Standalone TOOL-PROTOCOL.md — generated to disk by generate_tool_protocol()
-# ---------------------------------------------------------------------------
-
-# EVERY LINE IN THIS FILE BINDS EVERY AGENT THAT READS IT.
-#
-# Removed from the emitted head: the AGENT_HEADER index block (generation
-# metadata — a table of contents okuro's own tooling writes, not something an
-# agent acts on) and "# Auto-generated by okuro. Do not edit manually."
-# (an install instruction to the owner, at the top of a document three separate
-# call sites tell subagents to treat as their protocol).
-_TOOL_PROTOCOL_HEAD = """\
-# Tool Protocol — Okuro
-
-Every rule in this file binds you, whatever spawned you.
-
-**Bootstrap is TWO calls.** `bootstrap` returns the CORE half. When your
-task_hint resolves to a project, `bootstrap_project(slug=...)` returns that
-project's half — memory, todos, progress, role assignment — and every other
-okuro tool is REFUSED until it lands. No project resolved: one call, no block.
-
-"""
-
-
-# Everything after the rendered contract. The routing tables that used to sit
-# here are gone on purpose — see build_tool_protocol_doc.
-_TOOL_PROTOCOL_TAIL = """\
-
-**Orientation.** `cortex_scope()` first when you do not know what is indexed;
-`cortex_navigate(path, direction)` to walk related files; `sysinfo_port_status()`
-for free ports. An empty scoped search result is NOT proof code is absent —
-check the scope, then use `cortex_search_code`, which walks ALL roots and needs
-no scope.
-
-### Resources
-
-| Situation | Do this | Not this |
-|-----------|---------|----------|
-| Before GPU work | acquire a lease via the GPU broker | Use GPU without lease |
-| Need to call another LLM | `bridge_invoke(prompt, capability?)` | Direct subprocess |
-
-### Knowledge Capture — the document buckets
-
-The routing table above covers facts (`write_memory` topics). These cover
-everything longer than a fact — and none of it belongs in a `.md` file on disk:
-
-| Situation | Do this |
-|-----------|---------|
-| **Produce a document-length deliverable** — investigation, dossier, audit, research report, system map | **`artifact_write(kind=report / evidence / plan, title, body)`** |
-| Hand structured context to the next agent | `write_role_handover(...)` — refs only, never inline source |
-| Hit a meaningful milestone | `log_progress(project, status, summary)` |
-| Something needs doing, with an owner | `todo_add(...)` |
-| The USER asked you for a note | `note_create(...)` |
-
-**Rule:** If you discovered something non-obvious, persist it with `write_memory()` so the next agent doesn't repeat the work.
-
-**Rule — deliverables are artifacts, not notes.** Any long-form output YOU
-produced belongs in `artifact_write`. `note_create` is the USER's personal
-writing surface — write a note ONLY when the user explicitly asks for one.
-
-**Rule — memory rows are facts, not documents.** If it is longer than a short
-paragraph it is an artifact, not a memory.
-
-### Shell Usage
-Use the shell ONLY for runtime state no MCP tool covers — a tool-specific
-`sqlite3` database, a project's own status CLI. Everything an MCP tool covers
-goes through that tool: codebase search → cortex, GPU/docker/port state →
-sysinfo, secrets → keyring.
-
----
-
-## Starting a task
-
-| Situation | Do this |
-|-----------|---------|
-| Starting a task | `brain_advise(task_hint)` for LLM-powered briefing |
-| Discover project context | `project_status(slug)` — one read: phase plan, progress, inventory, staleness |
-| User states a rule (NEVER/ALWAYS) | `write_memory(topic="convention", content, confidence=0.9)` |
-| User shares an idea | `capture_thought(content, category="idea")` |
-| Hit a meaningful milestone | `log_progress(project, status, summary)` |
-| Task meets adoption triggers (2+ files, or domain judgment, or expertise verb, or explicit role ask) | `roles_match(task)` then `roles_get(id)` — adopt the returned role as binding operating context |
-
-### Workflow: Starting a New Task
-1. `brain_advise(task_hint)` — get focused briefing from local LLM
-2. `roles_match(task)` — if the task meets adoption triggers (≥2 files or 20+ min, domain judgment, expertise verb, or explicit role ask), adopt via `roles_get(id)` before producing output. Skip for one-line answers, single mechanical edits, lookups.
-3. `cortex_route(concept)` — orient in codebase
-4. `cortex_read_header` → `cortex_read_section` — understand relevant files
-5. Work — edit, test, verify
-6. `log_progress(project, status, summary)` — record what you did
-7. `session_report(feedback)` — rate tools you used before ending
-
-### Workflow: Ending a Session
-Call `session_report()` with feedback on tools you used:
-```
-session_report(feedback=[
-  {tool_name: "cortex_search", used: true, useful: true},
-  {tool_name: "sysinfo_gpu_status", used: false, bypass_reason: "not needed for this task"}
-])
-```
-
-### Spawning Subagents
-When spawning a subagent, include in its prompt:
-```
-read ~/.okuro/TOOL-PROTOCOL.md
-```
-
-**Artifact routing — CRITICAL:**
-- The deliverable is **`artifact_write(kind="report", project=…)`**, never a message return and never a `.md` file.
-- Files on disk ONLY for what the brain cannot hold — images, generated code, tests. Convention: `{project}/docs/` for assets, `{project}/tests/` for tests. The artifact references them by relative path.
-- Don't use worktree isolation for tasks that produce user-facing files — outputs get stranded on temp branches
-- **Never instruct a subagent to write its report to disk.** It will obey you over its own bootstrap, and you will have created two homes for one document. Name `artifact_write` in the brief instead.
-"""
-
-
-def build_tool_protocol_doc() -> str:
-    """Compose TOOL-PROTOCOL.md — the file every subagent is told to read.
-
-    The routing tables used to be baked into this module as a static string,
-    which is why this surface still shipped ``Fallback: If cortex index is
-    unavailable, Grep and Glob work normally`` months after build_tool_protocol
-    removed it from the packet as measured-harmful (rationale in that
-    function's docstring), and why it never learned the consult-memory rule
-    restored to the contract on 2026-07-28.
-
-    It now renders the middle from the same `tool_routing` contract the packet
-    uses, so the two cannot disagree again. Head and tail carry only what is
-    NOT routing: the doc header, the document-bucket table, and the
-    session-owner workflows.
-    """
-    from .rules import render_rule
-    return _TOOL_PROTOCOL_HEAD + render_rule("tool_routing") + _TOOL_PROTOCOL_TAIL
-
-
-def generate_tool_protocol(target_dir: str | None = None) -> str:
-    """Write TOOL-PROTOCOL.md to ``target_dir`` (default ``~/.okuro``).
-
-    ``target_dir`` exists so a test — or an agent verifying a change from a
-    worktree — can render the real document without writing over the live one
-    the running session reads.
-    """
-    import os
-    okuro_dir = target_dir or str(okuro_home())
-    os.makedirs(okuro_dir, exist_ok=True)
-    path = os.path.join(okuro_dir, "TOOL-PROTOCOL.md")
-    with open(path, "w") as f:
-        f.write(build_tool_protocol_doc())
-    return path
 
 
 _BEHAVIORAL_FALLBACK = """\

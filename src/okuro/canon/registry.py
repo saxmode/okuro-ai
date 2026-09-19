@@ -22,6 +22,8 @@ from pathlib import Path
 
 import yaml
 
+from okuro.fsutil import is_data_entry
+
 # Package-local registry is the default. Override with env var for development.
 _REGISTRY_DIR = Path(__file__).parent / "registry"
 
@@ -62,8 +64,14 @@ def is_registry_entry(path: Path) -> bool:
     ``consumers.py`` had already written this predicate inline at its own
     call site while the root cause stayed live in these four walkers —
     it now imports this instead, so the rule has one home.
+
+    That home moved once more, up to :func:`okuro.fsutil.is_data_entry`, when
+    the same defect turned up a third time in the recurring-def installer.
+    This function stays as canon's NAME for the rule — the four walkers and
+    ``consumers.py`` read better for it, and ``canon`` is where ``index.yaml``
+    means something — but it no longer owns the rule.
     """
-    return not path.name.startswith(".") and path.name != "index.yaml"
+    return is_data_entry(path, suffixes=(".yaml",), exclude_names=("index.yaml",))
 
 
 def list_tools(category: str | None = None) -> list[dict]:

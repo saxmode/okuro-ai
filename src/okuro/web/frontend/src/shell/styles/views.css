@@ -1,0 +1,410 @@
+/* SPDX-License-Identifier: Apache-2.0
+   ============================================================================
+   LEAF-VIEW PRIMITIVES — the vocabulary the 31 ported views share.
+
+   A SEPARATE FILE FROM shell.css ON PURPOSE. shell.css carries geometry signed
+   off against Figma across ~20 rounds; nothing a view needs may be added to it,
+   because a view is not entitled to move a number that was measured. This file
+   holds only what lives INSIDE .c-panes, where Figma drew nothing at all.
+
+   IT INTRODUCES NO COLOUR, AND BOTH INK LEVELS ARE NOW NAMES. The shell has
+   exactly two — `--sh-ink` (`--color-fg`) and `--sh-ink-dim`
+   (`--color-fg-muted`) — and every rule below reaches for those, plus
+   `--sh-hairline`, `--sh-overlay-hover` and the `--sh-s-*` scale. A view cannot
+   invent a surface of its own.
+
+   THE DIM TIER WAS AN OPACITY AND IS NOW A COLOUR, which changes two things a
+   view author will notice. First, the tier is brighter in dark and stronger in
+   light, and it no longer composites with the ground, so it passes AA on every
+   surface either kit emits (9.84 dark, 8.19 light on okuro-ds) rather than
+   sitting 0.1 above the line in dark and below it in light. Second, `opacity`
+   used to dim an element's own BORDER along with its text: `.v-detail` carried
+   both a dim tier and a `--sh-hairline` border, so its divider was
+   double-dimmed to about #0e0e0e and now renders the hairline at full #1c1c1c.
+
+   `opacity` IS STILL THE RIGHT TOOL FOR A FADE and is used for nothing else
+   here: the row-actions reveal is 0 to 1 and has no ink tier in it. Do not
+   reintroduce an alpha to express a THIRD ink level — the two named levels are
+   the vocabulary, and a local alpha is the inline aesthetic decision the rule
+   below forbids.
+
+   STATUS COLOUR COMES FROM THE DESIGN SYSTEM, NEVER FROM THIS FILE. Ruled
+   2026-09-14: bridge to the engine's own status tokens, exactly the shape the
+   motion tokens already use. Link `engine.css` and states colour; leave it
+   unlinked and the shell stays monochrome; a brand swap carries it. The reason
+   is the owner's standing rule — aesthetic decisions go through the design
+   system, never inline — and a hand-drawn "which states are exceptional" line
+   here would have been the inline version. AS OF 2026-09-14 THE SHEET IS
+   LINKED, so this bridge is live rather than latent. See THE TONE BRIDGE below.
+   ============================================================================ */
+
+/* ---------------------------------------------------------------------------
+   THE TYPE SCALE, AND IT IS THE KIT'S NOW — the three sizes a view gets, named
+   in the engine's vocabulary instead of in pixels.
+
+   Under okuro-ds these resolve to exactly the pixels the shell was signed off
+   at, because the reference kit's ladder lands on all five of the shell's sizes
+   (the engine ships `html{font-size:50%}`, so 1rem is 8px):
+
+     --sh-v-body   14px   --font-size-sm   1.75rem
+     --sh-v-meta   12px   --font-size-xs   1.5rem
+     --sh-v-label  10px   --font-size-2xs  1.25rem
+
+   UNDER ANOTHER KIT THEY MOVE, AND THAT IS THE POINT OF D1 RATHER THAN A BUG.
+   `standard` anchors its ladder one rung higher, so the same three names give
+   16 / 14 / 12px there. A name cannot be chosen that holds both: 14px is
+   `--font-size-xs` under standard and `--font-size-sm` under okuro-ds, and the
+   reference kit is the one the shell is signed off against.
+
+   THE FALLBACKS ARE PX AND MUST STAY PX. `var(--font-size-sm, 1.75rem)` would
+   be wrong: the 1.75rem only means 14px because the ENGINE sets the root to
+   8px, and a fallback fires precisely when the engine sheet is absent — at
+   which point the root is 16px and 1.75rem is 28px, double. The px literal is
+   the same value the name resolves to under okuro-ds, so it is not a second
+   opinion; it is the same answer written in a unit that survives the sheet
+   being missing.
+   --------------------------------------------------------------------------- */
+:root{
+  --sh-v-body:var(--font-size-sm,14px);    /* a row's own text */
+  --sh-v-meta:var(--font-size-xs,12px);    /* ids, ages, counts — the dim column */
+  --sh-v-label:var(--font-size-2xs,10px);   /* uppercase tracked heads, same as the section strip */
+  --sh-v-track:.1em;   /* the tracking that goes with --sh-v-label */
+
+  /* ROW PITCH — one shell module, the same 48 as --sh-bar-collapsed and --sh-hit.
+     FIXED, NOT MIN. Measured on /work/tasks with 137 real rows: at `padding`
+     alone, 18 of them came out 55px against the other 119 at 46, because a
+     two-word state label wrapped to a second line. A list whose row height
+     depends on the length of one cell's text has no rhythm, and the eye reads
+     the taller rows as a grouping that is not there. Everything in a row is
+     `nowrap` for the same reason. */
+  --sh-v-row-h:48px;
+
+  /* THE STATE COLUMN IS MEASURED AT RUNTIME, NOT PINNED. Ruled 2026-09-14
+     alongside Q6: letter case is the design system's to steer, so a width
+     measured on one case cannot be a literal.
+
+     THE 136px LITERAL THAT USED TO BE HERE WAS MEASURED ON UPPERCASE AT 10px.
+     Once case AND type size came from the kit it described neither kit — and
+     the direction of the error was the opposite of what was expected:
+
+                        transform   size   widest label            136px column
+       okuro-ds         none        10px   133.00px                fits, 3px spare
+       standard         uppercase   12px   155.38px                TRUNCATES by 19.4
+
+     The reference kit was fine; the ACTIVE kit clipped "Waiting on decision"
+     by about two characters, and that was a consequence of the type-size
+     bridge rather than of the case bridge.
+
+     WHY RUNTIME AND NOT A `ch` FORMULA. `calc(19ch + 3px)` was measured and is
+     astonishingly close — 19 zeros render at 133.00px under okuro-ds against
+     the label's 133.00, and 155.05 against 155.38 under standard. But `ch` is
+     the advance of "0", and that it matches the average letter of a
+     PROPORTIONAL face to within a third of a pixel is luck, not a property.
+     A condensed or wide display face would break it silently. The runtime
+     measurement is exact for whatever face, size, tracking and case are
+     actually active, and it reuses the discipline `--sh-divider-h` already
+     established, including the `okuro:engine-sheet-changed` listener.
+
+     This token is now WRITTEN BY `useStateColumnWidth` (hooks/useSlide.ts).
+     The value below is only the pre-measurement default, so the column is
+     never zero-width on the first frame; it is okuro-ds's measured 133 + the
+     3px ellipsis margin the sign-off used. The ellipsis at `.v-state` stays the
+     safety net for text longer than the lifecycle labels — several views put
+     arbitrary backend strings in this column (provider names, topics,
+     verdicts), and sizing to those is not what the column is for. */
+  --sh-v-state-w:136px;
+}
+
+/* ---------------------------------------------------------------------------
+   THE TONE BRIDGE — the backend's closed five-token enum, mapped to the design
+   system's own status colours with a MONOCHROME FALLBACK on every one.
+
+   `okuro.orchestrator.api.state_reader` decides which colour a state is and the
+   frontend renders it as-is; that contract is what the shell inherits. The
+   enum is neutral | info | warning | error | success (`_LIFECYCLE_COLOR`,
+   `_PHASE_COLOR`, `_SUBTASK_COLOR`).
+
+   THE FALLBACK IS THE SHELL'S OWN INK, NOT A CHOSEN HUE. A view must never
+   depend on `engine.css` being linked — unlinked, every tone collapses to the
+   monochrome the shell was measured in. That is now the FAILURE path rather
+   than the shipping one: the <link> in index.html was uncommented on
+   2026-09-14, so the fallback fires only when the engine cannot be reached.
+   Nothing here invents a colour; it only names where one would come from.
+
+   NEUTRAL HAS NO ENGINE TOKEN AND SHOULD NOT GET ONE. It is the absence of a
+   status, so it is the ink tier itself. Giving it a hue would make "nothing
+   notable" the loudest thing in a list of 137 rows.
+
+   ⚠ THE TABLE THAT USED TO BE HERE WAS MEASURED AGAINST #0A0A0A, WHICH IS A
+   GROUND NO KIT EMITS — it was the shell's own hardcoded value, retired by D1.
+
+   All four tones carry the SAME value in light and dark — verified, identical
+   in the `:root` and the `:root[data-appearance="dark"]` block of both kits —
+   so only the GROUND moves, and that alone is enough to invert which of them
+   fail. Re-measured on the grounds that actually exist, WCAG 2.x:
+
+                              okuro-ds   standard    light      #0A0A0A
+                              #030303    #131313     #ffffff    (retired)
+       success  #11d425        10.28       9.26        2.01        9.87
+       info     #2998fd         6.88       6.20        3.00        6.60
+       error    #f92f77         5.60       5.04        3.68        5.37
+       warning  #c52998         4.07       3.67        5.07        3.91
+
+   TWO FINDINGS, AND THE SECOND IS NEW. In dark, WARNING is the one that fails
+   AA for text on both kits (4.07 and 3.67 against 4.5) — and it is the worst
+   one to have failing: `_LIFECYCLE_COLOR` maps "Waiting on you", "Waiting on
+   decision", "Blocked", "Halted" and "Needs your call" to it, 6 of 13 states
+   and precisely the ones that exist to be noticed. IN LIGHT THE FAILURE
+   INVERTS: warning becomes the only one that PASSES (5.07) while success, info
+   and error all fail (2.01 / 3.00 / 3.68), and success at 2.01 misses even
+   1.4.11's 3.0 for a non-text mark. So there is no appearance in which this
+   palette is fully compliant as text, and the set that fails flips with the
+   polarity — which means "use a mark instead of a label" is not a fix that
+   holds in both.
+
+   THIS IS NOT PATCHED HERE, DELIBERATELY. The values live in okuro's design kit
+   and a kit value is the owner's, not a view's — substituting a lighter magenta
+   in this file is the inline aesthetic decision the ruling above forbids, and
+   it would drift the moment the kit changed. `okuro-ds` additionally may not be
+   edited at all (`design_engine/api.py:988-993`: a design system is duplicated
+   and then edited, never adjusted in place). Reported instead, as question 3 of
+   the p1 report. AND IT IS NOW LIVE RATHER THAN LATENT: the sheet was linked on
+   2026-09-14, so these are the colours on screen, not a fallback to --sh-ink.
+   --------------------------------------------------------------------------- */
+:root{
+  --sh-v-tone-neutral:var(--sh-ink);
+  --sh-v-tone-info:var(--color-status-info,var(--sh-ink));
+  --sh-v-tone-success:var(--color-status-success,var(--sh-ink));
+  --sh-v-tone-warning:var(--color-status-warning,var(--sh-ink));
+  --sh-v-tone-error:var(--color-status-error,var(--sh-ink));
+}
+
+/* `data-tone` carries the backend's word unchanged — the view never decides
+   which states are exceptional, it only forwards the enum. An absent or
+   unknown value inherits, which lands on the ink tier.
+
+   ⚠ SCOPED TO `.view` FOR SPECIFICITY, AND THAT IS A FIX FOR A REGRESSION I
+   CAUSED. These were bare `[data-tone="…"]`, specificity (0,1,0). When the dim
+   ink tier stopped being an `opacity` and became a `color` on `.v-cell` — also
+   (0,1,0), and declared LATER in this file — the tier started winning, and
+   every state cell lost its tone. Measured before this fix, a cell with
+   `data-tone="success"` and class `v-cell v-state`:
+
+     getComputedStyle(cell).color  ->  "rgb(179, 179, 179)"   <- --sh-ink-dim
+     --sh-v-tone-success           ->  "#11d425"              <- what it should be
+
+   It was invisible in every computed-style check of the TOKENS, because the
+   tokens were all correct; only the cascade was wrong. It showed up in a
+   screenshot, as grey where there had been green and magenta.
+
+   `.view [data-tone=…]` is (0,2,0), so a tone now outranks the tier no matter
+   where the tier rule sits in the file. Source order would have fixed it too
+   and would break again the first time someone appends a colour rule below;
+   specificity states the intent instead — A TONE IS A DELIBERATE OVERRIDE OF
+   THE DEFAULT INK. Every toned element in the shell is inside `.view`. */
+.view [data-tone="neutral"]{color:var(--sh-v-tone-neutral)}
+.view [data-tone="info"]{color:var(--sh-v-tone-info)}
+.view [data-tone="success"]{color:var(--sh-v-tone-success)}
+.view [data-tone="warning"]{color:var(--sh-v-tone-warning)}
+.view [data-tone="error"]{color:var(--sh-v-tone-error)}
+
+/* The view's root. .pane sets font-size 28px for the placeholder body, so a
+   real view resets it here rather than by editing shell.css — that number is
+   the placeholder's, not the pane's. */
+.view{height:100%;min-height:0;display:flex;flex-direction:column;
+  font-size:var(--sh-v-body);line-height:var(--type-small-line,1.5)}
+
+/* The scrolling body of one section. VERTICAL ONLY, matching .c-panes and
+   .pane: the plane slides horizontally under the direction law, so a view that
+   scrolls sideways would be moving on the shell's own axis. */
+.v-scroll{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;
+  padding-bottom:var(--sh-s-48)}
+
+/* ---------------------------------------------------------------------------
+   CONTROL ROW — search, filters, actions. One line above the body.
+   --------------------------------------------------------------------------- */
+.v-controls{flex:0 0 auto;display:flex;align-items:center;gap:var(--sh-s-16);
+  padding-bottom:var(--sh-s-16)}
+
+.v-search{flex:1 1 auto;min-width:0;position:relative;display:flex;align-items:center}
+.v-search input{width:100%;background:transparent;border:0;
+  border-bottom:var(--border-width-hair,1px) solid var(--sh-hairline);color:var(--sh-ink);
+  font:inherit;font-size:var(--sh-v-body);padding:var(--sh-s-8) var(--sh-s-24) var(--sh-s-8) 0;
+  transition:border-color var(--interaction-duration) var(--sh-curve)}
+.v-search input::placeholder{color:var(--sh-ink-dim);opacity:1}
+.v-search input:focus{outline:none;border-bottom-color:var(--sh-ink)}
+.v-search button{position:absolute;right:0;background:none;border:0;padding:0;
+  color:var(--sh-ink-dim);cursor:pointer;font:inherit;
+  font-size:var(--sh-v-meta);line-height:1;
+  transition:color var(--interaction-duration) var(--sh-curve)}
+.v-search button:hover{color:var(--sh-ink)}
+
+/* The filter strip reads like the section strip one line above it — same size,
+   same tracking, same two ink levels — because they are the same kind of
+   control. Deliberately NOT a pill or a segmented box: the shell has no
+   surfaces to draw one on. */
+.v-filters{flex:0 0 auto;display:flex;align-items:center;gap:var(--sh-s-16)}
+.v-filters button{background:none;border:0;padding:0;cursor:pointer;
+  color:var(--sh-ink);font:inherit;font-size:var(--sh-v-label);
+  letter-spacing:var(--sh-v-track);color:var(--sh-ink-dim);
+  transition:color var(--interaction-duration) var(--sh-curve)}
+.v-filters button:hover{color:var(--sh-ink)}
+.v-filters button[data-on]{color:var(--sh-ink)}
+
+/* ---------------------------------------------------------------------------
+   GROUP — a titled block of rows. `count` sits at the far end of the head.
+   --------------------------------------------------------------------------- */
+.v-group{margin-bottom:var(--sh-s-32)}
+.v-group-head{display:flex;align-items:baseline;gap:var(--sh-s-12);
+  padding-bottom:var(--sh-s-8);
+  font-size:var(--sh-v-label);letter-spacing:var(--sh-v-track)}
+.v-group-head b{font-weight:inherit}
+.v-group-head span{color:var(--sh-ink-dim)}
+.v-group-head .v-count{margin-left:auto;font-variant-numeric:tabular-nums}
+
+/* ---------------------------------------------------------------------------
+   ROW — the one repeated unit. A hairline between, a wash on hover.
+   --------------------------------------------------------------------------- */
+.v-row{display:flex;align-items:center;gap:var(--sh-s-16);
+  height:var(--sh-v-row-h);padding:0 var(--sh-s-8);
+  border-bottom:var(--border-width-hair,1px) solid var(--sh-hairline);
+  transition:background-color var(--interaction-duration) var(--sh-curve)}
+.v-row:last-child{border-bottom:0}
+.v-row:hover{background:var(--sh-overlay-hover)}
+
+/* The row's own text — the only thing at full ink, so the eye lands on it
+   first in a monochrome list. */
+.v-row-main{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap}
+
+/* Every other column. Dim, fixed, and never allowed to shrink the main text. */
+.v-cell{flex:0 0 auto;white-space:nowrap;font-size:var(--sh-v-meta);
+  color:var(--sh-ink-dim);font-variant-numeric:tabular-nums}
+.v-state{flex:0 0 var(--sh-v-state-w);overflow:hidden;text-overflow:ellipsis;
+  font-size:var(--sh-v-label);letter-spacing:var(--sh-v-track);
+  /* The backend sends Title Case sentences ("Waiting on decision"); the shell's
+     label grammar is uppercase and tracked, so the case lives here rather than
+     in the view — there is nothing to decide per row.
+
+     THE CASE IS BRIDGED, AND THIS IS THE ONE BRIDGE THAT CHANGES THE REFERENCE
+     KIT'S RENDERING. The two kits disagree: okuro-ds authors
+     `case.headings:false` / `case.leads:false`, so `--type-label-transform` is
+     `none` there, while standard sets it `uppercase`. Bridging therefore makes
+     the shell's labels LOWERCASE under the kit the shell is signed off against
+     — every other bridge in p1 is pixel-identical under okuro-ds and this one
+     is not. It was done because D1 says nothing styling lives outside the base;
+     it is question 6 of the p1 report and it is the most likely of the six to
+     be vetoed. Reverting is this one declaration in three places.
+
+     IT ALSO HAS A SECOND-ORDER COST THAT IS EASY TO MISS. `--sh-v-state-w` is
+     136px because the seven live labels measure 28-133px UPPERCASE at
+     --sh-v-label; lowercase is narrower, so under okuro-ds the column keeps its
+     width while its content shrinks, and the measurement the 136 rests on no
+     longer describes what renders. The column does not break — it gains slack. */
+  text-transform:var(--type-label-transform,none)}
+.v-tag{flex:0 0 auto;white-space:nowrap;
+  font-size:var(--sh-v-label);letter-spacing:var(--sh-v-track);line-height:1;
+  color:var(--sh-ink-dim);border:var(--border-width-hair,1px) solid currentColor;border-radius:var(--radius-sm);
+  padding:3px var(--sh-s-4) 2px}
+
+/* Row actions. Hidden until the row is under the pointer — a destructive verb
+   on every row at rest is noise, and 200 of them is a wall. Focus reveals them
+   too, so the keyboard path is not the one that loses the button. */
+.v-actions{flex:0 0 auto;display:flex;gap:var(--sh-s-12);opacity:0;
+  transition:opacity var(--interaction-duration) var(--sh-curve)}
+.v-row:hover .v-actions,.v-row:focus-within .v-actions{opacity:1}
+.v-actions button{background:none;border:0;padding:0;cursor:pointer;
+  color:var(--sh-ink);font:inherit;font-size:var(--sh-v-label);
+  letter-spacing:var(--sh-v-track);color:var(--sh-ink-dim);
+  transition:color var(--interaction-duration) var(--sh-curve)}
+.v-actions button:hover,.v-actions button[data-armed]{color:var(--sh-ink)}
+/* An armed destructive action is underlined rather than reddened — the shell
+   has no red, and "confirm?" is carried by the word, which changes too. */
+.v-actions button[data-armed]{text-decoration:underline}
+
+/* ---------------------------------------------------------------------------
+   THE THREE STATES EVERY DATA VIEW HAS. Named together because a view that
+   ships only the happy path is the defect this block exists to prevent.
+   --------------------------------------------------------------------------- */
+.v-state-block{padding:var(--sh-s-24) var(--sh-s-8);font-size:var(--sh-v-body);
+  color:var(--sh-ink-dim)}
+.v-state-block[data-kind="error"]{color:var(--sh-ink)}
+.v-state-block button{background:none;border:0;padding:0;margin-left:var(--sh-s-12);
+  color:inherit;font:inherit;text-decoration:underline;cursor:pointer}
+
+/* An expandable row's detail. Indented to the row's text column so the
+   relationship is positional rather than drawn. */
+.v-detail{padding:var(--sh-s-12) var(--sh-s-8) var(--sh-s-16) var(--sh-s-24);
+  font-size:var(--sh-v-meta);color:var(--sh-ink-dim);
+  border-bottom:var(--border-width-hair,1px) solid var(--sh-hairline)}
+.v-detail dl{display:grid;grid-template-columns:auto 1fr;
+  gap:var(--sh-s-4) var(--sh-s-16);margin:0}
+.v-detail dt{font-size:var(--sh-v-label);letter-spacing:var(--sh-v-track)}
+.v-detail dd{margin:0}
+
+/* A row that opens something gets the pointer; the whole row is the target,
+   not a link inside it. */
+.v-row[data-clickable]{cursor:pointer}
+
+/* ---------------------------------------------------------------------------
+   STAT GRID — for the leaves that are a report rather than a list: CORTEX,
+   HEALTH, BRAIN, BRIDGE, NOW.
+
+   AUTO-FILL RATHER THAN A FIXED COLUMN COUNT, because the content container is
+   an animated width: it spans 576px with the panel open at 1100 and 2056 on
+   the owner's own screen, and a fixed grid would either crowd at one end or
+   strand half the row at the other. minmax(160px, 1fr) is the one number here
+   and it is the widest label plus its value at --sh-v-meta.
+   --------------------------------------------------------------------------- */
+.v-stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));
+  gap:var(--sh-s-16) var(--sh-s-24);margin-bottom:var(--sh-s-32)}
+.v-stat{display:flex;flex-direction:column;gap:var(--sh-s-4);min-width:0}
+.v-stat-label{font-size:var(--sh-v-label);letter-spacing:var(--sh-v-track);
+  color:var(--sh-ink-dim);text-transform:var(--type-label-transform,none)}
+.v-stat-value{font-size:var(--font-size-xl,20px);line-height:var(--type-title-line,1.2);font-variant-numeric:tabular-nums;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* A secondary line under a row's main text, for leaves whose rows carry a
+   description. Two lines, then it stops — a row that grows with its text
+   destroys the 48px pitch. */
+.v-two{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1 1 auto}
+.v-two b{font-weight:inherit;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.v-two span{font-size:var(--sh-v-meta);color:var(--sh-ink-dim);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* A two-line row needs the height a one-line row does not. Still FIXED, still
+   one pitch — 64 is 48 plus one --sh-s-16, not a free-growing box.
+
+   BRIDGED TO WHAT THE SENTENCE ABOVE ALREADY SAYS (S1, 2026-09-17), and
+   deliberately NOT to `--sh-strip-h`. Both compute to 64px today, so either
+   would have passed a before/after comparison — but the strip is the shell's
+   top chrome band and this is the LIST's row pitch. Naming one after the other
+   would mean a future change to the top strip silently re-pitching every
+   two-line row in every leaf, which is the same false-dependency class the
+   `minmax(160px)` bridge was struck for. `--sh-v-row-h` is the one-line pitch
+   this is the two-line variant of; that is the real relation. Measured: 48 + 16
+   = 64, identical before and after.
+
+   THE REM CAVEAT, SMALLER HERE THAN ON THE SIDEBAR'S TWO. `--sh-v-row-h` is an
+   absolute `48px`, but `--sh-s-16` is `2rem`, so this sum is 66 rather than 64
+   during the window where WebKitGTK clamps `html{font-size:50%}` to 9px and
+   before `boot.js` restates it absolutely. Two pixels, for one script's
+   execution, against a literal that had no such window. */
+.v-row[data-two]{height:calc(var(--sh-v-row-h) + var(--sh-s-16))}
+
+/* Prose, for the one leaf that is product copy rather than data. Measure is
+   capped because a 2056px-wide paragraph is unreadable however good the type.
+
+   `--prose-max` IS EXACTLY 72ch IN BOTH KITS, so this bridge changes no pixel
+   and hands the measure to the design system anyway — the one free win in the
+   whole colour-and-type sweep. Measured: okuro-ds 72ch, standard 72ch, and the
+   name sits in the plain `:root` block so it is polarity-independent. */
+.v-prose{max-width:var(--prose-max,72ch);font-size:var(--sh-v-body);line-height:1.7}
+.v-prose p{margin:0 0 var(--sh-s-16)}
+.v-prose h3{font-size:var(--sh-v-label);letter-spacing:var(--sh-v-track);
+  text-transform:var(--type-label-transform,none);color:var(--sh-ink-dim);margin:var(--sh-s-32) 0 var(--sh-s-8)}
+.v-prose a{color:inherit;text-decoration:underline;text-underline-offset:3px}
+
+/* A colour swatch. The ONE place a colour is set from data — the design kit's
+   own value, which is a datum the way a file size is, not a choice. */
+.v-swatch{flex:0 0 auto;width:var(--sh-s-16);height:var(--sh-s-16);border-radius:var(--radius-sm);
+  border:var(--border-width-hair,1px) solid var(--sh-hairline)}

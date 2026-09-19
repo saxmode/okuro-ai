@@ -9,7 +9,7 @@ const GROUP_LABELS: { id: ShowcaseGroup; label: string; caption: string }[] = [
 ];
 
 const INVENTORY: { file: string; group: ShowcaseGroup }[] = [
-  ...["button", "input", "textarea", "label", "select", "switch", "segmented", "form-primitives", "facet-bar"].map((file) => ({ file, group: "forms" as const })),
+  ...["button", "input", "textarea", "label", "select", "switch", "segmented", "form-primitives", "facet-bar", "band-filter"].map((file) => ({ file, group: "forms" as const })),
   ...["dialog", "sheet", "side-panel", "detail-modal", "dropdown-menu", "context-menu", "tooltip", "command-palette"].map((file) => ({ file, group: "overlays" as const })),
   ...["tabs", "scroll-area", "separator", "section-label", "row"].map((file) => ({ file, group: "navigation" as const })),
   ...["toast", "progress", "badge", "status-badge", "empty-state", "loading-skeleton", "timeline"].map((file) => ({ file, group: "feedback" as const })),
@@ -39,6 +39,7 @@ const DETAILS: Record<
   segmented: { purpose: "Switches between a small set of peer views or modes.", configuration: ["value", "options", "size", "aria label"], behavior: "Keep labels short and choices mutually exclusive.", accessibility: "Expose the group name and the selected option." },
   "form-primitives": { purpose: "Provides the shared anatomy for coherent forms.", configuration: ["label", "description", "error", "required", "layout"], behavior: "Keep label, input, help, and refusal in one predictable vertical rhythm.", accessibility: "Descriptions and errors must be addressable by their control." },
   "facet-bar": { purpose: "Refines a result set through visible, removable filters.", configuration: ["facets", "counts", "active values", "clear"], behavior: "Show applied filters and their effect without hiding them in a modal.", accessibility: "Each facet announces selection state and result-count changes." },
+  "band-filter": { purpose: "Collapses a leaf's filter groups into one item that opens into its own full-width row.", configuration: ["chips", "label", "aria label", "children"], behavior: "Collapsed it shows only the facets that are not at their default; open it takes the whole row, and a press outside or Escape closes it.", accessibility: "The trigger is a button carrying aria-expanded and aria-controls, the panel is a named group, and Escape returns focus to the trigger." },
   dialog: { purpose: "Interrupts the page for a short, consequential decision.", configuration: ["open", "title", "description", "dismissal", "portal container"], behavior: "Keep the task focused and return focus to the opener on close.", accessibility: "Trap focus, provide a title, support Escape, and restore focus." },
   sheet: { purpose: "Keeps associated context open beside the current page.", configuration: ["open", "side", "width", "dismissal", "portal container"], behavior: "The underlying page stays legible and useful while the sheet is open.", accessibility: "Provide an explicit close control, Escape, and focus return." },
   "side-panel": { purpose: "Hosts persistent detail or editing in a bounded side region.", configuration: ["open", "title", "width", "mobile trigger"], behavior: "Use when users compare panel content with the page beneath it.", accessibility: "Preserve reading order and expose panel state to the trigger." },

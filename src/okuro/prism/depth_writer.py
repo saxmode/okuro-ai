@@ -15,7 +15,7 @@ grounded strictly in that topic's claims, in the audience's voice, and only as
 deep as the audience brief's depth ceiling (a board stops at L2; an engineer
 reaches L4). Writes prose only; components come later.
 
-Mirrors the ``prism-depth-writer`` charter (roles/catalog).
+Mirrors the ``prism-depth-writer`` charter (the roles table).
 """
 
 from __future__ import annotations

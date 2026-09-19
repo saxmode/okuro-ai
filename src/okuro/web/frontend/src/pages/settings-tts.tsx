@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
+import { useIsPaneActive } from "@/lib/pane-active";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { ArrowLeft, Check, Loader2, Pause, Play, Save } from "lucide-react";
-import { PageHeader } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
 import { Segmented } from "@/components/ui/segmented";
 import { SectionLabel } from "@/components/ui/section-label";
@@ -115,10 +115,10 @@ function VoiceCard({
       }}
       className={cn(
         "group flex cursor-pointer items-center gap-2.5 rounded-md border px-2.5 py-2 transition-fast",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
         selected
           ? "border-accent bg-accent-subtle"
-          : "border-border-subtle bg-surface hover:border-accent/50 hover:bg-surface-elevated",
+          : "border-border-subtle bg-surface hover:border-accent hover:bg-surface-elevated",
       )}
     >
       <button
@@ -133,6 +133,10 @@ function VoiceCard({
           "inline-flex size-6 shrink-0 items-center justify-center rounded-full border transition-fast",
           voice.has_preview
             ? "border-border text-fg-secondary hover:border-accent hover:text-accent"
+            /* `opacity-40` KEPT ON PURPOSE, and the KNOW pass wrote the rule:
+               this dims a whole control — border, ink and the icon inside it —
+               and no colour token can dim a border. The three sites that pass
+               are the ones where opacity is doing something a name cannot. */
             : "border-border-subtle text-fg-subtle opacity-40",
         )}
       >
@@ -147,7 +151,7 @@ function VoiceCard({
         {voice.label}
       </span>
       {selected && (
-        <span className="shrink-0 text-2xs font-medium uppercase tracking-wider text-accent">
+        <span className="shrink-0 text-2xs font-medium case-label tracking-wider text-accent">
           {isOkuro ? "okuro" : "co-host"}
         </span>
       )}
@@ -225,12 +229,19 @@ export function SettingsTtsPage() {
   const [draft, setDraft] = useState<TtsConfig | null>(null);
   const kicked = useRef(false);
 
+  const paneActive = useIsPaneActive();
   const info = useQuery({
     queryKey: ["tts", "config"],
     queryFn: ttsApi.getConfig,
     // Only while clips are still missing — a settings page has no reason to
     // poll once there is nothing left to wait for.
-    refetchInterval: (q) => (q.state.data?.previews.ready === false ? POLL_MS : false),
+    // A FUNCTION-VALUED INTERVAL IS STILL UNGATED — memory 48c3c5c6, recorded
+    // on MODELS: the ledger counted numeric literals, so a condition that can
+    // be TRUE off-screen was invisible to it. `previews.ready === false` is
+    // exactly such a condition, and it stays false for as long as the clips
+    // are missing.
+    refetchInterval: (q) =>
+      paneActive && q.state.data?.previews.ready === false ? POLL_MS : false,
   });
 
   // Seed the editable draft once, then keep server-owned facts (roster, preview
@@ -302,10 +313,13 @@ export function SettingsTtsPage() {
 
   return (
     <div className="flex max-w-3xl flex-col gap-6 p-6">
-      <PageHeader
-        title="Voices"
-        subtitle={`Every voice below says: “${draft.sample_text}”`}
-        right={
+      {/* R1 (86b8f1f0) — the shell owns the title; this sub-view keeps its
+          sentence and its two chrome controls on one row. */}
+      <div className="flex items-start justify-between gap-3">
+        <p className="type-small min-w-0 flex-1 text-fg-muted">
+          {`Every voice below says: “${draft.sample_text}”`}
+        </p>
+        <div className="shrink-0">{
           <div className="flex items-center gap-3">
             {/* The roster follows the hardware, not a preference — so say so
                 rather than let it look like voices went missing. */}
@@ -316,15 +330,16 @@ export function SettingsTtsPage() {
               {draft.edition} · {draft.engine}
             </span>
             <Link
-              to="/settings"
+              /* TTS IS REACHED FROM THE VOICES TAB (`settings.tsx:2967`). */
+            to="/system/settings?tab=voices"
               className="flex items-center gap-1 text-xs text-fg-tertiary hover:text-fg-primary"
             >
               <ArrowLeft size={12} />
               Back to Settings
             </Link>
           </div>
-        }
-      />
+        }</div>
+      </div>
 
       {/* Which voice is okuro — the one switch the whole model turns on. */}
       <section className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-surface-elevated p-4">

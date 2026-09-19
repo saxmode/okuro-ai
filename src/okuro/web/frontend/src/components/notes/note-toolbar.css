@@ -11,11 +11,18 @@
   justify-content: center;
   gap: 2px;
   padding: 4px;
-  /* Hug the tools (one row/col, no shrink-to-fit collapse) capped at the
-     viewport minus 80px on each side; only wrap past that cap. */
+  /* N3 — THE CAP IS AGAINST THE CONTAINER, NOT THE WINDOW.
+     It was `calc(100vw - 160px)`, which measured 1206px at a 1366 viewport
+     against a 121px editor column — so the bar never wrapped, stayed 636px
+     wide, and its `left:50%;translateX(-50%)` centred it 252px to the LEFT of
+     the editor, across the note list. `100%` is the positioning container,
+     which is the editor wrapper this bar is absolutely positioned inside (see
+     the note at the top of this file), so the cap now says what it always
+     meant: hug the tools, wrap before you leave the editor.
+     The 16px of breathing room each side is `--sh-s-16` where it exists. */
   width: max-content;
-  max-width: calc(100vw - 160px);
-  max-height: calc(100vh - 160px);
+  max-width: calc(100% - 2 * var(--sh-s-16, 16px));
+  max-height: calc(100% - 2 * var(--sh-s-16, 16px));
   box-sizing: border-box;
   background: var(--color-surface-elevated);
   border: 1px solid var(--color-border);
@@ -56,7 +63,8 @@
   /* Orientation follows the previewed dock class (row for top/bottom, column
      for left/right) so the bar turns vertical near a side edge mid-drag. */
   cursor: grabbing;
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
+  /* was a raw rgba with no token and no fallback pattern (D1) */
+  box-shadow: var(--shadow-xl, var(--shadow-lg, 0 12px 36px rgba(0, 0, 0, 0.5)));
 }
 .nft-grip {
   display: flex;

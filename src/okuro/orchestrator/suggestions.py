@@ -15,12 +15,12 @@ Both the engine's completion hook (orchestrator/engine.py) and the
 on-demand POST /api/tasks/{task_id}/suggest endpoint call this one
 function. That guarantees:
 
-- One prompt (owned by the ``workforce-reviewer`` role YAML)
+- One prompt (owned by the ``workforce-reviewer`` role row)
 - One output schema (validated here)
 - One set of bugs to fix
 
-The role's prompt lives in ``src/okuro/roles/catalog/workforce-reviewer.yaml``
-and is loaded via the roles registry at call-time — editing YAML tunes the
+The role's prompt lives in the ``workforce-reviewer`` row of the roles table
+and is loaded via the roles registry at call-time — editing the row tunes the
 output without a code change or redeploy.
 """
 
@@ -166,7 +166,7 @@ def generate_continuation_suggestions(
     role = get_role(ROLE_ID, level="full")
     if not role or not role.get("content"):
         logger.warning(
-            "workforce-reviewer role not seeded — re-run role catalog seed",
+            "workforce-reviewer role missing from the roles table",
         )
         return []
 

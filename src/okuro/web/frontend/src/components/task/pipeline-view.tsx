@@ -400,7 +400,7 @@ export const PipelineView = memo(function PipelineView({
               failure even during the healthy in-flight window, making a
               working continuation look broken. */}
           {continuationInFlight ? (
-            <div className="flex items-center gap-2 text-2xs uppercase tracking-wider text-accent">
+            <div className="flex items-center gap-2 text-2xs case-label tracking-wider text-accent">
               <span
                 className="inline-block h-1.5 w-1.5 rounded-full bg-accent motion-safe:animate-pulse"
                 aria-hidden="true"
@@ -408,7 +408,7 @@ export const PipelineView = memo(function PipelineView({
               Continuing — generating plan…
             </div>
           ) : (
-            <div className="text-2xs uppercase tracking-wider text-tertiary">
+            <div className="text-2xs case-label tracking-wider text-tertiary">
               Continuation failed — no plan generated
             </div>
           )}
@@ -487,7 +487,7 @@ function SubtaskCard({
         <span className="text-2xs font-medium text-fg-muted truncate">
           {subtask.role}
         </span>
-        <span className={cn("text-3xs font-bold uppercase tracking-wider", style.text)}>
+        <span className={cn("text-3xs font-bold case-label tracking-wider", style.text)}>
           {subtask.label
             ? subtask.label
             : isBlockedByGate
@@ -508,7 +508,7 @@ function SubtaskCard({
           <div className="mt-1">
             <span
               className={cn(
-                "inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-3xs font-bold uppercase tracking-wider",
+                "inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-3xs font-bold case-label tracking-wider",
                 subtask.review_verdict === "PASS"
                   ? "border-success/50 bg-success-subtle/60 text-success"
                   : subtask.review_verdict === "FAIL"
@@ -532,7 +532,7 @@ function SubtaskCard({
           subtask's phase. Co-locates reviewer activity with the work so
           the user doesn't have to look at the global thinker pill. */}
       {subtask.review_in_progress && (
-        <div className="mt-1 inline-flex items-center gap-1.5 rounded border border-warning/60 bg-warning-subtle/60 px-1.5 py-0.5 text-3xs font-bold uppercase tracking-wider text-warning">
+        <div className="mt-1 inline-flex items-center gap-1.5 rounded border border-warning/60 bg-warning-subtle/60 px-1.5 py-0.5 text-3xs font-bold case-label tracking-wider text-warning">
           <span
             className="inline-block h-1.5 w-1.5 rounded-full bg-warning motion-safe:animate-pulse"
             aria-hidden
@@ -555,7 +555,7 @@ function SubtaskCard({
               <div className="flex items-center gap-1">
                 <span
                   className={cn(
-                    "rounded border px-1.5 py-0.5 text-3xs font-bold uppercase tracking-wider",
+                    "rounded border px-1.5 py-0.5 text-3xs font-bold case-label tracking-wider",
                     failing
                       ? "border-warning/50 bg-warning-subtle text-warning"
                       : "border-border bg-surface text-tertiary",
@@ -614,7 +614,7 @@ function SubtaskCard({
               <DropdownMenuTrigger
                 onClick={(e) => e.stopPropagation()}
                 className={cn(
-                  "rounded px-1 py-0.5 text-3xs uppercase tracking-wider outline-none transition-colors hover:text-accent",
+                  "rounded px-1 py-0.5 text-3xs case-label tracking-wider outline-none transition-colors hover:text-accent",
                   modelColor,
                   hasOverride && "border-b border-dashed border-warning",
                 )}
@@ -635,7 +635,7 @@ function SubtaskCard({
                       onModelOverride?.(subtask.id, m);
                     }}
                     className={cn(
-                      "px-2 py-1 text-3xs uppercase tracking-wider",
+                      "px-2 py-1 text-3xs case-label tracking-wider",
                       m === modelKey ? "text-accent" : MODEL_COLOR[m],
                     )}
                   >
@@ -647,7 +647,7 @@ function SubtaskCard({
           ) : (
             <span
               className={cn(
-                "rounded px-1 py-0.5 text-3xs uppercase tracking-wider",
+                "rounded px-1 py-0.5 text-3xs case-label tracking-wider",
                 modelColor,
                 hasOverride && "border-b border-dashed border-warning",
               )}
@@ -732,7 +732,7 @@ function PhaseDivider({
       aria-expanded={!isCollapsed}
       aria-label={`${isCollapsed ? "Expand" : "Collapse"} ${STEP_LOWER} ${phase.id}: ${phase.name}`}
       className={cn(
-        "group relative z-10 flex w-full items-center gap-3 self-stretch py-1 text-left text-2xs uppercase tracking-wider transition-colors hover:text-fg focus-visible:outline-none focus-visible:rounded focus-visible:ring-2 focus-visible:ring-accent/40",
+        "group relative z-10 flex w-full items-center gap-3 self-stretch py-1 text-left text-2xs case-label tracking-wider transition-colors hover:text-fg focus-visible:outline-none focus-visible:rounded focus-visible:ring-2 focus-visible:ring-accent/40",
         tone.text,
       )}
     >
@@ -751,7 +751,7 @@ function PhaseDivider({
         </span>
         {parallel && (
           <span
-            className="rounded border border-info/50 bg-info-subtle px-1.5 py-0.5 text-3xs font-bold uppercase tracking-wider text-info"
+            className="rounded border border-info/50 bg-info-subtle px-1.5 py-0.5 text-3xs font-bold case-label tracking-wider text-info"
             title="This step is running concurrently with another step"
           >
             parallel

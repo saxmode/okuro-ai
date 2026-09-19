@@ -299,7 +299,7 @@ export function FlowFeedbackCard({ taskId }: FlowFeedbackCardProps) {
             </span>
           </span>
         ) : (
-          <span className="text-3xs uppercase tracking-wider text-tertiary/70">
+          <span className="text-3xs case-label tracking-wider text-tertiary/70">
             Rate this flow
           </span>
         )}
@@ -324,7 +324,7 @@ export function FlowFeedbackCard({ taskId }: FlowFeedbackCardProps) {
       className="flex flex-col gap-3 rounded border border-border bg-surface-elevated/20 p-3"
     >
       <div className="flex items-center justify-between">
-        <span className="text-3xs uppercase tracking-wider text-tertiary">
+        <span className="text-3xs case-label tracking-wider text-tertiary">
           Rate this flow
         </span>
         {existing && (

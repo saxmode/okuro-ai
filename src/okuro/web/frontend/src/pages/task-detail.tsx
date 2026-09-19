@@ -6,15 +6,15 @@ import {
   useCallback,
   useRef,
 } from "react";
-import { useParams, Link } from "react-router";
-import { ArrowLeft, ChevronDown, ChevronUp, Square, Trash2 } from "lucide-react";
+import { useParams, useNavigate } from "react-router";
+import { ChevronDown, ChevronUp, Square, Trash2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTaskState, useTaskSnapshot, useActivity } from "@/hooks/use-tasks";
 import { useTaskReview } from "@/hooks/use-review";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { taskApi } from "@/lib/api";
 import { registerSnapshotContext } from "@/lib/handover-context";
-import { formatDuration } from "@/lib/format";
+import { formatDuration, shortId } from "@/lib/format";
 import { TONE_TEXT } from "@/lib/color-class";
 import { deriveTaskView } from "@/lib/task-view";
 import { mergeActivity } from "@/lib/activity-merge";
@@ -50,6 +50,15 @@ import { NeedsYouStrip } from "@/components/inbox/NeedsYouStrip";
 import { toast } from "@/components/ui/toast";
 import { signalThinking, signalIdle } from "@/hooks/use-orchestrator-state";
 import { STEP, stepLabel } from "@/lib/nouns";
+import { useDetailTitle } from "@/shell/components/PageTitle";
+import { leafSlugs, pathFor } from "@/shell/routes";
+
+/** Resolved from the declared list, never a pinned index — the back arrow
+ *  must keep pointing at the RUN LIST if a leaf is inserted above it. It is
+ *  also deliberately the canonical leaf address rather than the bare `/work`
+ *  the old back link used: a topic root is REPLACE-canonicalised, which is
+ *  the non-animated switch path (memory 994c9109). */
+const TASKS_LEAF = leafSlugs("work").indexOf("tasks");
 
 // Per-subtask buffer cap. Group events by `subtask_id` (events without one
 // land under "_global"), keep at most `perBucket` events per bucket, then
@@ -80,6 +89,7 @@ export function TaskDetailPage({
   }
 
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   // Real-time logs and activity from WebSocket. Bursty backends would re-render
@@ -265,10 +275,12 @@ export function TaskDetailPage({
     didInitialScrollRef.current = false;
   }, [id]);
 
-  // Expandable prompt title
+  /* The prompt is body copy with a 2-line clamp. It was briefly deleted
+     with the `<h2>` it used to be; the RANK was the defect, never the text,
+     so the block returned as a plain paragraph and this state with it. */
   const [promptExpanded, setPromptExpanded] = useState(false);
   const [promptHasOverflow, setPromptHasOverflow] = useState(false);
-  const titleRef = useRef<HTMLHeadingElement>(null);
+  const promptRef = useRef<HTMLParagraphElement>(null);
 
   // Actions
   const [confirming, setConfirming] = useState<"stop" | "delete" | null>(null);
@@ -524,10 +536,10 @@ export function TaskDetailPage({
     }
   }, [id, suggesting, runMutation]);
 
-  // Detect whether the prompt title overflows its 2-line clamp — only then
-  // show the expand toggle. Re-measure on description change + window resize.
+  // Detect whether the prompt overflows its 2-line clamp — only then show
+  // the expand toggle. Re-measure on description change + window resize.
   useLayoutEffect(() => {
-    const el = titleRef.current;
+    const el = promptRef.current;
     if (!el || promptExpanded) return;
     const measure = () =>
       setPromptHasOverflow(el.scrollHeight > el.clientHeight + 1);
@@ -536,6 +548,123 @@ export function TaskDetailPage({
     ro.observe(el);
     return () => ro.disconnect();
   }, [state?.description, promptExpanded]);
+
+  /* ===================================================================
+     THE DETAIL TITLE — THE FIRST CONSUMER `useDetailTitle` HAS EVER HAD.
+     ===================================================================
+     C4-2 of the A-1 audit: the hook and `DetailTitle`'s whole branch in
+     `PageTitle.tsx` were wired to nothing. This is the record view the
+     sketch was drawn against, so it is the one that wires it.
+
+     THE MAPPING, AND EVERY SLOT IS THE COMPONENT'S OWN DOCUMENTED SHAPE:
+       title    the task's NAME — the short id the run list already prints
+                beside every row. The DESCRIPTION is not here: it is body
+                copy and stays on the page, readable and expandable, rather
+                than ellipsed into a 72px band. Ruled 2026-09-17.
+       status   the lifecycle pill, tone and label straight off the
+                snapshot. C10: the backend names the tone, the FE renders.
+       meta     `TitleBar.tsx` documents this slot as *"the quiet run of
+                facts — STD · 1/1 · 100% · 18m 30s"*. That is this page's
+                second header group, verbatim, minus the MAX/STD button,
+                which is a CONTROL and therefore belongs in `actions`.
+       actions  MAX/STD, the optimistic ack, stop, delete.
+       onBack   the run list. REQUIRED by the component, which is why the
+                page's own back link is gone rather than duplicated.
+
+     IT IS ABOVE THE LOADING GUARD BECAUSE A HOOK MUST BE. `deriveTaskView`
+     needs a live `state`, so the memo returns `null` until there is one and
+     the hook publishes nothing — which is exactly what `DetailSlot | null`
+     is for, and it also means a task that is still loading shows the
+     shell's own derived "Tasks" rather than a half-built record header.
+
+     THE DEPENDENCY LIST IS VALUES, NEVER HANDLERS. `handleStop`,
+     `handleDelete` and `handleIntelligence` are re-created on every render;
+     listing them would make this memo a new object every render, which
+     `PageTitle.tsx` records as the failure that never settles. They close
+     over `id`, `confirming` and `state.intelligence`, and all three ARE
+     listed, so the closure is refreshed whenever it could behave
+     differently. */
+  const detailSlot = useMemo(() => {
+    if (!state) return null;
+    const v = deriveTaskView(snapshot, state);
+    const label = snapshot ? snapshot.lifecycle.label : state.status.toUpperCase();
+    const tone = snapshot
+      ? TONE_TEXT[snapshot.lifecycle.color_class]
+      : "text-tertiary";
+    return {
+      /* THE NAME ALONE. The description is BODY COPY and lives on the page
+         below (`.td-prompt`), because a title that is also the only copy of
+         a paragraph is a paragraph nobody can read: the band clips at 72 and
+         `.c-title-detail` ellipses at one line. A task has no name field, so
+         its name is the short id the run list already prints beside every
+         row. Ruled 2026-09-17. */
+      // `title` CARRIES THE FULL ID, which `.c-title-detail`'s own comment
+      // promises and the plate cannot show: the band ellipses at one line, so
+      // the only complete spelling of `task-20260801-155020` is this tooltip.
+      title: (
+        <span className="font-mono" title={id ?? ""}>
+          {shortId(id ?? "")}
+        </span>
+      ),
+      status: (
+        <span className={`text-2xs font-bold case-label tracking-wider ${tone}`}>
+          {label}
+        </span>
+      ),
+      meta: (
+        <>
+          {STEP} {v.currentPhase}/{v.totalPhases} &middot; {v.progressPercent}%
+          {v.totalDuration > 0 ? ` \u00b7 ${formatDuration(v.totalDuration)}` : ""}
+        </>
+      ),
+      actions: (
+        <>
+          <button
+            onClick={handleIntelligence}
+            className={`rounded px-2 py-0.5 text-3xs font-bold case-label tracking-wider ${
+              v.intelligence === "max"
+                ? "bg-accent text-inverse"
+                : "text-disabled hover:text-fg-muted"
+            }`}
+          >
+            {v.intelligence === "max" ? "MAX" : "STD"}
+          </button>
+          {/* Optimistic ack — rendered from local state set on click, so it
+              appears in the same frame whether the socket is up or down. */}
+          {pendingAction && (
+            <span className="animate-pulse self-center pr-1 text-2xs text-accent">
+              {pendingAction}
+            </span>
+          )}
+          {v.isWorking && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleStop}
+              disabled={!!pendingAction}
+              className={confirming === "stop" ? "border-error text-error" : ""}
+            >
+              <Square className="mr-1" />
+              {confirming === "stop" ? "Confirm" : "Stop"}
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDelete}
+            disabled={!!pendingAction}
+            className={confirming === "delete" ? "border-error text-error" : ""}
+          >
+            <Trash2 className="mr-1" />
+            {confirming === "delete" ? "Confirm" : "Delete"}
+          </Button>
+        </>
+      ),
+      onBack: () => navigate(pathFor("work", TASKS_LEAF < 0 ? 0 : TASKS_LEAF)),
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state, snapshot, id, confirming, pendingAction, navigate]);
+  useDetailTitle(detailSlot);
 
   if (isLoading || !state) {
     return (
@@ -564,17 +693,17 @@ export function TaskDetailPage({
   // only for the pre-snapshot first paint, so the header / progress /
   // continue-bar / footer / pipeline can never disagree and a terminal state
   // flips atomically everywhere.
+  // FOUR OF THESE LEFT WITH THE HEADER — `intelligence`, `currentPhase`,
+  // `totalDuration` and `isWorking` are read by `detailSlot` above, off its
+  // own `deriveTaskView` call against the same two inputs. `description`
+  // stays here: the page prints it as body copy, the plate does not.
   const {
     lifecycleState,
-    intelligence,
-    currentPhase,
     progressPercent,
     description,
     mode,
     totalPhases,
-    totalDuration,
     isTerminal,
-    isWorking,
     isFailed,
   } = deriveTaskView(snapshot, state);
   // The follow-up / retry / resume bar is reachable in every continuable
@@ -608,79 +737,32 @@ export function TaskDetailPage({
     mode === "deliberate" && totalPhases === 0 && !hasResolvedDiscussion;
 
   return (
+    /* THE PAGE CARRIES NO GUTTER OF ITS OWN — the shell's content container
+       owns the padding ring (55.2px under the kit `standard`), and this page
+       used to add `px-10` (45.8px at the 8px root) inside it. Measured: the
+       h1 sat at x 513 against a pane origin of 467.19, so its content started
+       101px from the frame edge while every other leaf started at 55.2.
+       `task-detail.tsx` is the THIRD shape the `.page-shell` neutraliser
+       cannot reach — it never wore the class, and its padding is two levels
+       deep, on a child of this div, so no ancestor selector can neutralise
+       it. That is why the fix is here rather than in the shell. The inset
+       separators went full-bleed with it: a hairline indented to a gutter
+       that no longer exists is just a short line. */
     <div className="flex h-full flex-col">
-      {/* Header */}
-      <div className="shrink-0 px-10 py-3">
-        <div className="flex items-center gap-3">
-          <Link
-            to="/work"
-            className="text-2xs uppercase tracking-wider text-tertiary hover:text-fg-muted"
-          >
-            <ArrowLeft className="inline h-3 w-3 mr-1" aria-hidden="true" />
-            Work
-          </Link>
-          <span className="text-2xs text-tertiary">{id}</span>
-          <span className={`text-2xs font-bold uppercase tracking-wider ${cfg.color}`}>
-            {cfg.label}
-          </span>
+      {/* THE HEADER IS ON THE PLATE NOW, NOT UNDER IT.
 
-          {/* Intelligence toggle */}
-          <button
-            onClick={handleIntelligence}
-            className={`rounded px-2 py-0.5 text-3xs font-bold uppercase tracking-wider ${
-              intelligence === "max"
-                ? "bg-accent text-inverse"
-                : "text-disabled hover:text-fg-muted"
-            }`}
-          >
-            {intelligence === "max" ? "MAX" : "STD"}
-          </button>
+          The owner, 2026-09-17: *"Section titles need to be on top. so as the
+          detail titles"*, and for this leaf specifically *"detail title: task
+          name with description"*. What stood here was a full header row — back
+          link, id, state pill, the MAX/STD toggle, phase / percent / duration,
+          stop and delete — plus the prompt as a second heading, all of it
+          inside `.c-panes` and therefore UNDER the blurred plate.
 
-          <span className="text-2xs text-tertiary">
-            {STEP} {currentPhase}/{totalPhases}
-          </span>
-          <span className="text-2xs text-fg-muted">
-            {progressPercent}%
-          </span>
-          {totalDuration > 0 && (
-            <span className="text-2xs text-tertiary">
-              {formatDuration(totalDuration)}
-            </span>
-          )}
-
-          <div className="ml-auto flex items-start gap-1">
-            {/* Optimistic ack — rendered from local state set on click, so it
-                appears in the same frame whether the socket is up or down. */}
-            {pendingAction && (
-              <span className="animate-pulse self-center pr-1 text-2xs text-accent">
-                {pendingAction}
-              </span>
-            )}
-            {isWorking && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleStop}
-                disabled={!!pendingAction}
-                className={`text-2xs ${confirming === "stop" ? "border-error text-error" : ""}`}
-              >
-                <Square className="mr-1 h-3 w-3" />
-                {confirming === "stop" ? "Confirm" : "Stop"}
-              </Button>
-            )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleDelete}
-              disabled={!!pendingAction}
-              className={`text-2xs ${confirming === "delete" ? "border-error text-error" : ""}`}
-            >
-              <Trash2 className="mr-1 h-3 w-3" />
-              {confirming === "delete" ? "Confirm" : "Delete"}
-            </Button>
-          </div>
-        </div>
-
+          It is published through `useDetailTitle` above. WHAT IS LEFT HERE is
+          the progress bar alone: it is a picture of the run rather than a
+          header control, and the band clips at 72px (C5-5), so a 4px bar on
+          the plate would be the first thing the clip took. */}
+      <div className="shrink-0 py-3">
         {/* Progress bar */}
         <div className="mt-2 h-1 rounded-full bg-border">
           <div
@@ -691,17 +773,26 @@ export function TaskDetailPage({
           />
         </div>
 
-        {/* Title (primary page anchor) — expandable when it exceeds 2 lines */}
+        {/* THE PROMPT, AS BODY COPY. Ruled 2026-09-17: the full description
+            has to stay READABLE on the page — a native tooltip is not a
+            reading surface, and the plate ellipses at one line inside a band
+            that clips at 72. So the text is here and the plate carries the
+            task's NAME, which is why this is not a duplicate of the title.
+
+            R1 gives `h1` to the shell and this block used to be an `<h2>` —
+            a second heading in every state of the page. The RANK was the
+            defect, never the text: it is a paragraph now, at the same size
+            it always rendered, with the same 2-line clamp and the same
+            expander. */}
         <div className="mt-3 flex items-start gap-2">
-          <h1
-            ref={titleRef}
+          <p
+            ref={promptRef}
             className={`prose-width flex-1 text-xl font-semibold tracking-tight text-fg ${
               promptExpanded ? "whitespace-pre-wrap" : "line-clamp-2"
             }`}
-            title={promptExpanded ? undefined : description}
           >
             {description}
-          </h1>
+          </p>
           {(promptHasOverflow || promptExpanded) && (
             <button
               type="button"
@@ -721,7 +812,7 @@ export function TaskDetailPage({
       </div>
       {/* Separator: inset to match the page gutter so the hairline starts at
           the same x as the title, not at the raw container edge. */}
-      <div className="mx-10 h-px shrink-0 bg-border" aria-hidden="true" />
+      <div className="h-px shrink-0 bg-border" aria-hidden="true" />
 
       {/* Failure banner — pinned to the top for terminal failed/halted
           tasks. Surfaces the reason (per-subtask error or the
@@ -810,7 +901,7 @@ export function TaskDetailPage({
               // is working instead of a static deliberation panel.
               <Tabs defaultValue="pipeline">
                 <div className="relative">
-                  <TabsList className="px-10 data-[orientation=horizontal]:border-b-0">
+                  <TabsList className="data-[orientation=horizontal]:border-b-0">
                     <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
                     <TabsTrigger value="trace">Trace</TabsTrigger>
                   </TabsList>
@@ -850,10 +941,10 @@ export function TaskDetailPage({
             ) : (
               <Tabs defaultValue="pipeline">
                 {/* Shared TabsList has `border-b`; we replace it with an
-                    inset separator so the hairline starts at the px-10 gutter
+                    inset separator so the hairline starts at the gutter
                     instead of the raw column edge. */}
                 <div className="relative">
-                  <TabsList className="px-10 data-[orientation=horizontal]:border-b-0">
+                  <TabsList className="data-[orientation=horizontal]:border-b-0">
                     <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
                     <TabsTrigger value="trace">Trace</TabsTrigger>
                   </TabsList>
@@ -947,7 +1038,7 @@ export function TaskDetailPage({
           {/* Continue bar (when done/failed/blocked) — above the log */}
           {isDone && (
             <>
-              <div className="mx-10 h-px shrink-0 bg-border" aria-hidden="true" />
+              <div className="h-px shrink-0 bg-border" aria-hidden="true" />
               <ContinueBar
                 taskStatus={state.status}
                 suggestions={state.continuation_suggestions ?? []}
@@ -959,7 +1050,7 @@ export function TaskDetailPage({
               />
               {/* F3 — post-flow rating + forward note (learning loop) */}
               {id && (
-                <div className="mx-10">
+                <div>
                   {/* Keyed: this route only swaps its :id param, so React
                       reuses the element instead of remounting. Without the key
                       the card carries one task's draft rating onto the next. */}
@@ -970,7 +1061,7 @@ export function TaskDetailPage({
           )}
 
           {/* Log stream — minimized by default, below proposed next steps */}
-          <div className="mx-10 h-px shrink-0 bg-border" aria-hidden="true" />
+          <div className="h-px shrink-0 bg-border" aria-hidden="true" />
           <div className={`${logCollapsed ? "" : "h-[200px]"} shrink-0`}>
             <LogStream
               logs={allLogs}
@@ -1019,7 +1110,7 @@ export function TaskDetailPage({
                   <NeedsYouStrip
                     project={state.project}
                     title="Related to this work"
-                    viewAllTo={`/inbox?project=${state.project}`}
+                    viewAllTo={`/start/inbox?project=${state.project}`}
                   />
                 ) : null}
               </div>
@@ -1036,13 +1127,13 @@ export function TaskDetailPage({
 function CollapsibleDeliberation({ taskId }: { taskId: string }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="mb-2 mx-10 mt-3">
+    <div className="mb-2 mt-3">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         className="flex w-full items-center justify-between rounded border border-border bg-surface-elevated px-3 py-2 text-left transition-colors hover:bg-surface"
       >
-        <span className="text-2xs font-medium uppercase tracking-wider text-tertiary">
+        <span className="text-2xs font-medium case-label tracking-wider text-tertiary">
           Deliberation
         </span>
         <span className="flex items-center gap-2 text-3xs text-tertiary">
@@ -1281,22 +1372,22 @@ function TaskDetailSnapshotOnly({ snapshot }: { snapshot: TaskSnapshot }) {
   };
   return (
     <div className="flex h-full flex-col">
-      <div className="shrink-0 px-10 py-3">
+      <div className="shrink-0 py-3">
         <div className="flex items-center gap-3">
           <span
-            className={`text-2xs font-bold uppercase tracking-wider ${cfg.color}`}
+            className={`text-2xs font-bold case-label tracking-wider ${cfg.color}`}
           >
             {cfg.label}
           </span>
         </div>
       </div>
-      <div className="px-10 pt-3">
+      <div className="pt-3">
         <BlockerCard
           blocker={snapshot.blocker}
           taskId={snapshot.task_id}
         />
       </div>
-      <div className="px-10 pt-3">
+      <div className="pt-3">
         <PipelineView snapshot={snapshot} />
       </div>
     </div>
@@ -1327,14 +1418,14 @@ function RoleCreationBanner({ taskId }: { taskId: string }) {
 
   return (
     <div
-      className="flex items-center gap-3 border-b-2 border-warning/50 bg-warning-subtle/40 px-10 py-2"
+      className="flex items-center gap-3 border-b-2 border-warning/50 bg-warning-subtle/40 py-2"
       data-testid="role-creation-banner"
     >
       <span
         className="inline-block h-2.5 w-2.5 animate-pulse rounded-full bg-warning"
         aria-hidden="true"
       />
-      <span className="text-2xs font-semibold uppercase tracking-wider text-warning">
+      <span className="text-2xs font-semibold case-label tracking-wider text-warning">
         {stepLabel(0)} — role creation in progress
       </span>
       <span className="text-xs text-fg">{label}</span>

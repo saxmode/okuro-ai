@@ -1,7 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 # <!-- AGENT_HEADER
 # role: code
-# purpose: Knowledge store: read/write role knowledge with DB + vector search.
+# purpose: Knowledge store: read/write role knowledge with DB + vector search,
+#   and the fork that sends a no-change outcome to role_knowledge_checks
+#   instead of forging it into a learning.
 # index:
 #   imports
 #   def _row_to_entry
@@ -24,6 +26,9 @@ from okuro.db import get_db
 from okuro.embed import embed_one
 from okuro.embed.client import embed_query, to_bytes
 from okuro.sense.retrieval import candidate_pool, scoped_vec_search, vec_write
+
+from .checks import CLOCK_RESETTING_OUTCOMES, classify_no_change, write_check
+from .evidence import fetch_verified_for
 
 
 _COLS = "id, content, type, created_at, source_url, session_id, confidence"
@@ -120,6 +125,8 @@ def write_knowledge(
     session_id: str | None = None,
     supersedes: str | None = None,
     confidence: float = 0.7,
+    outcome: str | None = None,
+    run_id: str | None = None,
 ) -> dict:
     """Write learning to DB with embedding for semantic search.
 
@@ -132,6 +139,25 @@ def write_knowledge(
     `supersedes` soft-deletes the superseded row by setting its confidence
     to 0.0 — it stays in the table (for audit / FK integrity) but drops
     below the default read_knowledge confidence floor.
+
+    **A no-change report is not a learning, and that is decided HERE.**
+    ``outcome`` (or, for a caller that only writes prose, the no-change marker
+    in the text) routes the write to ``role_knowledge_checks`` instead: the
+    role's clock still resets, because it really was checked, but nothing is
+    embedded, nothing is counted as a learning, and the knowledge table keeps
+    holding only rows that carry a fact.
+
+    This is a CODE gate rather than a prompt instruction on purpose. The three
+    previous attempts at this class of defect were all edits to the sweep's
+    mandate text — a YAML file that lives outside the repo, is versioned with
+    nothing, and is re-read fresh on every run. 386 of 844 rows arrived anyway.
+    The routing now holds whatever the mandate says.
+
+    **``fetch_verified`` is set by this function and by nothing else that
+    guesses.** It reads 1 only when ``run_id`` and ``source_url`` are both
+    given AND the store holds a body that run fetched for that URL — amendment
+    A2. A claimed URL with no run behind it stays 0, which is the honest
+    reading: the row claims a source, it does not prove one.
     """
     valid_types = {"insight", "pitfall", "source", "decision", "research"}
     if type not in valid_types:
@@ -144,14 +170,96 @@ def write_knowledge(
         except Exception:
             pass
 
+    db = get_db()
+
+    # ── The routing decision, before anything is written ──────────────
+    #
+    # The explicit parameter wins over the text heuristic. An agent that says
+    # `outcome="no_change"` is telling us what happened; an agent that merely
+    # wrote the words is one we are inferring about, and the inference is
+    # exactly the kind of control this whole phase exists to replace. Keeping
+    # the heuristic underneath is what makes this a migration rather than a
+    # flag day: every agent written before the parameter existed still routes
+    # correctly.
+    #
+    # And the heuristic is NARROW, because the wide version ate findings. A
+    # genuine entry reading "the 2026-06 revision makes no significant change
+    # to the tool-result envelope, but it does rename ..." was filed as a
+    # receipt: no embedding, no knowledge row, invisible to every later search.
+    # Silently turning a finding into a check is worse than the defect this
+    # phase exists to fix. `classify_no_change` therefore demands the marker at
+    # the START, a short body and a named period, all three — and it hands back
+    # the reason, which the response carries so nobody has to guess which rule
+    # decided.
+    if outcome is not None:
+        is_check, routed_by, routing_reason = (
+            True, "outcome", f"caller passed outcome={outcome!r}"
+        )
+    else:
+        is_check, routing_reason = classify_no_change(learning)
+        routed_by = "marker" if is_check else "none"
+
+    if is_check:
+        effective = outcome or "no_change"
+        check = write_check(
+            role_id,
+            effective,
+            run_id=run_id,
+            source_url=source_url,
+            # The prose is kept verbatim: it is the only record of what the
+            # sweep actually said, and without an embedding it costs a row and
+            # nothing else. What it does NOT do any more is compete in a
+            # semantic search against rows that carry facts.
+            note=learning,
+            session_id=session_id,
+            db=db,
+        )
+
+        if supersedes:
+            db.execute(
+                "UPDATE role_knowledge SET confidence = 0.0 WHERE id = ?",
+                (supersedes,),
+            )
+
+        # Rule B is preserved exactly as it was: the clock moves for a
+        # research-cycle write, and only for one whose outcome means the role
+        # was genuinely looked at. An `error` or `skipped` check does NOT reset
+        # it — pushing staleness out a full cycle on the strength of a failed
+        # fetch is how a dead feed stays invisible for six weeks.
+        bumped = (
+            type in MAINTENANCE_TYPES
+            and effective in CLOCK_RESETTING_OUTCOMES
+        )
+        if bumped:
+            from .maintainer import update_maintained
+            update_maintained(role_id)
+
+        return {
+            "id": check["id"],
+            "role_id": role_id,
+            "type": type,
+            "status": "check_recorded",
+            "outcome": effective,
+            "run_id": run_id,
+            "supersedes": supersedes,
+            "bumped_last_maintained": bumped,
+            "counted_as_learning": False,
+            "routed_by": routed_by,
+            "routing_reason": routing_reason,
+        }
+
     record_id = str(uuid.uuid4())
 
-    db = get_db()
+    # Amendment A2's gate. A join, not a judgement — see roles.evidence.
+    fetch_verified = 1 if fetch_verified_for(db, run_id, source_url) else 0
+
     db.execute(
         "INSERT INTO role_knowledge "
-        "(id, role_id, content, type, source_url, session_id, confidence) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (record_id, role_id, learning, type, source_url, session_id, confidence),
+        "(id, role_id, content, type, source_url, session_id, confidence, "
+        " fetch_verified) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (record_id, role_id, learning, type, source_url, session_id,
+         confidence, fetch_verified),
     )
 
     if supersedes:
@@ -186,6 +294,10 @@ def write_knowledge(
         "status": "written",
         "supersedes": supersedes,
         "bumped_last_maintained": type in MAINTENANCE_TYPES,
+        "fetch_verified": bool(fetch_verified),
+        "counted_as_learning": True,
+        "routed_by": routed_by,
+        "routing_reason": routing_reason,
     }
 
 

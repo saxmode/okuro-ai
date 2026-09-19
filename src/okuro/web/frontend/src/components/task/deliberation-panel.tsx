@@ -42,7 +42,7 @@ function DraftPromotionList({ taskId }: { taskId: string }) {
   if (drafts.length === 0) {
     return (
       <div className="space-y-2 rounded border border-success/50 bg-success-subtle/50 p-3">
-        <div className="text-2xs uppercase tracking-wider text-success">
+        <div className="text-2xs case-label tracking-wider text-success">
           {stepLabel(0)} complete — no drafts pending
         </div>
         <p className="text-xs text-fg-muted">
@@ -54,7 +54,7 @@ function DraftPromotionList({ taskId }: { taskId: string }) {
 
   return (
     <div className="space-y-2 rounded border border-success/40 bg-success-subtle/40 p-3">
-      <div className="text-2xs uppercase tracking-wider text-success">
+      <div className="text-2xs case-label tracking-wider text-success">
         {stepLabel(0)} complete — promote drafts to activate
       </div>
       <p className="text-3xs text-tertiary">
@@ -151,7 +151,7 @@ function RoleCreationHero({
           aria-hidden="true"
         />
         <div className="flex-1">
-          <div className="text-xs font-semibold uppercase tracking-wider text-warning">
+          <div className="text-xs font-semibold case-label tracking-wider text-warning">
             Creating new roles for this task
           </div>
           <p className="mt-1 text-sm text-fg">
@@ -163,7 +163,7 @@ function RoleCreationHero({
       </div>
 
       <div>
-        <div className="mb-2 text-3xs uppercase tracking-wider text-tertiary">
+        <div className="mb-2 text-3xs case-label tracking-wider text-tertiary">
           {stepLabel(0)} steps
         </div>
         <ul className="space-y-1.5">
@@ -187,11 +187,11 @@ function RoleCreationHero({
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-baseline justify-between gap-2">
-                    <span className="text-2xs font-medium uppercase tracking-wider text-fg">
+                    <span className="text-2xs font-medium case-label tracking-wider text-fg">
                       {step.role}
                     </span>
                     <span
-                      className={`text-3xs uppercase tracking-wider ${STATUS_TONE[st] ?? "text-tertiary"}`}
+                      className={`text-3xs case-label tracking-wider ${STATUS_TONE[st] ?? "text-tertiary"}`}
                     >
                       {st}
                     </span>
@@ -207,7 +207,7 @@ function RoleCreationHero({
       </div>
 
       <div>
-        <div className="mb-2 text-3xs uppercase tracking-wider text-tertiary">
+        <div className="mb-2 text-3xs case-label tracking-wider text-tertiary">
           Drafted roles ({drafts.length})
         </div>
         {drafts.length === 0 ? (
@@ -297,7 +297,7 @@ function CapabilityGapCard({ taskId }: { taskId: string }) {
   return (
     <div className="space-y-3 rounded border border-warning/40 bg-warning-subtle/30 p-3">
       <div>
-        <div className="text-2xs uppercase tracking-wider text-warning">
+        <div className="text-2xs case-label tracking-wider text-warning">
           Capability gap — {gap.kind.replace("_", " ")}
         </div>
         <p className="mt-1 text-xs text-fg-muted">{gap.summary}</p>
@@ -305,7 +305,7 @@ function CapabilityGapCard({ taskId }: { taskId: string }) {
 
       {gap.payload?.closest && gap.payload.closest.length > 0 && (
         <div className="space-y-1">
-          <div className="text-3xs uppercase tracking-wider text-tertiary">
+          <div className="text-3xs case-label tracking-wider text-tertiary">
             Closest sub-threshold matches (rejected)
           </div>
           <ul className="space-y-0.5 font-mono text-3xs text-tertiary">
@@ -319,7 +319,7 @@ function CapabilityGapCard({ taskId }: { taskId: string }) {
       )}
 
       <div>
-        <div className="text-3xs uppercase tracking-wider text-tertiary">
+        <div className="text-3xs case-label tracking-wider text-tertiary">
           {stepLabel(0)} plan
         </div>
         <ul className="mt-1 space-y-1">
@@ -433,7 +433,7 @@ function PanelProposal({ taskId }: { taskId: string }) {
 
   return (
     <div className="space-y-4">
-      <div className="text-2xs uppercase tracking-wider text-tertiary">
+      <div className="text-2xs case-label tracking-wider text-tertiary">
         Proposed Panel
       </div>
 
@@ -450,7 +450,7 @@ function PanelProposal({ taskId }: { taskId: string }) {
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-2xs font-medium uppercase tracking-wider text-fg">
+              <span className="text-2xs font-medium case-label tracking-wider text-fg">
                 {role.role_id}
               </span>
               <span className="text-3xs text-tertiary">{role.domain}</span>
@@ -465,14 +465,14 @@ function PanelProposal({ taskId }: { taskId: string }) {
 
       {/* Strategy */}
       <div className="flex items-center gap-2">
-        <span className="text-2xs uppercase tracking-wider text-tertiary">
+        <span className="text-2xs case-label tracking-wider text-tertiary">
           Strategy
         </span>
         {(["parallel", "sequential", "debate"] as const).map((s) => (
           <button
             key={s}
             onClick={() => setStrategy(s)}
-            className={`rounded border px-2.5 py-1 text-3xs uppercase tracking-wider transition-colors ${
+            className={`rounded border px-2.5 py-1 text-3xs case-label tracking-wider transition-colors ${
               strategy === s
                 ? "border-primary text-fg"
                 : "border-border text-tertiary hover:text-fg-muted"
@@ -552,13 +552,13 @@ function PositionCard({
         className="w-full p-3 text-left transition-colors hover:bg-surface-elevated"
       >
         <div className="flex items-center justify-between">
-          <span className="text-2xs font-medium uppercase tracking-wider text-fg">
+          <span className="text-2xs font-medium case-label tracking-wider text-fg">
             {position.role}
           </span>
           <div className="flex items-center gap-2">
             <span className="text-3xs text-tertiary">R{position.round}</span>
             <span
-              className={`text-3xs uppercase ${POS_STATUS_COLOR[displayStatus] ?? "text-tertiary"}`}
+              className={`text-3xs case-label ${POS_STATUS_COLOR[displayStatus] ?? "text-tertiary"}`}
             >
               {displayStatus}
             </span>
@@ -577,7 +577,7 @@ function PositionCard({
         <div className="space-y-4 border-t border-border bg-surface-elevated/40 p-3">
           {sections.map((s) => (
             <div key={s.label}>
-              <div className={`mb-2 text-3xs font-medium uppercase tracking-wider ${s.tone}`}>
+              <div className={`mb-2 text-3xs font-medium case-label tracking-wider ${s.tone}`}>
                 {s.label}
               </div>
               <MarkdownContent variant="viewer">
@@ -754,13 +754,13 @@ function DiscussionResolver({
     <div className="rounded border border-border">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border px-3 py-2">
-        <span className="text-2xs uppercase tracking-wider text-tertiary">
+        <span className="text-2xs case-label tracking-wider text-tertiary">
           Discussion
         </span>
         <div className="flex items-center gap-2">
           <span className="text-3xs text-tertiary">R{discussion.round}</span>
           <span
-            className={`text-3xs uppercase ${isResolved ? "text-success" : "text-warning"}`}
+            className={`text-3xs case-label ${isResolved ? "text-success" : "text-warning"}`}
           >
             {discussion.status}
           </span>
@@ -775,7 +775,7 @@ function DiscussionResolver({
         <div className="flex items-center gap-3 border-b border-border bg-accent-subtle/30 px-3 py-4">
           <div className="size-4 animate-spin rounded-full border-2 border-accent border-t-transparent" />
           <div className="flex flex-col">
-            <span className="text-xs font-medium uppercase tracking-wider text-accent">
+            <span className="text-xs font-medium case-label tracking-wider text-accent">
               Orchestrator · decomposing into steps
             </span>
             <span className="text-3xs text-tertiary">
@@ -819,7 +819,7 @@ function DiscussionResolver({
           return (
             <div key={p.node_id} className="px-3 py-2">
               <div className="flex items-center justify-between">
-                <span className="text-2xs font-medium uppercase text-fg">
+                <span className="text-2xs font-medium case-label text-fg">
                   {p.role}
                 </span>
                 <div className="flex gap-1">
@@ -918,7 +918,7 @@ function DiscussionResolver({
           so always-hide on resolved unless audit is expanded. */}
       {(!isResolved || auditExpanded) && (
         <div className="border-t border-border p-3">
-          <div className="mb-1.5 text-2xs uppercase tracking-wider text-tertiary">
+          <div className="mb-1.5 text-2xs case-label tracking-wider text-tertiary">
             Your Statement <span className="text-3xs lowercase">(optional)</span>
           </div>
           <Textarea
@@ -1108,7 +1108,7 @@ function AuthorityMapView({ taskId }: { taskId: string }) {
 
   return (
     <div className="rounded border border-border">
-      <div className="border-b border-border px-3 py-2 text-2xs uppercase tracking-wider text-tertiary">
+      <div className="border-b border-border px-3 py-2 text-2xs case-label tracking-wider text-tertiary">
         Authority Map
       </div>
       <div className="divide-y divide-border">
@@ -1125,7 +1125,7 @@ function AuthorityMapView({ taskId }: { taskId: string }) {
             >
               {a.action === "assign" ? "LEADS" : a.action === "acknowledge" ? "CONTEXT" : "OUT"}
             </span>
-            <span className="text-2xs font-medium uppercase text-fg">
+            <span className="text-2xs font-medium case-label text-fg">
               {a.role}
             </span>
             {a.leads && (
@@ -1205,8 +1205,8 @@ export function DeliberationPanel({
             <span
               className={
                 phase === p
-                  ? "font-medium uppercase text-fg"
-                  : "uppercase text-tertiary"
+                  ? "font-medium case-label text-fg"
+                  : "case-label text-tertiary"
               }
             >
               {p}
@@ -1230,7 +1230,7 @@ export function DeliberationPanel({
       {phase !== "proposal" && (
         <>
           <div>
-            <div className="mb-2 text-2xs uppercase tracking-wider text-tertiary">
+            <div className="mb-2 text-2xs case-label tracking-wider text-tertiary">
               Positions
             </div>
             <PositionList taskId={taskId} round={currentRound} settled={settled} />

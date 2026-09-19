@@ -4,7 +4,6 @@ import { Search, X } from "lucide-react";
 import { toolApi } from "@/lib/api";
 import type { ToolInfo } from "@/types/api";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
 
@@ -122,7 +121,7 @@ export function ToolsCatalog() {
 
         {/* Namespace chips */}
         <div className="flex flex-wrap items-center gap-1.5 rounded-md border border-border-subtle bg-surface-subtle px-3 py-2">
-          <span className="text-3xs uppercase tracking-wider text-tertiary">
+          <span className="text-3xs case-label tracking-wider text-tertiary">
             Namespace
           </span>
           <div className="flex flex-wrap gap-1">
@@ -151,7 +150,7 @@ export function ToolsCatalog() {
           {activeNs && (
             <button
               onClick={() => setActiveNs(undefined)}
-              className="ml-auto text-3xs uppercase tracking-wider text-tertiary hover:text-fg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 rounded-sm"
+              className="ml-auto text-3xs case-label tracking-wider text-tertiary hover:text-fg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 rounded-sm"
             >
               Clear
             </button>
@@ -160,7 +159,7 @@ export function ToolsCatalog() {
       </div>
 
       {/* Master / detail */}
-      <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)]">
+      <div className="grid gap-4 grid-cols-[minmax(0,1fr)] @4xl:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)]">
         <ToolList
           tools={filtered}
           selectedName={selectedHiddenByFilter ? undefined : selectedName}
@@ -198,11 +197,11 @@ function ToolList({ tools, selectedName, onSelect }: ToolListProps) {
   const namespaces = Object.keys(grouped).sort();
 
   return (
-    <ScrollArea className="h-[calc(100vh-22rem)] min-h-[480px] rounded-md border border-border-subtle bg-surface">
+    <div className="rounded-md border border-border-subtle bg-surface">
       <div className="space-y-3 p-2">
         {namespaces.map((ns) => (
           <div key={ns}>
-            <h3 className="mb-1 px-2 text-3xs font-medium uppercase tracking-wider text-tertiary">
+            <h3 className="mb-1 px-2 text-3xs font-medium case-label tracking-wider text-tertiary">
               {ns}
               <span className="ml-1.5 opacity-60">{grouped[ns]!.length}</span>
             </h3>
@@ -219,7 +218,7 @@ function ToolList({ tools, selectedName, onSelect }: ToolListProps) {
           </div>
         ))}
       </div>
-    </ScrollArea>
+    </div>
   );
 }
 
@@ -272,7 +271,7 @@ interface ToolDetailProps {
 function ToolDetail({ tool }: ToolDetailProps) {
   if (!tool) {
     return (
-      <div className="flex h-[calc(100vh-22rem)] min-h-[480px] items-center justify-center rounded-md border border-border-subtle bg-surface-subtle">
+      <div className="flex min-h-field-md items-center justify-center rounded-md border border-border-subtle bg-surface-subtle">
         <div className="text-center">
           <p className="text-sm text-fg-muted">Select a tool</p>
           <p className="mt-1 text-2xs text-tertiary">
@@ -288,7 +287,7 @@ function ToolDetail({ tool }: ToolDetailProps) {
   const complianceHint = deriveComplianceHint(tool);
 
   return (
-    <ScrollArea className="h-[calc(100vh-22rem)] min-h-[480px] rounded-md border border-border-subtle bg-surface">
+    <div className="rounded-md border border-border-subtle bg-surface">
       <div className="space-y-4 p-4">
         {/* Header */}
         <div>
@@ -315,7 +314,7 @@ function ToolDetail({ tool }: ToolDetailProps) {
 
         {/* Input schema */}
         <div>
-          <h4 className="mb-1.5 text-3xs font-medium uppercase tracking-wider text-tertiary">
+          <h4 className="mb-1.5 text-3xs font-medium case-label tracking-wider text-tertiary">
             Input schema
           </h4>
           <pre className="overflow-x-auto rounded-md border border-border-subtle bg-surface-subtle p-3 text-3xs leading-relaxed text-fg-muted">
@@ -325,7 +324,7 @@ function ToolDetail({ tool }: ToolDetailProps) {
 
         {/* Roles using this tool */}
         <div>
-          <h4 className="mb-1.5 text-3xs font-medium uppercase tracking-wider text-tertiary">
+          <h4 className="mb-1.5 text-3xs font-medium case-label tracking-wider text-tertiary">
             Roles using this tool
             <span className="ml-1.5 opacity-60">{tool.roles.length}</span>
           </h4>
@@ -349,7 +348,7 @@ function ToolDetail({ tool }: ToolDetailProps) {
           )}
         </div>
       </div>
-    </ScrollArea>
+    </div>
   );
 }
 

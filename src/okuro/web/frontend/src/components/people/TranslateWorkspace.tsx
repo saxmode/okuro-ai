@@ -61,7 +61,7 @@ export function TranslateWorkspace({
   return (
     <div className="flex h-full flex-col gap-3">
       <div>
-        <div className="text-[10px] font-medium uppercase tracking-wider text-fg-subtle">
+        <div className="text-[10px] font-medium case-label tracking-wider text-fg-subtle">
           Translate for
         </div>
         <div className="mt-0.5 text-sm font-semibold text-fg">
@@ -75,7 +75,7 @@ export function TranslateWorkspace({
       </div>
 
       <div>
-        <label className="text-[10px] font-medium uppercase tracking-wider text-fg-subtle">
+        <label className="text-[10px] font-medium case-label tracking-wider text-fg-subtle">
           Your message (source)
         </label>
         <Textarea
@@ -88,7 +88,7 @@ export function TranslateWorkspace({
       </div>
 
       <div>
-        <label className="text-[10px] font-medium uppercase tracking-wider text-fg-subtle">
+        <label className="text-[10px] font-medium case-label tracking-wider text-fg-subtle">
           Channel / context (optional)
         </label>
         <Input
@@ -127,7 +127,7 @@ export function TranslateWorkspace({
       {result?.translated && (
         <div className="flex min-h-0 flex-1 flex-col">
           <div className="mb-1 flex items-center justify-between">
-            <label className="text-[10px] font-medium uppercase tracking-wider text-fg-subtle">
+            <label className="text-[10px] font-medium case-label tracking-wider text-fg-subtle">
               Translated
             </label>
             <Button variant="ghost" size="sm" onClick={copyResult}>

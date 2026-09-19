@@ -58,6 +58,8 @@ import {
 } from "@/lib/people-api";
 import { cn } from "@/lib/utils";
 import { parseApiDate } from "@/lib/format";
+import type { LeafViewProps } from "@/shell/views/registry";
+import { sectionSlugs } from "@/shell/views/sections";
 
 /**
  * /people — manage communication partners.
@@ -95,7 +97,7 @@ function PersonListItem({
       className={cn(
         "w-full rounded-md border border-transparent px-3 py-2 text-left transition-colors",
         selected
-          ? "border-accent/40 bg-accent/10"
+          ? "border-accent/40 bg-accent-subtle"
           : "hover:border-border hover:bg-surface-elevated",
       )}
     >
@@ -317,10 +319,22 @@ function PersonDetail({ id }: { id: string }) {
   const [draft, setDraft] = useState<PersonRecord | null>(null);
   const [lensContext, setLensContext] = useState("");
   const [lensResult, setLensResult] = useState<string | null>(null);
+  /* R5's REVERSIBLE branch — a two-step arm, same shape MODELS' PullButton and
+     the role-knowledge row use. RULED by the owner 2026-09-15 (2295991e): the
+     page takes the SOFT delete that server and client already had, and the
+     hard delete is retired. Soft is `UPDATE persons SET active = 0`
+     (`orchestrator/api/people.py:886-889`) — the row, its embedding, its
+     sources and its edges all survive, and `GET /api/people?include_inactive=true`
+     still returns it. A modal is the wrong weight for an act that can be set
+     back, so the modal is gone with the hard delete it was guarding. */
+  const [armDelete, setArmDelete] = useState(false);
 
   useEffect(() => {
     setDraft(person ? { ...person } : null);
     setLensResult(null);
+    /* Disarm on every person change: an arm on one record must not carry to
+       the next one the inspector shows. */
+    setArmDelete(false);
   }, [person, id]);
 
   // L2 snapshot context — expose the loaded record so a captured snapshot of this
@@ -345,9 +359,13 @@ function PersonDetail({ id }: { id: string }) {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: () => peopleApi.delete(id, true),
+    /* No second argument: the client's `hard` defaults to false, which is the
+       server's soft path. Passing `true` appends `?hard=true` and runs
+       `DELETE FROM persons` + `DELETE FROM vec_persons`. Retired here. */
+    mutationFn: () => peopleApi.delete(id),
     onSuccess: () => {
-      toast.success("Deleted");
+      toast.success("Deactivated — the record is kept and can be set active again");
+      setArmDelete(false);
       queryClient.invalidateQueries({ queryKey: ["people"] });
       queryClient.removeQueries({ queryKey: ["person", id] });
     },
@@ -411,8 +429,18 @@ function PersonDetail({ id }: { id: string }) {
   return (
     <div className="flex h-full flex-col overflow-hidden">
       {/* Header */}
-      <div className="flex items-start justify-between border-b border-border bg-surface px-5 py-3">
-        <div className="min-w-0">
+      {/* THE NAME FIELD WAS 29.6px WIDE HOLDING 208px OF A NAME, and I found it
+          by looking at the screenshot rather than by a number — the pane-level
+          overflow clause is blind to it, because an `<input>` scrolls its own
+          caret and so reports no overflow to its ancestor.
+
+          `justify-between` + `flex-wrap: nowrap` + a `min-w-0` left half means
+          the name absorbs the WHOLE deficit of a fixed 220px button pair.
+          `flex-wrap` alone changes nothing for the same reason, so the left
+          half gets a floor from the kit's own `--field-sm` and the buttons then
+          wrap to a second line where there is no room beside them. */}
+      <div className="flex flex-wrap items-start justify-between gap-y-3 border-b border-border bg-surface px-5 py-3">
+        <div className="min-w-field-sm flex-1">
           <div className="flex items-center gap-2">
             <Input
               value={draft.display_name ?? ""}
@@ -426,14 +454,34 @@ function PersonDetail({ id }: { id: string }) {
           </div>
         </div>
         <div className="flex gap-2">
+          {/* R5 (372ccdb2), REVERSIBLE BRANCH — the two-step arm. The armed
+              state says what the second click does, in words: a button that
+              only changes colour is not a confirmation. */}
           <Button
             variant="outline"
             size="sm"
-            onClick={() => deleteMutation.mutate()}
+            className="text-error"
+            aria-label={armDelete ? "Confirm deactivate" : "Deactivate person"}
+            title={
+              armDelete
+                ? "Click again to deactivate — the record is kept"
+                : "Deactivate — hides the person from the directory, recoverable"
+            }
+            onClick={() => {
+              if (!armDelete) {
+                setArmDelete(true);
+                return;
+              }
+              deleteMutation.mutate();
+            }}
             disabled={deleteMutation.isPending}
           >
-            <Trash2 className="h-3.5 w-3.5" />
-            Delete
+            {deleteMutation.isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Trash2 className="h-3.5 w-3.5" />
+            )}
+            {armDelete ? "Deactivate?" : "Deactivate"}
           </Button>
           <Button onClick={onSave} disabled={saveMutation.isPending} size="sm">
             {saveMutation.isPending ? (
@@ -726,8 +774,10 @@ function PeopleSettingsView() {
       {/* Left pane — list (full-width on mobile, fixed rail on desktop) */}
       <div className="flex w-full flex-col border-r border-border md:w-80 md:shrink-0">
         <div className="space-y-3 border-b border-border px-4 py-3">
-          <div className="flex items-center justify-between">
-            <h1 className="text-lg font-semibold text-fg">People</h1>
+          {/* R1 — the second `<h1>People</h1>` stood here. The shell titles the
+              leaf, so this row is now controls only and `justify-end` keeps
+              them where they were rather than sliding left into the gap. */}
+          <div className="flex items-center justify-end">
             <div className="flex gap-1">
               <Button
                 size="sm"
@@ -826,9 +876,9 @@ function PeopleSettingsView() {
                 type="button"
                 onClick={() => setRelationFilter(null)}
                 className={cn(
-                  "rounded-full border px-2 py-0.5 text-2xs uppercase tracking-wider",
+                  "rounded-full border px-2 py-0.5 text-2xs case-label tracking-wider",
                   relationFilter === null
-                    ? "border-accent bg-accent/10 text-accent"
+                    ? "border-accent bg-accent-subtle text-accent"
                     : "border-border text-tertiary hover:text-fg",
                 )}
               >
@@ -840,9 +890,9 @@ function PeopleSettingsView() {
                   type="button"
                   onClick={() => setRelationFilter(r)}
                   className={cn(
-                    "rounded-full border px-2 py-0.5 text-2xs uppercase tracking-wider",
+                    "rounded-full border px-2 py-0.5 text-2xs case-label tracking-wider",
                     relationFilter === r
-                      ? "border-accent bg-accent/10 text-accent"
+                      ? "border-accent bg-accent-subtle text-accent"
                       : "border-border text-tertiary hover:text-fg",
                   )}
                 >
@@ -1013,9 +1063,28 @@ function PeopleGraphView() {
         )}
         {/* Floating Add — always present on the graph pane so new connections
             can be made without jumping tabs. On create we invalidate the
-            graph query; the new node renders orbiting me on the next paint. */}
+            graph query; the new node renders orbiting me on the next paint.
+
+            D2 — IT WAS `top-4` AND IT COVERED THE GRAPH'S OWN CONTROLS. The
+            comment at `PeopleGraph.tsx` asserted the opposite ("stacked under
+            the connections selector (top-left) so the page-level 'Add person'
+            button at top-right doesn't cover it"), and that assumption holds at
+            the live app's full width and fails inside a pane. Measured at 1366,
+            kit `standard`:
+
+              Add person            x 637.8 .. 786.1   y 294.4 .. 331.2
+              Connections panel     x 526.8 .. 791.6   y 285.2 .. 337.8
+              -> intersect, and the Select underneath is what you lose
+              at 1900: no intersection
+
+            TWO ANCHORS IN OPPOSITE CORNERS OF A BOX THAT CAN NARROW WILL MEET,
+            so widening the box is not the fix — with the pane-keyed rail below
+            the graph column reaches 433.6px and they STILL overlap by 7.1px.
+            The bottom-right corner is free at every width: react-flow's
+            `Controls` sit bottom-LEFT (measured x 532.6..560.6) and the
+            multi-select toolbar is bottom-CENTER. */}
         {hasPeople && (
-          <div className="pointer-events-none absolute right-4 top-4 z-10 flex items-center gap-2">
+          <div className="pointer-events-none absolute bottom-4 right-4 z-10 flex items-center gap-2">
             <MobilePanelTrigger
               icon={<PanelRight className="h-3 w-3" />}
               label="Details"
@@ -1033,9 +1102,32 @@ function PeopleGraphView() {
           </div>
         )}
       </div>
+      {/* R3 (8546865f) — THE INSPECTOR'S WIDTH ASKS THE PANE, NOT THE WINDOW.
+          `w-96` is 441.6px at the 8px root and it was fixed, so inside a 728px
+          pane the inspector took 61 % and the graph — the point of the leaf —
+          got 286.8px. Measured before, kit `standard`:
+
+            pane    graph col   inspector
+            728      286.8       441.6     <- 39 % for the canvas
+            1262     820.8       441.6
+
+          `@4xl` is 896px at this root, and the rung comes out of the
+          arithmetic rather than from taste: the graph's own top-left control
+          stack is 264.8px wide, so a canvas that cannot show its controls plus
+          a node is not a canvas. 294.4 + 264.8 = 559.2, which a 728px pane
+          clears with 168.8px of graph to spare.
+
+          THE PARTNER IS DELIBERATELY NOT RE-KEYED, and that is the NOTES
+          lesson (477b0449) read the right way round. `SidePanel` decides
+          inline-aside vs slide-over with `useIsMobile()` — the WINDOW — and
+          `MobilePanelTrigger` is `md:hidden`, also the window. Those two are a
+          matched pair. Only the WIDTH is pane-keyed here; re-keying the
+          visibility would hide the inline aside while the sheet stayed
+          unavailable and the trigger stayed hidden, which is a one-way trip to
+          no inspector at all. */}
       <SidePanel
         side="right"
-        desktopClassName="w-96 shrink-0 border-l border-border bg-surface"
+        desktopClassName="w-64 @4xl:w-96 shrink-0 border-l border-border bg-surface"
         contentClassName="p-0"
         open={detailOpen}
         onOpenChange={setDetailOpen}
@@ -1061,11 +1153,69 @@ function PeopleGraphView() {
   );
 }
 
-export function PeoplePage() {
+/**
+ * The two tabs, named as the shell names its sections, and the index each one
+ * is. Derived from `sectionSlugs` rather than retyped, so a rename in
+ * `sections.ts` moves both halves or fails the build instead of leaving the
+ * page pointing at an index that means something else.
+ *
+ * The page's own value for the second tab is `settings`; the section slug is
+ * `directory`, which is the word the rail shows and the word the IA declared
+ * before this pass. The map is the only place the two spellings meet.
+ */
+type PeopleTab = "graph" | "settings";
+
+const PEOPLE_SLUGS = sectionSlugs("deliver", "people");
+const SECTION_OF: Record<PeopleTab, number> = {
+  graph: Math.max(0, PEOPLE_SLUGS.indexOf("graph")),
+  settings: Math.max(0, PEOPLE_SLUGS.indexOf("directory")),
+};
+const TAB_OF_SECTION = (index: number): PeopleTab =>
+  index === SECTION_OF.settings ? "settings" : "graph";
+
+/**
+ * GRAPH AND DIRECTORY ARE TWO ADDRESSES — p3's D3/Q3, ruled A.
+ *
+ * RADIX `Tabs` STAYS, DRIVEN AS A CONTROLLED COMPONENT. HEALTH swapped Radix
+ * for `ui/segmented` because Radix owns its own active value and unmounts
+ * inactive content; neither objection applies here. Passing `value` +
+ * `onValueChange` makes the shell the owner, and the unmount is the behaviour
+ * this page already has — the graph tears its react-flow instance down on a
+ * tab switch today, and keeping that identical is what makes this a port
+ * rather than a re-layout of a 1,406-line canvas.
+ *
+ * R1 (86b8f1f0) — THE LEAF TITLE IS THE SHELL'S. `TopicBar` renders
+ * `<h1 class="c-title">People</h1>` above this pane (measured), so the page's
+ * own `<h1>People</h1>` is gone from BOTH places it stood: here, where its own
+ * layout demoted it to a label beside the tab strip, and from the DIRECTORY
+ * list header, where switching tabs swapped which duplicate you saw.
+ */
+export function PeoplePage({
+  view: section,
+  onSelectView,
+}: Partial<LeafViewProps> = {}) {
+  /**
+   * `onSelectView` IS ABSENT OUTSIDE THE SHELL and for a pane on its way out
+   * (`TopicBar.tsx`), so the section keeps a local fallback — the same reason
+   * HEALTH and MODELS have one and the same reason `pane-active` defaults to
+   * true. Without it the tab strip would be inert on the onboarding and
+   * `?embed=1` paths.
+   */
+  const [localSection, setLocalSection] = useState(0);
+  const tab = TAB_OF_SECTION(section ?? localSection);
+  const setTab = (next: string) => {
+    const index = SECTION_OF[next as PeopleTab] ?? 0;
+    if (onSelectView) onSelectView(index);
+    else setLocalSection(index);
+  };
+
   return (
-    <Tabs defaultValue="graph" className="flex h-full flex-col overflow-hidden">
-      <div className="flex items-center justify-between border-b border-border px-4 pt-3">
-        <h1 className="text-lg font-semibold text-fg">People</h1>
+    <Tabs
+      value={tab}
+      onValueChange={setTab}
+      className="flex h-full flex-col overflow-hidden"
+    >
+      <div className="flex items-center justify-end border-b border-border px-4 pt-3">
         <TabsList>
           <TabsTrigger value="graph">Graph</TabsTrigger>
           <TabsTrigger value="settings">Detailed settings</TabsTrigger>

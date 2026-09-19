@@ -10,8 +10,6 @@ import {
   type BrandAsset,
   type BgTarget,
 } from "@/lib/slides-api";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { PageHeader } from "@/components/shell/page-header";
 import { SectionLabel } from "@/components/ui/section-label";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
@@ -51,8 +49,10 @@ import {
 } from "@/types/api";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
-import { useUrlTab } from "@/hooks/use-url-tab";
 import { Segmented } from "@/components/ui/segmented";
+import { sectionSlugs } from "@/shell/views/sections";
+import type { LeafViewProps } from "@/shell/views/registry";
+import { useSectionTitle } from "@/shell/components/PageTitle";
 
 /**
  * /stack — tech stack registry UI.
@@ -62,55 +62,114 @@ import { Segmented } from "@/components/ui/segmented";
  *   Profiles — opinionated compositions (pick one per project)
  *   Review   — whole-registry validation + pending proposals
  */
-export function StackPage() {
-  const tab = useUrlTab("brands");
+/** The four tabs, named as the shell names its sections. */
+type StackTab = "brands" | "profiles" | "entries" | "review";
+
+/**
+ * Derived from `sectionSlugs` rather than retyped, so a rename in
+ * `sections.ts` moves both halves or fails the build instead of leaving the
+ * page pointing at an index that now means something else.
+ */
+const STACK_SLUGS = sectionSlugs("system", "stacks");
+const SECTION_OF: Record<StackTab, number> = {
+  brands: Math.max(0, STACK_SLUGS.indexOf("brands")),
+  profiles: Math.max(0, STACK_SLUGS.indexOf("profiles")),
+  entries: Math.max(0, STACK_SLUGS.indexOf("entries")),
+  review: Math.max(0, STACK_SLUGS.indexOf("review")),
+};
+const TAB_OF_SECTION = (index: number): StackTab =>
+  (STACK_SLUGS[index] as StackTab | undefined) ?? "brands";
+
+/**
+ * FOUR TABS, FOUR ADDRESSES — Q-L1, ruled A ("the page's own tab order").
+ *
+ * What it cost before, measured: `sections.ts` declared `["PROFILES",
+ * "BRANDS"]` against a page whose tabs are brands|profiles|entries|review, so
+ * `?view=profiles` and `?view=entries` BOTH left the page on Brands, the two
+ * declared slugs were in the wrong order, and two of four sub-views were
+ * unaddressable in the shell's grammar at all.
+ *
+ * `ui/segmented`, not `ui/tabs`: Radix `Tabs` owns its own active value and
+ * unmounts inactive content, so it cannot be driven from the shell's section
+ * index without fighting it. The unmounting is worth keeping though, and
+ * `Segmented` plus a conditional render gives it — which matters here more
+ * than anywhere: this page holds 23 `useQuery` calls and only the selected
+ * tab's should fire.
+ */
+export function StackPage({
+  view: section,
+  onSelectView,
+}: Partial<LeafViewProps> = {}) {
+  /** Absent outside the shell and for a pane on its way out — see MODELS. */
+  const [localSection, setLocalSection] = useState(0);
+  const active = TAB_OF_SECTION(section ?? localSection);
+  const setActive = (next: StackTab) => {
+    const index = SECTION_OF[next];
+    if (onSelectView) onSelectView(index);
+    else setLocalSection(index);
+  };
   const [newBrandOpen, setNewBrandOpen] = useState(false);
+
+  /* THE VIEW SWITCH AND THE ONE ADD ACTION GO TO THE PLATE — the sketch's
+     `[ SEARCH | SORT | FILTER | ADD ]` slot, literally. New-brand is still
+     conditional on the BRANDS view: an add button that adds nothing to the
+     view you are looking at is worse on the plate than it was in the page. */
+  const header = useMemo(
+    () => ({
+      actions: (
+        <>
+          <Segmented<StackTab>
+            ariaLabel="Stack view"
+            value={active}
+            onChange={setActive}
+            options={[
+              { label: "Brands", value: "brands", icon: <Package /> },
+              { label: "Profiles", value: "profiles" },
+              { label: "Entries", value: "entries" },
+              { label: "Review", value: "review" },
+            ]}
+          />
+          {active === "brands" && (
+            <Button size="sm" onClick={() => setNewBrandOpen(true)}>
+              <Plus className="mr-1" />
+              New brand
+            </Button>
+          )}
+        </>
+      ),
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [active],
+  );
+  useSectionTitle(header);
 
   return (
     <div className="page-shell space-y-8">
-      <PageHeader
-        title="Stack"
-        subtitle="Brands compose design + frontend + backend + principles. Profiles and entries are the building blocks."
-        right={
-          tab.value === "brands" ? (
-            <Button size="sm" onClick={() => setNewBrandOpen(true)}>
-              <Plus className="mr-1 h-3 w-3" />
-              New brand
-            </Button>
-          ) : undefined
-        }
-      />
+      {/* R1 (86b8f1f0) — THE LEAF TITLE IS THE SHELL'S. `TopicBar` renders
+          `<h1 class="c-title">Stacks</h1>` above this pane, so the page's own
+          PageHeader h1 is gone. New-brand sat in the header's `right` slot and
+          is the leaf's only chrome action, so the header becomes the first
+          CONTENT block with the button at its trailing edge — the same shape
+          MODELS and SERVICES landed. `text-fg-muted` rather than
+          `text-tertiary`: the standing AA failure, kit todo c581c9b2. */}
+      {/* THE VIEW SWITCH AND NEW-BRAND ARE ON THE PLATE — see the memo
+          above. The sentence stays as the block's lead. */}
+      <p className="type-small text-fg-muted">
+        Brands compose design + frontend + backend + principles. Profiles and
+        entries are the building blocks.
+      </p>
 
-      <Tabs value={tab.value} onValueChange={tab.onValueChange}>
-        <TabsList>
-          <TabsTrigger value="brands">
-            <Package className="h-3.5 w-3.5 mr-1.5" />
-            Brands
-          </TabsTrigger>
-          <TabsTrigger value="profiles">Profiles</TabsTrigger>
-          <TabsTrigger value="entries">Entries</TabsTrigger>
-          <TabsTrigger value="review">Review</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="brands" className="mt-4">
+      <div className="mt-4">
+        {active === "brands" && (
           <BrandsTab
             newBrandOpen={newBrandOpen}
             onNewBrandOpenChange={setNewBrandOpen}
           />
-        </TabsContent>
-
-        <TabsContent value="profiles" className="mt-4">
-          <ProfilesTab />
-        </TabsContent>
-
-        <TabsContent value="entries" className="mt-4">
-          <BrowseTab />
-        </TabsContent>
-
-        <TabsContent value="review" className="mt-4">
-          <ReviewTab />
-        </TabsContent>
-      </Tabs>
+        )}
+        {active === "profiles" && <ProfilesTab />}
+        {active === "entries" && <BrowseTab />}
+        {active === "review" && <ReviewTab />}
+      </div>
     </div>
   );
 }
@@ -245,7 +304,7 @@ function BrowseTab() {
               <div className="space-y-3">
                 {Object.entries(layerGroups).map(([layerName, entries]) => (
                   <div key={layerName} className="space-y-1.5">
-                    <div className="text-2xs uppercase tracking-wider text-tertiary">
+                    <div className="text-2xs case-label tracking-wider text-tertiary">
                       {layerName}
                     </div>
                     <div className="grid grid-cols-1 gap-1.5 md:grid-cols-2 lg:grid-cols-3">
@@ -284,7 +343,7 @@ function EntryCard({ entry, onClick }: { entry: StackEntry; onClick: () => void 
             {entry.name}
           </div>
         </div>
-        <span className={cn("shrink-0 text-2xs font-medium uppercase tracking-wider", cfg.tone)}>
+        <span className={cn("shrink-0 text-2xs font-medium case-label tracking-wider", cfg.tone)}>
           {cfg.label}
         </span>
       </div>
@@ -348,14 +407,14 @@ function EntryDetailDialog({
           <div className="space-y-3 text-sm">
             {e.rationale && (
               <section>
-                <div className="text-2xs uppercase tracking-wider text-tertiary">Rationale</div>
+                <div className="text-2xs case-label tracking-wider text-tertiary">Rationale</div>
                 <p>{e.rationale}</p>
               </section>
             )}
 
             {e.use_when.length > 0 && (
               <section>
-                <div className="text-2xs uppercase tracking-wider text-tertiary">Use when</div>
+                <div className="text-2xs case-label tracking-wider text-tertiary">Use when</div>
                 <ul className="list-disc pl-5">
                   {e.use_when.map((u) => <li key={u}>{u}</li>)}
                 </ul>
@@ -364,7 +423,7 @@ function EntryDetailDialog({
 
             {e.avoid_when.length > 0 && (
               <section>
-                <div className="text-2xs uppercase tracking-wider text-tertiary">Avoid when</div>
+                <div className="text-2xs case-label tracking-wider text-tertiary">Avoid when</div>
                 <ul className="list-disc pl-5">
                   {e.avoid_when.map((u) => <li key={u}>{u}</li>)}
                 </ul>
@@ -373,7 +432,7 @@ function EntryDetailDialog({
 
             {e.depends_on.length > 0 && (
               <section>
-                <div className="text-2xs uppercase tracking-wider text-tertiary">Depends on</div>
+                <div className="text-2xs case-label tracking-wider text-tertiary">Depends on</div>
                 <div className="flex flex-wrap gap-1">
                   {e.depends_on.map((d) => (
                     <span key={d} className="rounded bg-surface-subtle px-2 py-0.5 font-mono text-2xs">
@@ -386,7 +445,7 @@ function EntryDetailDialog({
 
             {e.alternatives_considered.length > 0 && (
               <section>
-                <div className="text-2xs uppercase tracking-wider text-tertiary">Alternatives considered</div>
+                <div className="text-2xs case-label tracking-wider text-tertiary">Alternatives considered</div>
                 <ul className="space-y-1">
                   {e.alternatives_considered.map((a) => (
                     <li key={a.id} className="text-2xs">
@@ -407,16 +466,27 @@ function EntryDetailDialog({
             )}
 
             <section className="space-y-2 border-t border-border pt-3">
-              <div className="text-2xs uppercase tracking-wider text-tertiary">Propose change</div>
+              <div className="text-2xs case-label tracking-wider text-tertiary">Propose change</div>
               <div className="flex flex-wrap gap-1.5">
                 {(["promote", "deprecate", "ban", "reinstate"] as const).map((k) => (
                   <button
                     key={k}
                     onClick={() => setProposalKind(k)}
                     className={cn(
-                      "rounded px-2 py-1 text-2xs font-medium uppercase tracking-wider",
+                      "rounded px-2 py-1 text-2xs font-medium case-label tracking-wider",
                       proposalKind === k
-                        ? "bg-accent text-on-accent"
+                        /* `text-on-accent` COMPILED TO NOTHING, and the gate
+                           could not see it. It is the only occurrence in the
+                           frontend — the engine's name is
+                           `--color-accent-foreground`, bridged as
+                           `text-accent-foreground` (globals.css:461), which
+                           `components/people/SlidersPanel.tsx` already pairs
+                           with `bg-accent`. Until this line the selected
+                           proposal kind rendered inherited ink on an accent
+                           fill: in dark that is white on #9c9c9c. Found by
+                           fixing `check-tailwind-vocabulary.mjs`, whose own
+                           comment strip was blind to 58.8 % of this file. */
+                        ? "bg-accent text-accent-foreground"
                         : "bg-surface-subtle text-tertiary hover:text-fg-muted",
                     )}
                   >
@@ -472,10 +542,10 @@ const SCOPE_FILTERS: Array<{ value: string; label: string }> = [
 ];
 
 const SCOPE_TONE: Record<StackProfileScope, string> = {
-  frontend:  "border-info/40 text-info",
-  backend:   "border-success/40 text-success",
-  fullstack: "border-warning/40 text-warning",
-  agent:     "border-accent/40 text-accent",
+  frontend:  "border-border text-info",
+  backend:   "border-border text-success",
+  fullstack: "border-border text-warning",
+  agent:     "border-border text-accent",
   other:     "border-border text-tertiary",
 };
 
@@ -521,7 +591,7 @@ function ProfilesTab() {
                 <div className="flex-1 truncate text-sm font-medium">{p.label}</div>
                 <Badge
                   variant="outline"
-                  className={cn("text-3xs uppercase tracking-wider", SCOPE_TONE[p.scope])}
+                  className={cn("text-3xs case-label tracking-wider", SCOPE_TONE[p.scope])}
                 >
                   {p.scope}
                 </Badge>
@@ -592,11 +662,11 @@ function ProfileDetail({ name }: { name: string }) {
           className={cn(
             "rounded border px-3 py-2 text-2xs",
             lint.data.ok
-              ? "border-success/30 bg-success/10 text-success"
-              : "border-error/30 bg-error/10 text-error",
+              ? "border-border bg-success-subtle text-success"
+              : "border-border bg-error-subtle text-error",
           )}
         >
-          <div className="flex items-center gap-1.5 font-medium uppercase tracking-wider">
+          <div className="flex items-center gap-1.5 font-medium case-label tracking-wider">
             {lint.data.ok ? <Check className="h-3 w-3" /> : <TriangleAlert className="h-3 w-3" />}
             Lint: {lint.data.ok ? "OK" : `${lint.data.errors.length} errors`}
           </div>
@@ -614,7 +684,7 @@ function ProfileDetail({ name }: { name: string }) {
           <section key={cat} className="space-y-2">
             <SectionLabel className="px-0">{cat}</SectionLabel>
             <table className="w-full text-sm">
-              <thead className="text-2xs uppercase tracking-wider text-tertiary">
+              <thead className="text-2xs case-label tracking-wider text-tertiary">
                 <tr>
                   <th className="text-left font-medium">Layer</th>
                   <th className="text-left font-medium">Choice</th>
@@ -632,8 +702,8 @@ function ProfileDetail({ name }: { name: string }) {
                       <div className="font-mono text-2xs text-tertiary">{r.id}</div>
                     </td>
                     <td className="py-1.5 font-mono text-2xs">{r.version ?? "—"}</td>
-                    <td className="py-1.5 text-2xs uppercase tracking-wider">{r.role}</td>
-                    <td className={cn("py-1.5 text-2xs uppercase tracking-wider", STACK_STATUS_CONFIG[r.status].tone)}>
+                    <td className="py-1.5 text-2xs case-label tracking-wider">{r.role}</td>
+                    <td className={cn("py-1.5 text-2xs case-label tracking-wider", STACK_STATUS_CONFIG[r.status].tone)}>
                       {STACK_STATUS_CONFIG[r.status].label}
                     </td>
                   </tr>
@@ -715,11 +785,11 @@ function ReviewTab() {
             className={cn(
               "mt-2 rounded border px-3 py-2 text-sm",
               validation.data.ok
-                ? "border-success/30 bg-success/10"
-                : "border-error/30 bg-error/10",
+                ? "border-border bg-success-subtle"
+                : "border-border bg-error-subtle",
             )}
           >
-            <div className="flex items-center gap-2 text-2xs uppercase tracking-wider">
+            <div className="flex items-center gap-2 text-2xs case-label tracking-wider">
               {validation.data.ok ? (
                 <Check className="h-3 w-3 text-success" />
               ) : (
@@ -926,10 +996,10 @@ function BrandCard({
         <Badge
           variant="outline"
           className={cn(
-            "shrink-0 text-3xs uppercase tracking-wider",
-            brand.status === "active" && "border-success/40 text-success",
-            brand.status === "draft" && "border-warning/40 text-warning",
-            brand.status === "archived" && "border-tertiary/40 text-tertiary",
+            "shrink-0 text-3xs case-label tracking-wider",
+            brand.status === "active" && "border-border text-success",
+            brand.status === "draft" && "border-border text-warning",
+            brand.status === "archived" && "border-border text-tertiary",
           )}
         >
           {brand.status}
@@ -975,8 +1045,14 @@ function BrandCard({
       </div>
 
       <div className="mt-2 flex items-center justify-between text-3xs text-tertiary">
-        <span>{brand.project_count} projects</span>
-        <span>{brand.slot_count} slots filled</span>
+        {/* `245d4942`'s class, at n = 1: two live rows read "1 projects".
+            The neighbour has the same shape and only shows it at n = 1 too. */}
+        <span>
+          {brand.project_count} {brand.project_count === 1 ? "project" : "projects"}
+        </span>
+        <span>
+          {brand.slot_count} {brand.slot_count === 1 ? "slot" : "slots"} filled
+        </span>
       </div>
     </button>
   );
@@ -1001,6 +1077,8 @@ function BrandEditor({
   });
 
   const [id, setId] = useState("");
+  /** R5's arm for the permanent delete — see the DialogFooter below. */
+  const [armedDelete, setArmedDelete] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState<"active" | "draft" | "archived">("draft");
@@ -1082,7 +1160,7 @@ function BrandEditor({
         <div className="space-y-4 text-sm">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <div className="text-2xs uppercase tracking-wider text-tertiary">ID</div>
+              <div className="text-2xs case-label tracking-wider text-tertiary">ID</div>
               <Input
                 value={id}
                 onChange={(e) => setId(e.target.value)}
@@ -1092,7 +1170,7 @@ function BrandEditor({
               />
             </div>
             <div className="space-y-1">
-              <div className="text-2xs uppercase tracking-wider text-tertiary">Name</div>
+              <div className="text-2xs case-label tracking-wider text-tertiary">Name</div>
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -1102,7 +1180,7 @@ function BrandEditor({
           </div>
 
           <div className="space-y-1">
-            <div className="text-2xs uppercase tracking-wider text-tertiary">Description</div>
+            <div className="text-2xs case-label tracking-wider text-tertiary">Description</div>
             <Textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -1111,7 +1189,7 @@ function BrandEditor({
           </div>
 
           <div className="space-y-1">
-            <div className="text-2xs uppercase tracking-wider text-tertiary">Status</div>
+            <div className="text-2xs case-label tracking-wider text-tertiary">Status</div>
             <Select value={status} onValueChange={(v) => setStatus(v as typeof status)}>
               <SelectTrigger className="w-40">
                 <SelectValue />
@@ -1125,7 +1203,7 @@ function BrandEditor({
           </div>
 
           <div className="space-y-2 border-t border-border pt-3">
-            <div className="text-2xs uppercase tracking-wider text-tertiary">Slots</div>
+            <div className="text-2xs case-label tracking-wider text-tertiary">Slots</div>
             {slotKinds.map((k) => (
               <SlotPickerRow
                 key={k.kind}
@@ -1140,7 +1218,7 @@ function BrandEditor({
 
           <div className="space-y-2 border-t border-border pt-3">
             <div className="flex items-center justify-between gap-2">
-              <div className="text-2xs uppercase tracking-wider text-tertiary">Logos</div>
+              <div className="text-2xs case-label tracking-wider text-tertiary">Logos</div>
               <div className="flex items-center gap-1.5">
                 <span className="text-2xs text-tertiary">Default corner</span>
                 <Select value={logoCorner} onValueChange={(v) => setLogoCorner(v as typeof logoCorner)}>
@@ -1175,8 +1253,8 @@ function BrandEditor({
               className={cn(
                 "rounded border p-2 text-2xs",
                 lint.data.ok
-                  ? "border-success/40 text-success"
-                  : "border-error/40 text-error",
+                  ? "border-border text-success"
+                  : "border-border text-error",
               )}
             >
               <div className="font-medium">
@@ -1204,20 +1282,46 @@ function BrandEditor({
 
         <DialogFooter>
           {!isNew && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                if (confirm(`Delete brand "${brandId}"? This cannot be undone.`)) {
+            /* R5 (372ccdb2), PERMANENT BRANCH — AND `window.confirm` IS GONE.
+               This was the only `window.confirm` left in SYSTEM, and under the
+               shell it is not merely inconsistent: the transitions are 650ms
+               `@property` animations and a native dialog blocks the event loop,
+               so it freezes them mid-curve. DESIGN's own source names the same
+               hazard in the same words (`ds-engine-codex.tsx:195`).
+
+               A SECOND DIALOG WOULD BE A DIALOG INSIDE A DIALOG — the brand
+               editor is already a `ui/dialog` — so the confirm is a two-step
+               arm ON the Delete button plus the sentence the modal would have
+               carried, rendered beside it. R5 reserves the arm for reversible
+               acts; this one is permanent, so it states what is lost in words
+               rather than only changing a tint. */
+            <div className="mr-auto flex items-center gap-2">
+              <Button
+                size="sm"
+                variant={armedDelete ? "destructive" : "outline"}
+                onClick={() => {
+                  if (!armedDelete) {
+                    setArmedDelete(true);
+                    return;
+                  }
                   del.mutate();
+                }}
+                disabled={del.isPending}
+                className={armedDelete ? undefined : "text-error"}
+                aria-label={
+                  armedDelete ? `Confirm delete brand ${brandId}` : `Delete brand ${brandId}`
                 }
-              }}
-              disabled={del.isPending}
-              className="mr-auto text-error"
-            >
-              <Trash2 className="mr-1 h-3 w-3" />
-              Delete
-            </Button>
+              >
+                <Trash2 className="mr-1 h-3 w-3" />
+                {armedDelete ? "Delete for good" : "Delete"}
+              </Button>
+              {armedDelete && (
+                <p className="max-w-xs text-2xs text-error">
+                  “{brandId}” and its slot assignments go. Projects pointing at
+                  it lose their brand. This cannot be undone.
+                </p>
+              )}
+            </div>
           )}
           <Button size="sm" variant="outline" onClick={onClose}>
             Cancel
@@ -1248,11 +1352,28 @@ const BG_TARGET_OPTS: { value: BgTarget; label: string }[] = [
   { value: "both", label: "Both" },
 ];
 
+/**
+ * THE TILE IS A SPECIMEN, SO THE LITERALS STAY — BUT NOT THESE LITERALS.
+ *
+ * It paints a checkerboard so a logo can be judged against a dark AND a light
+ * ground at the same time, independent of the current appearance. No single
+ * appearance token can express "the other ground", so the mechanism is right
+ * and D1's specimen clause covers it.
+ *
+ * `#0a0a0a` WAS THE WRONG BLACK. It is okuro-ds v1's retired value, named in
+ * D1's own ruling (685cc4b4) as a literal that must take okuro-ds's value —
+ * and okuro-ds's dark ground is `#030303`. So the tile was showing logos
+ * against a black okuro has not shipped since v1. Q3, ruled B: use okuro-ds's
+ * reference pair now; a named `--color-specimen-ground-dark/-light` is the end
+ * state and goes on the kit todo c581c9b2, because DESIGN needs the identical
+ * pair for its own specimens — two leaves asking for one thing is the test for
+ * kit-worthiness.
+ */
 function logoTileStyle(bg: BgTarget): React.CSSProperties {
-  if (bg === "dark") return { background: "#0a0a0a" };
+  if (bg === "dark") return { background: "#030303" };
   if (bg === "light") return { background: "#ffffff" };
   // 'both' — split tile: light top-left, dark bottom-right.
-  return { background: "linear-gradient(135deg, #ffffff 0 50%, #0a0a0a 50% 100%)" };
+  return { background: "linear-gradient(135deg, #ffffff 0 50%, #030303 50% 100%)" };
 }
 
 function BrandLogos({ brandId }: { brandId: string }) {
@@ -1275,9 +1396,23 @@ function BrandLogos({ brandId }: { brandId: string }) {
     },
   });
 
+  /**
+   * R5 — REMOVE-LOGO ARMS TOO, and the p3 spec's sharpest observation is why:
+   * this deleted an asset on ONE click two lines of UI away from a delete that
+   * asked. Q-S4 ruled the arm for recoverable acts; a logo can be re-uploaded
+   * from the file it came from, so it is the arm and not the modal.
+   *
+   * KEYED PER ASSET, not a single flag — the same reason the inbox row and
+   * SERVICES are keyed: with one flag, arming logo A turns the next click on
+   * logo B into a deletion (`tasks.tsx:188`).
+   */
+  const [armedLogo, setArmedLogo] = useState<string | null>(null);
   const del = useMutation({
     mutationFn: (id: string) => brandAssetsApi.remove(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["brand-logos", brandId] }),
+    onSuccess: () => {
+      setArmedLogo(null);
+      qc.invalidateQueries({ queryKey: ["brand-logos", brandId] });
+    },
   });
 
   const items: BrandAsset[] = logos.data?.assets ?? [];
@@ -1344,13 +1479,31 @@ function BrandLogos({ brandId }: { brandId: string }) {
               </div>
               <button
                 type="button"
-                onClick={() => del.mutate(a.id)}
-                aria-label="delete logo"
-                className="absolute -right-1 -top-1 hidden h-4 w-4 items-center justify-center rounded-full bg-error text-[10px] text-white group-hover:flex"
+                onClick={() => {
+                  if (armedLogo !== a.id) {
+                    setArmedLogo(a.id);
+                    return;
+                  }
+                  del.mutate(a.id);
+                }}
+                aria-label={
+                  armedLogo === a.id
+                    ? `Confirm remove logo ${a.name}`
+                    : `Remove logo ${a.name}`
+                }
+                title={armedLogo === a.id ? "Click again to remove" : "Remove"}
+                className={cn(
+                  "absolute -right-1 -top-1 h-4 items-center justify-center rounded-full bg-error text-3xs text-destructive-foreground",
+                  // The armed one stays VISIBLE without a hover, or the second
+                  // click would depend on the pointer never leaving the tile.
+                  armedLogo === a.id
+                    ? "flex w-auto px-1"
+                    : "hidden w-4 group-hover:flex",
+                )}
               >
-                ×
+                {armedLogo === a.id ? "remove?" : "×"}
               </button>
-              <span className="mt-0.5 block text-center text-3xs uppercase tracking-wider text-tertiary">
+              <span className="mt-0.5 block text-center text-3xs case-label tracking-wider text-tertiary">
                 {a.bg_target}
               </span>
             </div>
@@ -1385,8 +1538,8 @@ function SlotPickerRow({
     staleTime: 30_000,
   });
 
-  // THE DESIGN SLOT PICKS A KIT, because /design-engine is the one place a
-  // design system is managed. This listed v0 profiles and sat beside a "From
+  // THE DESIGN SLOT PICKS A KIT, because DESIGN (/ds-engine-codex) is the one
+  // place a design system is managed. This listed v0 profiles and sat beside a "From
   // URL" scraper and a full profile editor — a second management surface for
   // the same concern, which is what the owner asked to end. The picker survives
   // (assigning a design to a brand is a stack question); the editing does not.
@@ -1447,7 +1600,7 @@ function SlotPickerRow({
           </Badge>
         )}
         {slotKind.required && (
-          <Badge variant="outline" className="text-3xs border-error/40 text-error">
+          <Badge variant="outline" className="text-3xs border-border text-error">
             required
           </Badge>
         )}
@@ -1474,7 +1627,8 @@ function SlotPickerRow({
         </Select>
         {/* NO EDIT OR "FROM URL" BUTTON HERE ANY MORE. This row sat beside a
             scraper and a full design-profile editor — a second management
-            surface for a concern that now has exactly one, /design-engine.
+            surface for a concern that now has exactly one, DESIGN
+            (/ds-engine-codex).
             Assigning a design to a brand is a stack question and stays;
             authoring one is not. */}
       </div>

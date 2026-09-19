@@ -33,21 +33,26 @@ Three separate defects in one payload:
    against ORCH-ARTIFACT-DISK and three other surfaces that say NEVER a ``.md``
    file, not even a copy.
 
-WHY THIS RUNS AT THE SEAM AND NOT ONLY IN THE CATALOG. Fixing the 87 catalog
-YAMLs reaches fresh installs only:
+WHY THIS RUNS AT THE SEAM AND NOT ONLY IN THE DATA. Correcting the rows
+reaches only the rows that exist when the correction is written:
 
-- ``seed_from_catalog`` defaults to ``overwrite=False``, so an existing row is
-  never updated by a re-seed;
-- a row with ``origin='user'`` is never overwritten *even with*
-  ``overwrite=True`` — by design, those are the user's;
-- the live body measured in the packet came from the DB, and no
-  ``catalog/sys-engineer.yaml`` exists at all.
+- roles are edited at runtime, and the writers that put a BODY in the table are
+  ``PUT /api/roles/{id}``, ``store_designed_role`` and ``draft_role`` — all
+  three now through ``roles/write.py``. ``roles_maintenance`` and
+  ``roles_learn`` do NOT write a body: they write ``role_knowledge`` rows and
+  the maintenance timestamp. So any body fixed today can be replaced by an
+  unfixed one tomorrow, by one of three named callers rather than by a vague
+  "runtime";
+- a personal role such as ``sys-engineer`` was never product content and no
+  sweep over shipped roles would have reached it;
+- migration 155 made the database a role's only home, which removes the
+  catalog's drift but not this one: the defect is in what a body SAYS, and
+  nothing stops the next author saying it again.
 
 So the data fix cannot be the whole fix. Sanitising where a body BECOMES
-agent-facing text covers shipped rows, user rows, runtime-created roles and
-anything a future contributor adds, in one place (DP10/DP11). The catalog is
-cleaned separately so the stored data is also right; this module is the
-guarantee, not the excuse.
+agent-facing text covers every row, however it got there, in one place
+(DP10/DP11). The stored rows are corrected separately so the data is also
+right; this module is the guarantee, not the excuse.
 """
 
 from __future__ import annotations

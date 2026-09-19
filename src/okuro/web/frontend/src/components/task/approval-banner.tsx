@@ -43,7 +43,7 @@ export function ApprovalBanner({
     <div className="border-b border-warning/30 bg-warning/5 px-4 py-3">
       <div className="flex items-center justify-between">
         <div>
-          <span className="text-xs font-bold uppercase tracking-wider text-warning">
+          <span className="text-xs font-bold case-label tracking-wider text-warning">
             Approval Required
           </span>
           <p className="mt-1 text-sm text-fg">
@@ -52,7 +52,7 @@ export function ApprovalBanner({
           <div className="mt-1 flex gap-3 text-2xs text-tertiary">
             <span data-testid="approval-risk">
               Risk:{" "}
-              <span className={`font-semibold uppercase ${riskClass}`}>
+              <span className={`font-semibold case-label ${riskClass}`}>
                 {subtask.risk}
               </span>
             </span>

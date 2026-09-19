@@ -106,7 +106,7 @@ export function DecomposerActivityPanel({ taskId }: { taskId: string }) {
           />
         )}
         <div className="min-w-0 flex-1">
-          <div className="text-2xs font-semibold uppercase tracking-wider text-accent">
+          <div className="text-2xs font-semibold case-label tracking-wider text-accent">
             Decomposer · {stateIsActive ? "synthesizing execution steps" : "complete"}
           </div>
           <div className="mt-0.5 truncate text-xs text-fg-muted">
@@ -163,7 +163,7 @@ function EventRow({ event }: { event: ActivityEvent }) {
     return (
       <li className="flex gap-3">
         <span className="w-16 shrink-0 font-mono text-3xs text-tertiary">{ts}</span>
-        <span className="shrink-0 text-3xs uppercase tracking-wider text-accent">
+        <span className="shrink-0 text-3xs case-label tracking-wider text-accent">
           thinking
         </span>
         <span className="flex-1 whitespace-pre-wrap text-3xs italic text-fg-muted">
@@ -177,7 +177,7 @@ function EventRow({ event }: { event: ActivityEvent }) {
     return (
       <li className="flex gap-3">
         <span className="w-16 shrink-0 font-mono text-3xs text-tertiary">{ts}</span>
-        <span className="shrink-0 text-3xs uppercase tracking-wider text-warning">
+        <span className="shrink-0 text-3xs case-label tracking-wider text-warning">
           {verbFor(event.name)}
         </span>
         <span className="flex-1 truncate font-mono text-3xs text-fg-muted">
@@ -191,7 +191,7 @@ function EventRow({ event }: { event: ActivityEvent }) {
     return (
       <li className="flex gap-3">
         <span className="w-16 shrink-0 font-mono text-3xs text-tertiary">{ts}</span>
-        <span className="shrink-0 text-3xs uppercase tracking-wider text-success">
+        <span className="shrink-0 text-3xs case-label tracking-wider text-success">
           text
         </span>
         <span className="flex-1 whitespace-pre-wrap text-3xs text-fg">
@@ -205,7 +205,7 @@ function EventRow({ event }: { event: ActivityEvent }) {
     return (
       <li className="flex gap-3">
         <span className="w-16 shrink-0 font-mono text-3xs text-tertiary">{ts}</span>
-        <span className="shrink-0 text-3xs uppercase tracking-wider text-success">
+        <span className="shrink-0 text-3xs case-label tracking-wider text-success">
           result
         </span>
         <span className="flex-1 text-3xs text-fg-muted">
@@ -225,7 +225,7 @@ function EventRow({ event }: { event: ActivityEvent }) {
     return (
       <li className="flex gap-3">
         <span className="w-16 shrink-0 font-mono text-3xs text-tertiary">{ts}</span>
-        <span className="shrink-0 text-3xs uppercase tracking-wider text-tertiary">
+        <span className="shrink-0 text-3xs case-label tracking-wider text-tertiary">
           {event.type === "subtask_start" ? "started" : "session"}
         </span>
         <span className="flex-1 text-3xs text-fg-muted">

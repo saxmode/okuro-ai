@@ -367,7 +367,7 @@ export const ActivityFeed = memo(function ActivityFeed({
     <div className="flex h-full flex-col">
       {/* Header with instance filter */}
       <div className="flex h-row-dense flex-wrap items-center gap-1 border-b border-border px-3">
-        <span className="mr-2 text-2xs uppercase tracking-wider text-tertiary">
+        <span className="mr-2 text-2xs case-label tracking-wider text-tertiary">
           Activity{selectedSubtaskId ? ` · ${selectedSubtaskId}` : ""}
         </span>
         <button
@@ -429,7 +429,7 @@ export const ActivityFeed = memo(function ActivityFeed({
               data-testid={groupTestId(g.key)}
               className="mb-3 last:mb-0"
             >
-              <h3 className="mb-1 text-3xs font-medium uppercase tracking-wider text-tertiary">
+              <h3 className="mb-1 text-3xs font-medium case-label tracking-wider text-tertiary">
                 {groupLabel(g.key)}
               </h3>
               <ol className="ml-1">
@@ -527,7 +527,7 @@ const ReviewRoundItem = memo(function ReviewRoundItem({
         onClick={round.terminal ? () => setExpanded((v) => !v) : undefined}
         disabled={!round.terminal}
         className={cn(
-          "inline-flex items-center gap-1.5 rounded border px-1.5 py-0.5 text-3xs font-bold uppercase tracking-wider",
+          "inline-flex items-center gap-1.5 rounded border px-1.5 py-0.5 text-3xs font-bold case-label tracking-wider",
           round.terminal
             ? tone.chip
             : "border-warning/60 bg-warning-subtle/60 text-warning",
@@ -591,7 +591,7 @@ const ReviewRoundItem = memo(function ReviewRoundItem({
                 className="absolute left-0 top-1.5 h-2 w-2 rounded-full bg-error ring-2 ring-surface"
               />
               <div className="flex items-baseline gap-2 text-3xs">
-                <span className="font-bold uppercase tracking-wider text-error">
+                <span className="font-bold case-label tracking-wider text-error">
                   must-fix
                 </span>
               </div>
@@ -824,12 +824,12 @@ const TimelineItem = memo(function TimelineItem({
         {isReviewer && (
           <span
             data-testid="review-row-badge"
-            className="rounded border border-warning/60 px-1 py-px text-3xs uppercase tracking-wider text-warning"
+            className="rounded border border-warning/60 px-1 py-px text-3xs case-label tracking-wider text-warning"
           >
             REVIEW
           </span>
         )}
-        <span className={cn("font-bold uppercase tracking-wider", labelColor)}>
+        <span className={cn("font-bold case-label tracking-wider", labelColor)}>
           {label}
         </span>
         {event.role && (

@@ -25,11 +25,14 @@ import { Segmented } from "@/components/ui/segmented";
 import { SectionLabel } from "@/components/ui/section-label";
 import { EmptyState } from "@/components/ui/empty-state";
 import { toast } from "@/components/ui/toast";
-import { PageHeader } from "@/components/shell/page-header";
+import { usePaneInterval } from "@/lib/pane-active";
+import type { LeafViewProps } from "@/shell/views/registry";
+import { sectionSlugs } from "@/shell/views/sections";
 import { CommercialBadge } from "@/components/models/commercial-badge";
 import { MarkdownContent } from "@/components/ui/markdown-content";
 import { MediaLightbox } from "@/components/assets/media-lightbox";
 import { mediaApi } from "@/lib/assets-api";
+import { useSectionTitle } from "@/shell/components/PageTitle";
 import {
   studioApi,
   type StudioPreset,
@@ -77,7 +80,39 @@ function StudioImg({ name, alt }: { name: string; alt: string }) {
   );
 }
 
-export function StudioPage() {
+/**
+ * The two tools, named as the shell names its sections. Derived from
+ * `sectionSlugs` rather than retyped: a rename in `sections.ts` moves both
+ * halves or fails the build.
+ */
+type StudioTool = "image" | "text";
+
+const STUDIO_SLUGS = sectionSlugs("deliver", "studio");
+const SECTION_OF: Record<StudioTool, number> = {
+  image: Math.max(0, STUDIO_SLUGS.indexOf("image")),
+  text: Math.max(0, STUDIO_SLUGS.indexOf("text")),
+};
+const TOOL_OF_SECTION = (index: number): StudioTool =>
+  (STUDIO_SLUGS[index] as StudioTool | undefined) ?? "image";
+
+/**
+ * TWO TOOLS AT ONE ADDRESS — D1, and p3's Q1 option A.
+ *
+ * STUDIO is two disjoint tools over two disjoint endpoint families
+ * (`/api/studio/*` for images, `/api/studio/text/*` for the local-model chat),
+ * each degrading independently by design. The switch lived in `useState`, so
+ * "open Studio's text chat" could not be said as a URL — which is the exact
+ * thing an agent-native OS should be able to say. The declared section was
+ * `LIBRARY`, the one word that named NEITHER tool and the panel the page
+ * renders LAST: measured, `?view=library` rendered Image mode.
+ *
+ * Q-L4 ruled: TEXT MODE STAYS. Moving a mode between topics is an IA change,
+ * and the charter puts those behind their own ruling rather than inside a port.
+ */
+export function StudioPage({
+  view: section,
+  onSelectView,
+}: Partial<LeafViewProps> = {}) {
   const qc = useQueryClient();
   const [presetId, setPresetId] = useState<string | null>(null);
   const [prompt, setPrompt] = useState("");
@@ -87,7 +122,18 @@ export function StudioPage() {
   const [results, setResults] = useState<string[]>([]); // image URLs from this session
   const [modelId, setModelId] = useState<string | null>(null); // explicit model override (feature C)
   const [genResult, setGenResult] = useState<GenerateResult | null>(null); // last result → prompt plan
-  const [mode, setMode] = useState<"image" | "text">("image"); // Image gen vs test-a-local-LLM
+  /**
+   * `onSelectView` IS ABSENT outside the shell and for a pane on its way out,
+   * so the tool keeps a local fallback — the same reason HEALTH and MODELS
+   * have one, and the same reason `pane-active` defaults to true.
+   */
+  const [localSection, setLocalSection] = useState(0);
+  const mode = TOOL_OF_SECTION(section ?? localSection);
+  const setMode = (next: StudioTool) => {
+    const index = SECTION_OF[next];
+    if (onSelectView) onSelectView(index);
+    else setLocalSection(index);
+  };
   const [genJob, setGenJob] = useState<string | null>(null); // running job id → cancel
   // Asset IDs, not filenames: a bucket-owned tile (an illustration) has no file
   // in the generations dir, so a filename reference would 404 for something the
@@ -191,13 +237,34 @@ export function StudioPage() {
     );
   }
 
+  /**
+   * D4 — A STREAM OUTLIVED ITS PAGE, AND NOTHING CLOSED IT.
+   *
+   * `streamJob` returns a canceller (`lib/studio-api.ts`), and all three call
+   * sites `await`ed it into a local and dropped it. Panes stay mounted across
+   * a topic change, so the practical exposure was small — a job you started
+   * keeps streaming in a pane that is merely invisible, which is arguably what
+   * you want. A REMOUNT is the case that was not covered: a hard reload, or a
+   * pane genuinely torn down, left the server job running with no listener and
+   * no cancel handle, and the `EventSource` reconnecting on its own.
+   *
+   * The fix is a ref plus one `useEffect` return, not a redesign. It holds the
+   * NEWEST canceller only: the page runs one job at a time (`busy` gates the
+   * triggers), so a second stream means the first is already terminal.
+   */
+  const closeStream = useRef<null | (() => void)>(null);
+  useEffect(() => () => {
+    closeStream.current?.();
+    closeStream.current = null;
+  }, []);
+
   async function runSetup() {
     if (!preset) return;
     setBusy("setup");
     setProgress({ phase: "engine", message: "Starting setup…" });
     try {
       const { job_id } = await studioApi.startSetup({ preset: preset.id, consent: true });
-      await studioApi.streamSetup(job_id, {
+      closeStream.current = await studioApi.streamSetup(job_id, {
         onProgress: (ev) => setProgress(ev),
         onDone: () => {
           setBusy(null);
@@ -245,7 +312,7 @@ export function StudioPage() {
         setProgress(null);
         setGenJob(null);
       };
-      await studioApi.streamGenerate(job_id, {
+      closeStream.current = await studioApi.streamGenerate(job_id, {
         onProgress: (ev) => setProgress(ev),
         onDone: (r) => {
           finish();
@@ -279,37 +346,56 @@ export function StudioPage() {
     label: t,
   }));
 
-  return (
-    <div className="page-shell space-y-10">
-      <PageHeader
-        title="Studio"
-        subtitle={
-          mode === "text"
-            ? "Prompt an installed local model and read its reply."
-            : "Pick a style, describe it, and okuro makes the image."
-        }
-        right={
+  /* THE MODE SWITCH AND THE ONE CHROME ACTION GO TO THE PLATE. */
+  const header = useMemo(
+    () => ({
+      actions: (
+        <>
+          <Segmented
+            ariaLabel="Studio mode"
+            value={mode}
+            onChange={(v) => setMode(v as StudioTool)}
+            options={[
+              { label: "Image", value: "image" },
+              { label: "Text", value: "text" },
+            ]}
+          />
           <Button
             variant="outline"
             size="sm"
             onClick={() => libraryQ.refetch()}
             disabled={libraryQ.isFetching}
           >
-            <RefreshCw className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
+            <RefreshCw className="mr-1" aria-hidden="true" />
             Refresh
           </Button>
-        }
-      />
+        </>
+      ),
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [mode, libraryQ.isFetching, libraryQ.refetch, onSelectView],
+  );
+  useSectionTitle(header);
 
-      <Segmented
-        ariaLabel="Studio mode"
-        value={mode}
-        onChange={(v) => setMode(v as "image" | "text")}
-        options={[
-          { label: "Image", value: "image" },
-          { label: "Text", value: "text" },
-        ]}
-      />
+  return (
+    <div className="page-shell space-y-10">
+      {/* R1 (86b8f1f0) — THE LEAF TITLE IS THE SHELL'S. `TopicBar` renders
+          `<h1 class="c-title">Studio</h1>` above this pane, so the page's own
+          PageHeader h1 is gone. The subtitle survives as the first content
+          line BECAUSE IT CHANGES WITH THE TOOL — it is the only place the
+          screen says which of the two you are in beyond the segmented control
+          — and Refresh keeps the trailing edge of the same row, where the
+          header had it. The shape SERVICES and MODELS landed.
+          `text-fg-muted` rather than `PageHeader`'s `text-tertiary` (kit todo
+          c581c9b2). */}
+      {/* THE MODE SWITCH AND Refresh ARE ON THE PLATE — see the memo above.
+          The sentence stays because it CHANGES WITH THE TOOL: it is the only
+          place the screen says what the selected mode does. */}
+      <p className="type-small text-fg-muted">
+        {mode === "text"
+          ? "Prompt an installed local model and read its reply."
+          : "Pick a style, describe it, and okuro makes the image."}
+      </p>
 
       {mode === "text" ? (
         <TextPanel />
@@ -454,14 +540,14 @@ export function StudioPage() {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex flex-wrap items-center gap-4">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs uppercase tracking-wide text-fg-subtle">
+                    <span className="text-xs case-label tracking-wide text-fg-subtle">
                       Quality
                     </span>
                     <Segmented options={tierOptions} value={tier} onChange={setTier} />
                   </div>
                   {canPickEngine && (
                     <div className="flex items-center gap-2">
-                      <span className="text-xs uppercase tracking-wide text-fg-subtle">
+                      <span className="text-xs case-label tracking-wide text-fg-subtle">
                         Render
                       </span>
                       <Segmented
@@ -597,7 +683,7 @@ function TextControl({
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs uppercase tracking-wide text-fg-subtle">Text</span>
+        <span className="text-xs case-label tracking-wide text-fg-subtle">Text</span>
         <Segmented
           ariaLabel="What text may appear in the image"
           value={mode}
@@ -649,7 +735,7 @@ function ReferencePicker({
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="text-xs uppercase tracking-wide text-fg-subtle hover:text-fg"
+        className="text-xs case-label tracking-wide text-fg-subtle hover:text-fg"
       >
         Edit an existing image{selected.length > 0 ? ` (${selected.length})` : ""}
       </button>
@@ -758,7 +844,7 @@ function ModelAndPrompt({
       <div className="space-y-4 border-t border-border-subtle px-4 py-4">
         {/* Which model runs — switchable across installed models */}
         <div className="space-y-2">
-          <span className="text-xs uppercase tracking-wide text-fg-subtle">Model</span>
+          <span className="text-xs case-label tracking-wide text-fg-subtle">Model</span>
           {installed.length === 0 ? (
             <p className="text-xs text-fg-subtle">
               No model installed yet — set one up above.
@@ -783,7 +869,7 @@ function ModelAndPrompt({
         {/* Curated models not yet installed — the per-style suggestions */}
         {suggestions.length > 0 && (
           <div className="space-y-1.5">
-            <span className="text-xs uppercase tracking-wide text-fg-subtle">
+            <span className="text-xs case-label tracking-wide text-fg-subtle">
               Other models for this style
             </span>
             <ul className="space-y-1.5">
@@ -804,7 +890,7 @@ function ModelAndPrompt({
         {plan && (
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <span className="text-xs uppercase tracking-wide text-fg-subtle">
+              <span className="text-xs case-label tracking-wide text-fg-subtle">
                 Optimized prompt
               </span>
               {plan.syntax && (
@@ -818,7 +904,7 @@ function ModelAndPrompt({
             </p>
             {plan.negative && (
               <p className="text-xs text-fg-subtle">
-                <span className="uppercase tracking-wide">Negative:</span> {plan.negative}
+                <span className="case-label tracking-wide">Negative:</span> {plan.negative}
               </p>
             )}
             {plan.notes.length > 0 && (
@@ -856,16 +942,46 @@ function TextPanel() {
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
+  /** D4, the chat's own stream — see StudioPage's `closeStream` for why. */
+  const closeStream = useRef<null | (() => void)>(null);
+  useEffect(() => () => {
+    closeStream.current?.();
+    closeStream.current = null;
+  }, []);
+
+  /**
+   * T9 / Q-D3 ruled A — AN INACTIVE PANE IS QUIET, and this poll is one of the
+   * LOCALLY-CONDITIONAL kind the pane-active ledger names as the ones a
+   * literal count misses: `busy ? false : 8000` already stopped while a
+   * generation ran, and still polled for the whole session from every other
+   * topic once STUDIO was the remembered DELIVER leaf.
+   *
+   * THE HOOK IS CALLED UNCONDITIONALLY, AND THAT IS NOT STYLE. My first
+   * version wrote `refetchInterval: busy ? false : usePaneInterval(8000)`,
+   * which SKIPS the hook whenever `busy` is true — and React said so out loud:
+   *
+   *   "React has detected a change in the order of Hooks called by TextPanel.
+   *      Previous render            Next render
+   *      14. useContext             useEffect"
+   *
+   * A conditional hook is how a `usePaneInterval` adoption goes wrong on
+   * exactly the call sites that most need it, because those are the ones that
+   * already have a condition. Read the pane once, then combine.
+   */
+  const paneEvery8s = usePaneInterval(8000);
+  const paneEvery3s = usePaneInterval(3000);
 
   const modelsQ = useQuery({
     queryKey: ["studio", "text-models"],
     queryFn: () => studioApi.textModels(),
-    refetchInterval: busy ? false : 8000,
+    // Both conditions have to hold — see `paneEvery8s` above for why the hook
+    // call cannot sit inside the ternary.
+    refetchInterval: busy ? false : paneEvery8s,
   });
   const enginesQ = useQuery({
     queryKey: ["studio", "text-engines"],
     queryFn: () => studioApi.textEngines(),
-    refetchInterval: 3000,
+    refetchInterval: paneEvery3s,
   });
   const models = modelsQ.data?.models ?? [];
   const engines = enginesQ.data?.engines ?? [];
@@ -904,7 +1020,7 @@ function TextPanel() {
 
     try {
       const { job_id } = await studioApi.startTextChat({ bundle_id: bundleId, messages: history });
-      await studioApi.streamText(job_id, {
+      closeStream.current = await studioApi.streamText(job_id, {
         onProgress: (ev) => {
           if (ev.phase === "token") {
             setStatus(null);

@@ -249,7 +249,18 @@ def _parse_when(when_str: str):
 # build a request, hit the daemon, return JSON or a friendly error envelope
 # explaining how to start the service.
 
-_ORCH_DEFAULT_URL = "http://127.0.0.1:13333"
+def _orch_default_url() -> str:
+    """Default orchestrator URL for THIS install.
+
+    Was a module constant with the port baked in, so an install running on
+    a reassigned port silently addressed the default one.
+    """
+    try:
+        from okuro.system.port_registry import orchestrator_port
+
+        return f"http://127.0.0.1:{orchestrator_port()}"
+    except Exception:
+        return "http://127.0.0.1:13333"
 _ORCH_HEALTH_TIMEOUT_S = 1.5
 _ORCH_CALL_TIMEOUT_S = 30.0
 _SESSION_REPORT_DEADLINE_S = 3.0
@@ -298,7 +309,7 @@ def _run_session_report_with_deadline(reporter, **kwargs) -> str:
 
 
 def _orch_base_url() -> str:
-    return os.environ.get("OKURO_ORCHESTRATOR_URL", _ORCH_DEFAULT_URL).rstrip("/")
+    return os.environ.get("OKURO_ORCHESTRATOR_URL", _orch_default_url()).rstrip("/")
 
 
 def _orch_token() -> str | None:
@@ -311,6 +322,33 @@ def _orch_token() -> str | None:
     except Exception:
         pass
     return os.environ.get("OKURO_API_TOKEN")
+
+
+def _orch_foreign_verdict():
+    """The verdict when the orchestrator port is held by another install.
+
+    Returns a ``PortVerdict`` when the holder is NOT this install, else
+    None. Kept separate from ``_orch_is_running`` so the "reachable but
+    not ours" case gets its own error envelope instead of collapsing into
+    "not running", which would send an agent to restart a service that is
+    already running and cannot bind.
+    """
+    try:
+        from urllib.parse import urlparse
+
+        from okuro.system.install_identity import SERVICE_ORCHESTRATOR, verify_port
+        from okuro.system.port_registry import orchestrator_port
+
+        parsed = urlparse(_orch_base_url())
+        host = parsed.hostname or "127.0.0.1"
+        if host not in ("127.0.0.1", "localhost", "::1"):
+            return None  # a remote orchestrator is not an install collision
+        port = parsed.port or orchestrator_port()
+        verdict = verify_port(SERVICE_ORCHESTRATOR, port, host="127.0.0.1")
+        return verdict if verdict.state in ("foreign", "unidentified") else None
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("_orch_foreign_verdict unavailable: %s", exc)
+        return None
 
 
 def _orch_is_running() -> bool:
@@ -347,6 +385,14 @@ def _orch_not_running_error() -> dict:
     }
 
 
+def _orch_foreign_error(verdict) -> dict:
+    return {
+        "error": verdict.line(),
+        "url": _orch_base_url(),
+        "port_holder": verdict.to_dict(),
+    }
+
+
 def _orch_request(method: str, path: str, body: dict | None = None) -> dict:
     """Issue an authenticated HTTP request to the orchestrator daemon.
 
@@ -357,6 +403,14 @@ def _orch_request(method: str, path: str, body: dict | None = None) -> dict:
     """
     import urllib.request
     import urllib.error
+
+    # VERIFY BEFORE TRUST — this runs BEFORE the token is read, let alone
+    # sent. A second install answering on the orchestrator port is not our
+    # orchestrator, and handing it this install's bearer is the failure mode
+    # the identity block exists to stop.
+    foreign = _orch_foreign_verdict()
+    if foreign is not None:
+        return _orch_foreign_error(foreign)
 
     if not _orch_is_running():
         return _orch_not_running_error()
@@ -539,10 +593,30 @@ def orchestrator_status(task_id: str) -> dict:
     # Derive it so polling agents see WHAT to resolve instead of a null while
     # the task is parked on waiting_user.
     blocking_question = resp.get("blocking_question")
+    _aw = resp.get("awaiting")
     if not blocking_question:
-        _aw = resp.get("awaiting")
         if isinstance(_aw, dict) and _aw.get("kind"):
             blocking_question = _aw.get("message") or None
+
+    # S2 — a decision gate may be posed against an ARTIFACT. An agent that
+    # polls this and answers without reading it is deciding blind, and if
+    # the basis has moved its answer will be refused. Both facts belong in
+    # the question, not one layer below it.
+    _payload = (_aw or {}).get("payload") if isinstance(_aw, dict) else None
+    if isinstance(_payload, dict) and _payload.get("subject_artifact_id"):
+        _title = str(_payload.get("subject_title") or "").strip()
+        _basis = (
+            f"\n\nBasis: {_title or 'artifact'} "
+            f"(artifact_get id={_payload['subject_artifact_id']}) — read it "
+            f"before answering."
+        )
+        if _payload.get("basis_moved"):
+            _basis += (
+                "\nWARNING: this artifact has CHANGED since the gate was "
+                "posed. Answering will be REFUSED; the gate must be posed "
+                "again against the current version, or skipped."
+            )
+        blocking_question = f"{blocking_question or ''}{_basis}".strip()
     artifacts: list[str] = []
 
     # last_event_ts: prefer the most recent recent_logs[].timestamp (the
@@ -4427,6 +4501,234 @@ def get_tools() -> list[Tool]:
             },
         ),
         Tool(
+            name="model_inventory",
+            description=(
+                "Inventory the model stores configured for THIS host (hot NVMe / cold archive) at "
+                "UNIT granularity — an HF cache dir, a self-contained model dir, a shard group, or "
+                "one standalone weights file in a shared bucket. Answers 'what models are on this "
+                "box, where, how big, which are twinned across stores, which are broken'. Default "
+                "reads the cached table with last_scanned per store (one query). refresh='stat' "
+                "re-walks the stores live — dir-stat only, never opens a model file, safe on "
+                "spinning disks; refresh='identity' additionally fingerprints each unit (2 MiB per "
+                "unit, never a full-file hash) and is a background job. Returns "
+                "{configured: false, reason} when the host declares no model stores — that is a "
+                "supported install, not an error, and is NOT the same as an empty store. "
+                "Each unit row also carries `consumers` (which declared tools name it) and "
+                "`tier` (the strongest claim on it: PROTECTED > ACTIVE > ARCHIVE) from the "
+                "consumer map — one join, no second scan. An empty `consumers` list means "
+                "no DECLARED consumer names it, never that nothing uses it."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "store": {"type": "string", "description": "Only this configured store, by name."},
+                    "format": {"type": "string", "enum": ["gguf", "safetensors", "bin", "pth", "onnx", "ckpt", "other", "mixed"], "description": "Only units of this weights format."},
+                    "status": {"type": "string", "enum": ["ok", "broken", "missing"], "description": "Only units in this state. 'broken' = stub weights, runt shard, dangling link."},
+                    "refresh": {"type": "string", "enum": ["stat", "identity"], "description": "Re-walk the stores before answering. Omit to read the cached table."},
+                    "twins": {"type": "boolean", "default": False, "description": "Also report units present on more than one store (proven by identity, probable by name+size)."},
+                    "limit": {"type": "integer", "default": 40, "minimum": 1, "maximum": 500},
+                },
+            },
+        ),
+        Tool(
+            name="model_discoveries",
+            description=(
+                "What the weekly release scan found, per WANTED category — text, "
+                "text-abliterated, image, image-nsfw, video, video-nsfw, music, vision, 3d, "
+                "embedding. Each candidate carries the lineage RELATION to what is already "
+                "installed (same-family-newer / variant-of / other-quant / identical / "
+                "unrelated), its best PLACEMENT on this host's hardware, and whether the scan "
+                "judged it interesting — runnable when idle AND (related to something installed "
+                "OR its category has nothing installed yet). Identity-variant rows "
+                "(abliterated / uncensored / nsfw / roleplay) are TAGGED and kept, never "
+                "dropped: variants='hide' is the default view and 'show' includes them. "
+                "The reply also carries the per-category ledger, so a category that found "
+                "nothing says 'no reputable release this week' instead of being "
+                "indistinguishable from a broken scanner. A NULL relation means the lineage "
+                "pass has not seen the row, which is NOT the same as 'unrelated'."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "category": {"type": "string", "description": "One wanted bucket, e.g. 'text-abliterated' or '3d'."},
+                    "variants": {"type": "string", "enum": ["hide", "show"], "default": "hide", "description": "Whether rows tagged abliterated/uncensored/nsfw/roleplay are listed. They are never deleted."},
+                    "interesting": {"type": "boolean", "default": False, "description": "Only rows the scan judged worth a look."},
+                    "status": {"type": "string", "enum": ["new", "acknowledged", "installed", "dismissed"]},
+                    "limit": {"type": "integer", "default": 40, "minimum": 1, "maximum": 200},
+                },
+            },
+        ),
+        Tool(
+            name="model_consumers",
+            description=(
+                "The code-derived consumer map: which tool on THIS host uses which model "
+                "unit, each row proven by a config file:line. Answers 'who would break if "
+                "this model went away', 'which references point at a file that is not here' "
+                "(dead refs, unit_id NULL) and 'which models does a consumer name but its own "
+                "bind mount cannot reach' (unreachable — a symlink that resolves for a shell "
+                "and not for the container). tier is policy, not liveness: PROTECTED means a "
+                "standing ruling that the model must never be moved or deleted, and it holds "
+                "while the service is stopped. Use unreferenced=true for the units no declared "
+                "consumer names — evidence for a conversation, NEVER grounds for deleting "
+                "anything, because a loader can build its path at runtime. Reads the cached "
+                "table; refresh=true re-walks the declared roots. Returns "
+                "{configured: false, reason} when the host declares no consumer roots — that "
+                "is a supported install, and is NOT the same as 'nothing uses any model'."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "unit": {"type": "string", "description": "Only references resolving to this model unit (id or substring)."},
+                    "consumer": {"type": "string", "description": "Only this consumer, by name (e.g. tm-mitate)."},
+                    "tier": {"type": "string", "enum": ["PROTECTED", "ACTIVE", "ARCHIVE"], "description": "Only consumers in this protection tier."},
+                    "dead": {"type": "boolean", "default": False, "description": "Only references that resolve to no unit on this host."},
+                    "unreachable": {"type": "boolean", "default": False, "description": "Only references this consumer's own mount cannot reach."},
+                    "unreferenced": {"type": "boolean", "default": False, "description": "Also list units no declared consumer names."},
+                    "refresh": {"type": "boolean", "default": False, "description": "Re-walk the consumer roots before answering."},
+                    "limit": {"type": "integer", "default": 40, "minimum": 1, "maximum": 500},
+                },
+            },
+        ),
+        Tool(
+            name="model_fit",
+            description=(
+                "WHERE on this host's hardware a model could actually run — the whole "
+                "PLACEMENT SPACE, not one GPU's verdict. Evaluates, in order: the model on "
+                "one card; tensor-split across every card; GPU layers plus system RAM for "
+                "the rest; MoE expert offload (attention resident, cold experts in RAM); and "
+                "CPU alone. Each placement carries est VRAM per GPU, est RAM, offloaded "
+                "percent, a speed class (fast|usable|slow) and a one-line why. "
+                "`runnable_idle` is the OR over the set — a model that does not fit the "
+                "biggest card may still be perfectly runnable split or offloaded, and "
+                "answering with one card's result is the mistake this tool exists to stop. "
+                "Pass now=true to also decide against what is free RIGHT NOW (okuro's broker "
+                "ledger plus live nvidia-smi): a placement that fits idle and not now is a "
+                "QUEUE, not a refusal. Nothing is loaded and no GPU is touched — the inputs "
+                "are a file size, a parsed name and at most one GGUF metadata header. "
+                "Media subjects (image/video/audio/3d) are labelled basis='media-estimate' "
+                "because their activation and swap fractions are declared constants, not "
+                "measurements; text is the precision target. Exactly one of unit or release."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "unit": {"type": "string", "description": "An installed unit, by unit_id, rel_path or name."},
+                    "release": {"type": "string", "description": "A discovery candidate, by HuggingFace id or name."},
+                    "size_gb": {"type": "number", "description": "Card size for a release that carries none."},
+                    "now": {"type": "boolean", "default": False, "description": "Also decide against VRAM free at this instant."},
+                    "ctx": {"type": "integer", "description": "Context length to size the KV cache at (default: the host's)."},
+                },
+            },
+        ),
+        Tool(
+            name="model_lineage",
+            description=(
+                "What LINE a model belongs to, and how it relates to what is already "
+                "installed. Parses a name — filename, directory, HuggingFace id, or a "
+                "tm-inference alias — into family, version, total and active params, MoE "
+                "flag, quant, variant tags and author, then relates it to installed units: "
+                "same-family-newer, same-family-same-version-other-quant, same-family-older, "
+                "variant-of, identical, or unrelated, each with a confidence and a why. "
+                "This is the question the discovery feed could never answer, because the "
+                "old dedup compared catalog_id strings EXACTLY: a newer quant of a model "
+                "already on disk read as something brand new. Family match is required for "
+                "any relation but unrelated, and so is size — a 3B is not an update to your "
+                "70B. Specialisations fork the family (Qwen3-Coder is never offered as an "
+                "update to Qwen3) while abliterated/uncensored/nsfw stay TAGS, so an "
+                "abliterated build relates to its stock twin as variant-of. An EMPTY "
+                "relation list means no installed unit of that family — which is NOT the "
+                "same as unrelated. A blob store (ollama) has no parseable family and says "
+                "so rather than guessing. Exactly one of unit or release."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "unit": {"type": "string", "description": "An installed unit, by unit_id, rel_path or name."},
+                    "release": {"type": "string", "description": "A candidate, by HuggingFace id or name."},
+                    "include_unrelated": {"type": "boolean", "default": False, "description": "Also list units the candidate is unrelated to."},
+                    "limit": {"type": "integer", "default": 20, "minimum": 1, "maximum": 200},
+                },
+            },
+        ),
+        Tool(
+            name="model_swap_plan",
+            description=(
+                "PLAN a model replacement — and never perform one. A swap plan is one row per "
+                "config LINE the replacement would touch, each proven by a file:line, each "
+                "carrying the rewritten reference in the SAME SHAPE that line already uses "
+                "(an absolute path stays absolute, a path written the way a CONTAINER sees it "
+                "stays a container path, a bucket-relative suffix keeps its segment count, a "
+                "registry alias stays an alias) and a unified diff of that one line. okuro "
+                "NEVER edits a consumer config: action='apply' records that a PERSON applied "
+                "it and returns the patch to apply by hand. A line that names a shared parent "
+                "DIRECTORY is reported as not rewritable with its reason, because repointing "
+                "it would move every model underneath it. "
+                "THE GATE: a PROTECTED consumer's plan cannot reach `applied` until every "
+                "checklist item is ticked (action='tick'), and an ARCHIVE consumer is not "
+                "swappable at all. A headroom shortfall is severity 'warn' and NEVER refuses "
+                "— there is no headroom floor. mode='side-by-side' keeps both models: nothing "
+                "is rewritten, the diff still shows what a replace would change, and the "
+                "headroom warning still applies because the new bytes are added rather than "
+                "exchanged. Returns {configured: false, reason} when the host declares no "
+                "consumer roots."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "action": {"type": "string", "enum": ["propose", "list", "show", "tick", "apply", "reject"], "description": "What to do. Default: list."},
+                    "consumer": {"type": "string", "description": "propose/list: the tool whose config would change."},
+                    "unit_old": {"type": "string", "description": "propose: the unit being replaced (unit_id, rel_path or name)."},
+                    "new": {"type": "string", "description": "propose: the replacement — an installed unit, or a HuggingFace id for a release that is not downloaded."},
+                    "mode": {"type": "string", "enum": ["replace", "side-by-side"], "default": "replace"},
+                    "kind": {"type": "string", "enum": ["unit", "release"], "description": "propose: force how `new` is read. Default: a unit when one resolves, a release otherwise."},
+                    "note": {"type": "string", "description": "propose: free text stored with the plan."},
+                    "plan": {"type": "string", "description": "show/tick/apply/reject: the plan id (a unique prefix is accepted)."},
+                    "item": {"type": "integer", "minimum": 1, "description": "tick: the 1-based checklist index."},
+                    "why": {"type": "string", "description": "reject: why this swap is not happening. Required."},
+                    "state": {"type": "string", "enum": ["proposed", "testing", "applied", "rejected"], "description": "list: only plans in this state."},
+                    "unit": {"type": "string", "description": "list: only plans replacing this unit."},
+                    "limit": {"type": "integer", "default": 50, "minimum": 1, "maximum": 500},
+                },
+            },
+        ),
+        Tool(
+            name="model_pull",
+            description=(
+                "DOWNLOAD a model into one of this host's declared model stores, and "
+                "register it so the inventory can see it. The destination is the first "
+                "HOT store plus the bucket the model's modality belongs in (text/gguf, "
+                "image, video, audio, vision, 3d) — the SAME rule model_swap_plan uses "
+                "to predict where an undownloaded release would land, so a swap diff and "
+                "a pull cannot disagree. `store` picks another declared store and `to` "
+                "gives a path relative to its root; a path outside a declared store is "
+                "the one thing this refuses. "
+                "HEADROOM IS A WARNING AND NEVER A REFUSAL (ruling 8): the free space, "
+                "the download size and what is left are reported on every surface and "
+                "the download proceeds regardless. An unknown size says so and proceeds "
+                "too. `file` is an exact name or a glob and is the answer to a GGUF repo "
+                "that ships twenty quants — without it one quant is chosen by preference "
+                "order, never the whole repo. "
+                "On completion: a scan SCOPED to the new path, then lineage, then "
+                "placement fit, then the matching discovery row is marked installed — so "
+                "the unit appears in model_inventory with family, quant and best "
+                "placement before this returns 'installed'. "
+                "dry_run=true stops after the headroom line and downloads nothing; it is "
+                "the only mode that reaches no download call at all. Returns "
+                "{ok: false, reason} when the host declares no model store."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "ref": {"type": "string", "description": "A HuggingFace repo id, 'huggingface:Org/Name', or 'civitai:<id>'."},
+                    "store": {"type": "string", "description": "Declared store to pull into. Default: the first hot store."},
+                    "to": {"type": "string", "description": "Destination RELATIVE to the store root, overriding the modality bucket."},
+                    "file": {"type": "string", "description": "Exact filename or glob to fetch, e.g. '*Q4_K_M*'."},
+                    "dry_run": {"type": "boolean", "default": True, "description": "true (default) = plan only. Set false to actually download."},
+                },
+                "required": ["ref"],
+            },
+        ),
+        Tool(
             name="comfy_workflow_status",
             description="Check whether a ComfyUI workflow is registered for a model+task — the 'no workflow yet, create one?' readiness check.",
             inputSchema={
@@ -4569,6 +4871,370 @@ async def handle_tool(name: str, arguments: dict) -> list[TextContent]:
         lines.append(f"- prompt used: {r['prompt_used']}")
         for p in r["paths"]:
             lines.append(f"- {p}")
+        return _text("\n".join(lines))
+
+    if name == "model_discoveries":
+        from okuro.ai_models import list_category_scans, list_discoveries
+        variants = str(arguments.get("variants") or "hide")
+        rows = list_discoveries(
+            category=arguments.get("category") or None,
+            variants=variants,
+            interesting_only=bool(arguments.get("interesting")),
+            status=arguments.get("status") or None,
+            limit=int(arguments.get("limit") or 40),
+        )
+        ledger = [r for r in list_category_scans()
+                  if not arguments.get("category")
+                  or r["category"] == arguments["category"]]
+        lines = ["**Release scan — per wanted category**", "",
+                 "| category | source | fetched | passed gate | published | interesting | state |",
+                 "|---|---|---:|---:|---:|---:|---|"]
+        for r in ledger:
+            state = "**no reputable release**" if r["zero_result"] else "ok"
+            lines.append(
+                f"| {r['category']} | {r['source']} | {r['fetched']} | "
+                f"{r['passed_gate']} | {r['published']} | {r['interesting']} | {state} |")
+        if not ledger:
+            lines.append("| _(no scan recorded yet — run `okuro models scan`)_ | | | | | | |")
+        lines += ["", f"**Candidates** — {len(rows)} shown, variants={variants}", "",
+                  "| name | category | GB | relation | target | tags | interesting |",
+                  "|---|---|---:|---|---|---|---|"]
+        for d in rows:
+            tgt = (d.get("relation_target") or "").split(":", 1)[-1]
+            lines.append(
+                f"| {d.get('display_name') or d['catalog_id']} | "
+                f"{d.get('category') or '-'} | {(d.get('min_vram_gb') or 0):.1f} | "
+                f"{d.get('relation') or '_not asked_'} | {tgt or '-'} | "
+                f"{', '.join(d.get('identity_variants') or []) or '-'} | "
+                f"{'★ ' if d.get('interesting') else ''}{d.get('interesting_why') or '-'} |")
+        if not rows:
+            lines.append("| _(nothing matches — `variants: show` includes tagged variants)_ | | | | | | |")
+        return _text("\n".join(lines))
+
+    if name == "model_inventory":
+        from okuro.ai_models import store_scan
+        limit = int(arguments.get("limit") or 40)
+        inv = store_scan.inventory(
+            store=arguments.get("store"),
+            fmt=arguments.get("format"),
+            status=arguments.get("status"),
+            refresh_mode=arguments.get("refresh"),
+            want_twins=bool(arguments.get("twins")),
+            limit=limit,
+        )
+        if not inv.get("configured"):
+            return _text(f"⚠️ {inv['reason']}")
+        lines = ["**Model stores**", "",
+                 "| store | tier | units | GB | broken | missing | identified | last scan |",
+                 "|---|---|---:|---:|---:|---:|---:|---|"]
+        tiers = {s["name"]: s["tier"] for s in inv["stores"]}
+        for s in inv["summary"]:
+            lines.append(
+                f"| {s['store']} | {tiers.get(s['store'], '?')} | {s['units']} | "
+                f"{s['size_gb']:,.1f} | {s['broken']} | {s['missing']} | "
+                f"{s['identified']} | {s['last_scanned'] or 'never'} |")
+        if not inv["summary"]:
+            lines.append("| _(no units scanned yet — call with refresh='stat')_ | | | | | | | |")
+        if inv.get("twins"):
+            for how in ("identity", "size"):
+                rows = inv["twins"][how]
+                lines.append("")
+                lines.append(f"**Cross-store twins by {how}** — {len(rows)} found")
+                for t in rows[:limit]:
+                    lines.append(f"- {t['size_gb']:,.1f} GB on {t['stores']} "
+                                 f"({t['evidence']}): {t['unit_ids']}")
+        else:
+            lines.append("")
+            lines.append(f"**Units** — {inv['totals']['units']} shown, "
+                         f"{inv['totals']['size_gb']:,.1f} GB")
+            for u in inv["units"][:limit]:
+                mark = "" if u["status"] == "ok" else f" [{u['status']}: {u.get('note') or ''}]"
+                owners = u.get("consumers") or []
+                who = (f" · {u.get('tier') or 'ACTIVE'}: {', '.join(owners)}"
+                       if owners else " · no declared consumer")
+                lines.append(f"- `{u['store']}` {u['size_gb']:,.1f} GB · {u['format']} · "
+                             f"{u['layout']} · {u['rel_path']}{who}{mark}")
+        return _text("\n".join(lines))
+
+    if name == "model_consumers":
+        from okuro.ai_models import consumers as consumer_scan
+        limit = int(arguments.get("limit") or 40)
+        res = consumer_scan.consumer_map(
+            unit=arguments.get("unit"),
+            consumer=arguments.get("consumer"),
+            tier=arguments.get("tier"),
+            dead=bool(arguments.get("dead")),
+            unreachable=bool(arguments.get("unreachable")),
+            unreferenced=bool(arguments.get("unreferenced")),
+            refresh=bool(arguments.get("refresh")),
+            limit=limit,
+        )
+        if not res.get("configured"):
+            return _text(f"\u26a0\ufe0f {res['reason']}")
+        lines = ["**Model consumers**", "",
+                 "| tier | consumer | run mode | state | refs | units | dead | unreachable |",
+                 "|---|---|---|---|---:|---:|---:|---:|"]
+        for c in res["consumers"]:
+            lines.append(
+                f"| {c['tier']} | {c['consumer']} | {c['run_mode']} | {c['state']} | "
+                f"{c['refs']} | {c['units']} | {c['dead']} | {c['unreachable']} |")
+        if not res["consumers"]:
+            lines.append("| _(nothing scanned yet \u2014 call with refresh=true)_ | | | | | | | |")
+        lines.append("")
+        lines.append(f"**References** \u2014 {res['totals']['rows']} shown, "
+                     f"{res['totals']['dead']} dead, "
+                     f"{res['totals']['unreachable']} unreachable")
+        for r in res["rows"][:limit]:
+            target = r["unit_id"] or "\u2014 DEAD REF"
+            mark = "" if r["reachable"] else f" [unreachable: {r.get('note') or ''}]"
+            lines.append(f"- `{r['consumer']}` {r['model_ref']} \u2192 {target}{mark} "
+                         f"\u00b7 {r['config_path']}:{r['line']}")
+        if res.get("unreferenced") is not None:
+            lines.append("")
+            lines.append(f"**Units no declared consumer names** \u2014 "
+                         f"{len(res['unreferenced'])}. Evidence for a conversation, "
+                         f"never grounds for deleting anything: a loader can build "
+                         f"its path at runtime and leave no reference to find.")
+            for u in res["unreferenced"][:limit]:
+                lines.append(f"- `{u['store']}` {u['size_gb']:,.1f} GB \u00b7 {u['rel_path']}")
+        return _text("\n".join(lines))
+
+    if name == "model_fit":
+        from okuro.ai_models import fitting as _F
+        unit, release = arguments.get("unit"), arguments.get("release")
+        if bool(unit) == bool(release):
+            return _text("\u26a0\ufe0f pass exactly one of unit or release")
+        as_now = bool(arguments.get("now"))
+        hw = _F.detect_hardware(now=as_now)
+        if unit:
+            res = _F.fit_unit(unit, hw, now=as_now, context=arguments.get("ctx"))
+        else:
+            res = _F.fit_release(release, hw, now=as_now,
+                                 size_gb=arguments.get("size_gb"),
+                                 context=arguments.get("ctx"))
+        if res.get("found") is False:
+            return _text(f"\u26a0\ufe0f {res.get('reason')}")
+        if not res.get("placements"):
+            return _text(f"\u26a0\ufe0f {res.get('reason') or 'nothing to place'}")
+        s_, h_ = res["subject"], res["hardware"]
+        lines = [
+            f"**{s_['name'] or s_['subject_id']}** \u2014 {s_['size_gb']:,.1f} GB "
+            f"{s_['quant'] or 'quant unknown'} \u00b7 {s_['modality']} \u00b7 "
+            f"{s_['context']} ctx", ""]
+        if res.get("warning"):
+            lines += [f"\u26a0\ufe0f {res['warning']}", ""]
+        if res.get("placement_note"):
+            lines += [f"\u26a0\ufe0f {res['placement_note']}", ""]
+        lines += [
+            "| " + " | ".join(g["name"] for g in h_["gpus"]) + " | RAM |",
+            "|" + "---|" * (len(h_["gpus"]) + 1),
+            "| " + " | ".join(f"{g['total_gb']:g} GB" for g in h_["gpus"])
+            + f" | {h_['ram_available_gb']:g} of {h_['ram_total_gb']:g} GB free |",
+            "",
+            f"weights {res['weights_gb']:,.1f} GB ({res['weights_basis']}) \u00b7 "
+            f"KV {res['kv_gb']:,.1f} GB \u00b7 basis {res['basis']}", "",
+            "| mode | gpu | VRAM GB | RAM GB | offload | speed | idle | now |",
+            "|---|---|---:|---:|---:|---|---|---|"]
+        for p in res["placements"]:
+            lines.append(
+                f"| {p['mode']} | {p['gpu'] or '-'} | {p['est_vram_gb']:,.1f} | "
+                f"{p['est_ram_gb']:,.1f} | {p['offloaded_pct']:.0f}% | "
+                f"{p['speed_class']} | {'yes' if p['fits_idle'] else 'no'} | "
+                f"{'yes' if p['fits_now'] else 'no'} |")
+        best = res.get("best")
+        lines.append("")
+        if best:
+            lines.append(f"**best when idle**: {best['mode']}"
+                         + (f" on {best['gpu']}" if best["gpu"] else "")
+                         + f" \u2014 {best['speed_class']}. {best['why']}")
+        else:
+            lines.append("**nothing fits this host**, CPU-only included.")
+        if as_now and res.get("runnable_now") is False:
+            lines.append("Nothing fits right now \u2014 the GPUs are busy. "
+                         "That is a queue, not a no.")
+        return _text("\n".join(lines))
+
+    if name == "model_lineage":
+        from okuro.ai_models import lineage as _L
+        unit, release = arguments.get("unit"), arguments.get("release")
+        if bool(unit) == bool(release):
+            return _text("\u26a0\ufe0f pass exactly one of unit or release")
+        limit = int(arguments.get("limit") or 20)
+        if unit:
+            res = _L.unit_lineage(unit)
+            if not res.get("found"):
+                return _text(f"\u26a0\ufe0f {res.get('reason')}")
+            p, u = res["lineage"], res["unit"]
+            rel = res.get("siblings") or []
+            head = (f"**{u['rel_path']}** \u2014 {u['size_gb']:,.1f} GB on "
+                    f"{u['store']}")
+            title = f"Other units in family {p['family'] or '?'}"
+        else:
+            res = _L.relate_release(
+                release, include_unrelated=bool(arguments.get("include_unrelated")))
+            p = res["candidate"]
+            rel = res.get("relations") or []
+            head = f"**{release}**"
+            title = "Relation to installed units"
+        lines = [head,
+                 f"family {p['family_label'] or 'unknown'} \u00b7 "
+                 f"{p['params_total_b'] or '?'}B"
+                 + (f" ({p['params_active_b']}B active, MoE)" if p.get("params_active_b") else "")
+                 + f" \u00b7 quant {p['quant'] or '-'} \u00b7 "
+                 f"tags {', '.join(p['variant_tags']) or '-'} \u00b7 "
+                 f"confidence {p['confidence']}", ""]
+        if res.get("reason"):
+            lines.append(f"\u26a0\ufe0f {res['reason']}")
+            return _text("\n".join(lines))
+        if not rel:
+            lines.append("No installed unit of this family \u2014 nothing to "
+                         "relate it to. That is NOT the same as unrelated.")
+            return _text("\n".join(lines))
+        lines += [f"**{title}** \u2014 {len(rel)}", "",
+                  "| relation | conf | store | GB | quant | unit |",
+                  "|---|---:|---|---:|---|---|"]
+        for r in rel[:limit]:
+            un = r["unit"]
+            lines.append(
+                f"| {r['relation']} | {r['confidence']:.2f} | "
+                f"{un.get('store', '-')} | {un.get('size_gb', 0):,.1f} | "
+                f"{un.get('quant') or '-'} | "
+                f"{(un.get('rel_path') or un.get('unit_id') or '')} |")
+        lines.append("")
+        for r in rel[:limit]:
+            lines.append(f"- {r['relation']}: {r['why']}")
+        return _text("\n".join(lines))
+
+    if name == "model_pull":
+        from okuro.ai_models import acquire as _A
+        ref = str(arguments.get("ref") or "").strip()
+        if not ref:
+            return _text("⚠️ ref is required — a HuggingFace repo id or civitai:<id>")
+        dry = arguments.get("dry_run")
+        dry = True if dry is None else bool(dry)
+        try:
+            res = _A.pull_model(ref, store=arguments.get("store"),
+                                to=arguments.get("to"),
+                                file=arguments.get("file"), dry_run=dry)
+        except Exception as exc:
+            return _text(f"⚠️ {exc}")
+        if not res.get("ok") and res.get("reason"):
+            return _text(f"⚠️ {res['reason']}")
+
+        d = res.get("destination") or {}
+        f = res.get("files") or {}
+        h = res.get("headroom") or {}
+        lines = [f"**{res.get('display_name') or ref}** — "
+                 f"{'dry run' if dry else res.get('state', 'pulled')}", "",
+                 "| field | value |", "|---|---|",
+                 f"| destination | `{d.get('path')}` |",
+                 f"| store | {d.get('store')} ({d.get('tier')}) |",
+                 f"| why | {d.get('why')} |",
+                 f"| files | {len(f.get('files') or [])}"
+                 + (f", {f['total_gb']} GB" if f.get("total_gb") else ", size not published")
+                 + " |",
+                 f"| selection | {f.get('why')} |", ""]
+        lines.append(("⚠️ " if h.get("warn") else "") + str(h.get("text") or ""))
+        if dry:
+            lines += ["", "Files that would be pulled:"]
+            for row in (f.get("files") or [])[:25]:
+                sz = row.get("size_bytes")
+                lines.append(f"- `{row['name']}`"
+                             + (f" — {sz / 1024 ** 3:.2f} GB" if sz else ""))
+            if len(f.get("files") or []) > 25:
+                lines.append(f"- _… {len(f['files']) - 25} more_")
+            lines += ["", "_Nothing was downloaded. Call again with "
+                      "dry_run=false to pull._"]
+            return _text("\n".join(lines))
+
+        lines += ["", "| unit | GB | family | quant | best placement |",
+                  "|---|---|---|---|---|"]
+        for u in res.get("units") or []:
+            best = u.get("best_fit") or {}
+            lines.append(
+                f"| `{u['unit_id']}` | {u.get('size_gb', 0):,.1f} | "
+                f"{u.get('family') or '-'} | {u.get('quant') or '-'} | "
+                f"{best.get('mode', '-')}"
+                + (f" · {best['gpu']}" if best.get("gpu") else "") + " |")
+        if res.get("discovery_marked_installed"):
+            lines.append("")
+            lines.append("Discovery row marked **installed**.")
+        for r in res.get("results") or []:
+            lines.append(f"See results ({r['label']}): {r['url']}")
+        return _text("\n".join(lines))
+
+    if name == "model_swap_plan":
+        from okuro.ai_models import swap as _S
+        action = str(arguments.get("action") or "list")
+        limit = int(arguments.get("limit") or 50)
+        try:
+            res = _S.swap_plan(action, **{k: v for k, v in arguments.items()
+                                          if k != "action"})
+        except KeyError as exc:
+            return _text(f"⚠️ action={action} needs {exc}")
+        if res.get("configured") is False:
+            return _text(f"⚠️ {res['reason']}")
+
+        if action == "list":
+            lines = [f"**Swap plans** — {res['totals']['plans']}", "",
+                     "| plan | state | consumer | tier | mode | gate | lines | new |",
+                     "|---|---|---|---|---|---|---|---|"]
+            for p in res["plans"][:limit]:
+                t = p["totals"]
+                lines.append(
+                    f"| {p['plan_group']} | {p['state']} | {p['consumer']} | "
+                    f"{p['tier']} | {p['mode']} | "
+                    f"{t['checklist_done']}/{t['checklist_total']} | "
+                    f"{t['rewritable']}/{t['rows']} | {p['new_ref']} |")
+            if not res["plans"]:
+                lines.append("| _(none — action='propose' to make one)_ | | | | | | | |")
+            lines.append("")
+            lines.append("okuro never edits a consumer config. `apply` records "
+                         "that a PERSON applied the plan and returns the patch.")
+            return _text("\n".join(lines))
+
+        plan = res.get("plan")
+        if plan is None:
+            return _text(f"⚠️ {res.get('reason') or 'refused'}")
+        t = plan["totals"]
+        lines = []
+        if not res.get("ok"):
+            lines += [f"⚠️ **refused** — {res.get('reason')}", ""]
+        lines += [
+            f"**{plan['plan_group']}** — {plan['consumer']} "
+            f"[{plan['tier']}] · {plan['mode']} · **{plan['state']}**",
+            f"`{plan['unit_old']}` → `{plan['new_ref']}` "
+            f"({plan['new_kind']})",
+            f"relation {plan['relation'] or '—'}"
+            + (f" · {plan['relation_why']}" if plan.get("relation_why") else ""),
+            f"{t['rows']} line(s) over {t['files']} file(s) — "
+            f"{t['rewritable']} rewritable, {t['unrewritable']} not", "",
+            f"**Gate** — {t['checklist_done']}/{t['checklist_total']} ticked"]
+        for i, c in enumerate(plan["checklist"], 1):
+            lines.append(f"{i}. [{'x' if c['done'] else ' '}] {c['item']}")
+        if plan["blockers"]:
+            lines += ["", "**Blockers**"]
+            for b in plan["blockers"]:
+                lines.append(f"- [{b['severity']}] {b['text']}")
+        lines += ["", "**Lines this swap would change**", "",
+                  "| location | kind | rewritable | new reference |",
+                  "|---|---|---|---|"]
+        for r in plan["rows"][:limit]:
+            lines.append(
+                f"| {r['location']} | {r['match_kind'] or '—'} | "
+                f"{'yes' if r['rewritable'] else 'NO'} | "
+                f"{r['new_ref_written'] or '—'} |")
+        for r in plan["rows"][:limit]:
+            if r["rewrite_note"]:
+                lines.append(f"- `{r['location']}`: {r['rewrite_note']}")
+        if res.get("apply_by_hand"):
+            lines += ["", "**Apply this by hand — okuro has written nothing**",
+                      "", "```diff", res["apply_by_hand"].rstrip("\n"), "```"]
+        elif action == "show":
+            diffs = [r["diff"] for r in plan["rows"][:limit] if r["diff"]]
+            if diffs:
+                lines += ["", "```diff", "\n".join(d.rstrip("\n") for d in diffs),
+                          "```"]
         return _text("\n".join(lines))
 
     if name == "comfy_workflow_status":

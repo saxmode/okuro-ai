@@ -4,6 +4,7 @@ import { Dialog as DialogPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 import { useFrameStamp } from "@/lib/ground-portal"
+import { usePaneModalOpen } from "@/lib/pane-active"
 
 /**
  * Sheet — right-anchored (default) slide-over panel built on radix
@@ -15,10 +16,26 @@ import { useFrameStamp } from "@/lib/ground-portal"
  * ``SheetContent`` (e.g. ``w-[min(820px,100vw)]``).
  */
 
+/**
+ * A SHEET IS A MODAL TOO, so it takes the same pane rule as `Dialog` — it is
+ * built on the same Radix root and sets the same `pointer-events: none` on
+ * `<body>`. Fixing only `dialog.tsx` would leave five of the 29 sites broken.
+ * The rule and its measurements live in `usePaneModalOpen`.
+ */
 function Sheet({
+  open,
+  onOpenChange,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Root>) {
-  return <DialogPrimitive.Root data-slot="sheet" {...props} />
+  const paneOpen = usePaneModalOpen(open, onOpenChange)
+  return (
+    <DialogPrimitive.Root
+      data-slot="sheet"
+      open={paneOpen}
+      onOpenChange={onOpenChange}
+      {...props}
+    />
+  )
 }
 
 function SheetTrigger({

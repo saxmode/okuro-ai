@@ -32,6 +32,7 @@ from pathlib import Path
 
 import yaml
 from okuro.db.engine import okuro_home
+from okuro.fsutil import data_entries, rejection_reason
 
 logger = logging.getLogger("okuro.flows")
 
@@ -123,13 +124,33 @@ def _flow_path(flow_id: str) -> Path:
 
 
 def list_flows() -> list[Flow]:
-    if not FLOWS_DIR.exists():
-        return []
+    """Every flow in ``~/.okuro/flows/`` — and nothing else that lives there.
+
+    This walker used to trust every ``*.yaml`` in the directory and take the
+    flow's identity from the filename stem. Those are the same two assumptions
+    that let a cortex ``.okuro-index.yaml`` sidecar become a canon tool
+    (2026-07-28) and a scheduled recurring job (2026-09-17): ``Path.glob``
+    does not implement the shell's hidden-file rule, so the sidecar matched,
+    and the stem gave it a plausible id. ``~/.okuro/flows`` has no sidecar
+    today — this closes it before it does, because the rule now has one home
+    and this is the third subsystem to need it.
+
+    ``name`` is the required key because it is the one field ``Flow`` declares
+    without a default; ``id`` is not, because it is derived from the stem right
+    below.
+    """
     flows: list[Flow] = []
-    for yaml_file in sorted(FLOWS_DIR.glob("*.yaml")):
+    for yaml_file in data_entries(FLOWS_DIR, suffixes=(".yaml",)):
         try:
             with open(yaml_file) as f:
                 data = yaml.safe_load(f) or {}
+            reason = rejection_reason(data, require_all=("name",))
+            if reason:
+                logger.warning(
+                    "Ignoring %s in %s: not a flow — %s",
+                    yaml_file.name, FLOWS_DIR, reason,
+                )
+                continue
             if not data.get("id"):
                 data["id"] = yaml_file.stem
             flows.append(Flow.from_dict(data))

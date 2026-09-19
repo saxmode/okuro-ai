@@ -31,7 +31,7 @@ the adversarial reviewer, decision gates, artifacts, the web UI — is identical
     {
       "kind": "subtask",              # REQUIRED — nodes without it are decoration
       "phase": 1,                     # REQUIRED — explicit, not derived from depth
-      "role": "researcher",           # REQUIRED — must exist in the role catalogue
+      "role": "researcher",           # REQUIRED — must exist in the roles table
       "prompt": "…",                  # the subagent brief; {param} placeholders filled
       "acceptance_criteria": ["…"],
       "risk": "LOW|MED|HIGH",         # default MED

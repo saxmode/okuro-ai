@@ -45,15 +45,24 @@ function luminance(color?: string): number | null {
 
 /** Pick ink + palette for the surface the chart sits on. Resolves the effective
  *  surface as the element's OWN `bg` if set, else the `surface` the caller
- *  passes (the deck background / an underlying box), else the okuro dark deck.
+ *  passes (the deck background / an underlying box).
  *  A light surface flips to dark ink + the light palette; dark keeps light ink +
- *  the dark palette. Text is always an ink token — never a series colour. */
+ *  the dark palette. Text is always an ink token — never a series colour.
+ *
+ *  THE TWO BRANCHES ARE SYMMETRIC NOW, AND THEY WERE NOT. The light branch was
+ *  achromatic (`#1a1a19` / `#52514e`); the dark branch was okuro's green-white
+ *  (`#e8ffe8`, `rgba(232,255,232,0.62)`). A chart label is deck CONTENT and R4
+ *  exempts content from the kit — but okuro's brand tint on a RECIPIENT's chart
+ *  is not the recipient's content either, and the asymmetry was an oversight
+ *  rather than a decision: nothing anywhere else in the deck is green-white.
+ *  The grid and axis washes were already achromatic in both branches, which is
+ *  what makes this two values rather than a redesign. */
 function inkFor(el: SlideElement, surface?: string): Ink {
   const lum = luminance(el.bg ?? surface);
   const light = lum !== null && lum >= 0.5;
   return light
     ? { primary: "#1a1a19", muted: "#52514e", grid: "rgba(0,0,0,0.10)", axis: "rgba(0,0,0,0.22)", palette: PALETTE_LIGHT }
-    : { primary: "#e8ffe8", muted: "rgba(232,255,232,0.62)", grid: "rgba(255,255,255,0.12)", axis: "rgba(255,255,255,0.24)", palette: PALETTE_DARK };
+    : { primary: "#f5f5f5", muted: "rgba(245,245,245,0.62)", grid: "rgba(255,255,255,0.12)", axis: "rgba(255,255,255,0.24)", palette: PALETTE_DARK };
 }
 
 function esc(s: string): string {

@@ -72,8 +72,8 @@ const TYPE_CLASS: Record<KnowledgeNodeType, string> = {
   memory: "bg-accent-subtle text-accent",
   thought: "bg-warning/15 text-warning",
   artifact: "bg-info/15 text-info",
-  progress: "bg-tertiary/15 text-tertiary",
-  kg_entity: "bg-fg-muted/10 text-fg-muted",
+  progress: "bg-surface-subtle text-tertiary",
+  kg_entity: "bg-surface-subtle text-fg-muted",
 };
 
 export function DetailDrawer({ nodeId, onClose, onSelect }: DetailDrawerProps) {
@@ -88,8 +88,31 @@ export function DetailDrawer({ nodeId, onClose, onSelect }: DetailDrawerProps) {
   if (!nodeId) return null;
 
   return (
+    /**
+     * THE DRAWER IS CONTAINED BY THE CONTENT BOX, NOT BY THE WINDOW.
+     *
+     * `h-screen` + `top-0` was 100vh inside a containing block 56px shorter
+     * (`.content` starts below the shell's strip), so the drawer overshot the
+     * bottom of the frame and anything pinned there was unreachable. And
+     * `right-0` resolves against `.content`'s PADDING box, so it painted across
+     * the whole right ring the content container reserves. Measured at 1366,
+     * both appearances, before -> after:
+     *
+     *   drawer bottom              1080 -> 1024  (`.content` bottom 1024)
+     *   overshoot below .content     56 -> 0
+     *   drawer right             1186.8 -> 1150  (pane right 1150)
+     *   bleed past the pane        36.8 -> 0
+     *
+     * `inset-y-0` takes the height from the containing block instead of from
+     * the viewport, and `--sh-s-32` is the ring the container already reserves,
+     * so the drawer's right edge lands exactly on the pane's.
+     *
+     * `shadow-lg` instead of `shadow-[-4px_0_12px_rgba(0,0,0,0.3)]`: the kit
+     * names its elevations (`--shadow-lg`), and a raw rgba cannot follow the
+     * appearance (D1).
+     */
     <aside
-      className="fixed right-0 top-0 z-30 flex h-screen flex-col border-l border-border-subtle bg-surface shadow-[-4px_0_12px_rgba(0,0,0,0.3)]"
+      className="fixed inset-y-0 right-[var(--sh-s-32)] z-30 flex flex-col border-l border-border-subtle bg-surface shadow-lg"
       style={{ width }}
       role="dialog"
       aria-label="Node detail"
@@ -194,7 +217,7 @@ function Header({
         {node && (
           <span
             className={cn(
-              "rounded-sm px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wider",
+              "rounded-sm px-1.5 py-0.5 text-2xs font-mono case-label tracking-wider",
               TYPE_CLASS[node.type],
             )}
           >
@@ -206,7 +229,7 @@ function Header({
             {node ? (node.topic ? `[${node.topic}] ${node.label}` : node.label) : "—"}
           </div>
           {node?.project && (
-            <div className="font-mono text-2xs uppercase tracking-wider text-tertiary">
+            <div className="font-mono text-2xs case-label tracking-wider text-tertiary">
               {node.project}
             </div>
           )}
@@ -261,7 +284,7 @@ function RelationStrip({
 
   if (nonEmpty.length === 0) {
     return (
-      <div className="px-4 py-3 text-2xs uppercase tracking-wider text-tertiary">
+      <div className="px-4 py-3 text-2xs case-label tracking-wider text-tertiary">
         no relations
       </div>
     );
@@ -271,7 +294,7 @@ function RelationStrip({
     <div className="space-y-2 border-b border-border-subtle px-4 py-3">
       {nonEmpty.map((g) => (
         <div key={g.label}>
-          <div className="flex items-center gap-1.5 text-2xs uppercase tracking-wider text-tertiary">
+          <div className="flex items-center gap-1.5 text-2xs case-label tracking-wider text-tertiary">
             <g.icon className="h-3 w-3" />
             <span>{g.label}</span>
             <span className="font-mono text-tertiary">({g.items.length})</span>
@@ -294,7 +317,7 @@ function RelationStrip({
               </button>
             ))}
             {g.items.length > 30 && (
-              <span className="text-2xs uppercase tracking-wider text-tertiary">
+              <span className="text-2xs case-label tracking-wider text-tertiary">
                 +{g.items.length - 30} more
               </span>
             )}
@@ -330,7 +353,7 @@ function Provenance({
   if (visible.length === 0) return null;
   return (
     <div className="border-b border-border-subtle px-4 py-3">
-      <div className="text-2xs uppercase tracking-wider text-tertiary">Provenance</div>
+      <div className="text-2xs case-label tracking-wider text-tertiary">Provenance</div>
       <dl className="mt-2 grid grid-cols-[6rem_1fr] gap-y-1 font-mono text-xs">
         {visible.map((it) => (
           <Row key={it.k} k={it.k} v={String(it.v)} />
@@ -354,14 +377,14 @@ function Row({ k, v }: { k: string; v: string }) {
 function Body({ body }: { body: string | null | undefined }) {
   if (!body) {
     return (
-      <div className="px-4 py-3 text-2xs uppercase tracking-wider text-tertiary">
+      <div className="px-4 py-3 text-2xs case-label tracking-wider text-tertiary">
         no body
       </div>
     );
   }
   return (
     <div className="px-4 py-3">
-      <div className="text-2xs uppercase tracking-wider text-tertiary">Content</div>
+      <div className="text-2xs case-label tracking-wider text-tertiary">Content</div>
       <div className="mt-2">
         <MarkdownContent variant="compact">{body}</MarkdownContent>
       </div>

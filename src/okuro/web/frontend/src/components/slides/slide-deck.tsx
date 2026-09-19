@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { tokenizeApiSrc } from "@/lib/slides-api";
+import { deckBackground, elementInk } from "./deck-theme";
 import {
   type Arrangement,
   type Deck,
@@ -108,7 +109,7 @@ export function SlideDeck({
     <div
       ref={wrapRef}
       className="relative w-full overflow-hidden rounded-xl border border-border"
-      style={{ height: canvasH * scale, background: deck.background ?? "#0b0f0c" }}
+      style={{ height: canvasH * scale, background: deckBackground(deck) }}
     >
       <div
         className="absolute left-0 top-0 origin-top-left"
@@ -161,7 +162,7 @@ function MorphLayer({ deck, index, duration, easing, maxDepth }: { deck: Deck; i
               height: el.h,
               opacity: opacity * (el.opacity ?? 1),
               backgroundColor: scrim ?? el.bg ?? "rgba(0,0,0,0)",
-              color: el.color ?? "#e8ffe8",
+              color: elementInk(el),
               fontSize: el.fontSize ?? 28,
               borderRadius: el.radius ?? (scrim ? 6 : 0),
             }}
@@ -268,7 +269,7 @@ function staticPaint(el: SlideElement): CSSProperties {
     width: el.w,
     height: el.h,
     backgroundColor: el.bg ?? "rgba(0,0,0,0)",
-    color: el.color ?? "#e8ffe8",
+    color: elementInk(el),
     fontSize: el.fontSize ?? 28,
     borderRadius: el.radius ?? 0,
   };

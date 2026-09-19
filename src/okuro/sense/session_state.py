@@ -145,9 +145,9 @@ _state: dict = {
     # tool outside a small allow-list.
     #
     # WHY A GATE AND NOT A SUGGESTION. Measured over 1,383 sessions: cortex is
-    # instructed in the bootstrap packet, in TOOL-PROTOCOL.md and in every
-    # provider file, and was used in 194. The gated bootstrap, instructed in the
-    # same places, was called in 845. Instruction is not a delivery mechanism;
+    # instructed on every surface okuro emits, and was used in 194. The gated
+    # bootstrap, instructed in the same places, was called in 845 over the same
+    # corpus. Instruction is not a delivery mechanism;
     # the refusal is. Splitting the packet without gating the second half would
     # have deleted the project context from the session rather than moved it.
     #

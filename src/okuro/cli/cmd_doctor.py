@@ -57,9 +57,23 @@ def _fetch_via_orchestrator() -> list[CheckResult] | None:
     """
     try:
         from okuro.keyring.storage import KeyringStorage
+        from okuro.system.install_identity import SERVICE_ORCHESTRATOR, verify_port
         from okuro.system.port_registry import orchestrator_port
     except Exception as exc:  # pragma: no cover — import-time only
         logger.debug("doctor: orchestrator probe unavailable (imports): %s", exc)
+        return None
+
+    # VERIFY BEFORE TRUST. The next few lines post this install's bearer
+    # token to whatever answers on the orchestrator port. On a host with a
+    # second okuro install that is somebody else's API: the token leaks and
+    # their doctor results are rendered as ours. Confirm the identity first;
+    # anything but "ours" falls back to the local run and says why, once.
+    port = orchestrator_port()
+    verdict = verify_port(SERVICE_ORCHESTRATOR, port)
+    if not verdict.usable:
+        if verdict.state != "down":
+            warn(verdict.line())
+        logger.debug("doctor: orchestrator probe skipped (%s)", verdict.state)
         return None
 
     try:
@@ -70,7 +84,7 @@ def _fetch_via_orchestrator() -> list[CheckResult] | None:
     if not token:
         return None
 
-    url = f"http://127.0.0.1:{orchestrator_port()}/api/doctor"
+    url = f"http://127.0.0.1:{port}/api/doctor"
     req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
     try:
         with urllib.request.urlopen(req, timeout=_ORCHESTRATOR_PROBE_TIMEOUT_SECONDS) as resp:

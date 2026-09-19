@@ -100,7 +100,7 @@ function SourceList({
             {isArmed ? (
               <div className="flex shrink-0 items-center gap-1">
                 <button
-                  className="rounded px-1.5 py-0.5 text-[10px] text-destructive hover:bg-destructive/10"
+                  className="rounded px-1.5 py-0.5 text-[10px] text-error hover:bg-error-subtle"
                   disabled={pending}
                   onClick={() =>
                     removeMut.mutate({
@@ -125,7 +125,7 @@ function SourceList({
               </div>
             ) : (
               <button
-                className="shrink-0 rounded p-1 text-fg-subtle hover:bg-destructive/10 hover:text-destructive"
+                className="shrink-0 rounded p-1 text-fg-subtle hover:bg-error-subtle hover:text-error"
                 title="Remove this source"
                 onClick={() => setArmed(key)}
               >
@@ -220,7 +220,7 @@ export function EnrichPanel({ person }: { person: GraphNode }) {
 
   return (
     <div className="mt-4 flex flex-col gap-3 border-t border-border pt-4">
-      <div className="text-[10px] font-medium uppercase tracking-wider text-fg-subtle">
+      <div className="text-[10px] font-medium case-label tracking-wider text-fg-subtle">
         Enrich
       </div>
 

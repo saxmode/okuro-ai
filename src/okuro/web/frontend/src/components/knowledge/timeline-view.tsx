@@ -96,10 +96,10 @@ export function TimelineView({
       {buckets.map((bucket) => (
         <section key={bucket.key}>
           <div className="mb-3 flex items-baseline gap-2">
-            <h3 className="text-xs font-medium uppercase tracking-wider text-fg-muted">
+            <h3 className="text-xs font-medium case-label tracking-wider text-fg-muted">
               {bucket.label}
             </h3>
-            <span className="text-2xs uppercase tracking-wider text-tertiary">
+            <span className="text-2xs case-label tracking-wider text-tertiary">
               {bucket.nodes.length} item{bucket.nodes.length === 1 ? "" : "s"}
             </span>
           </div>
@@ -137,7 +137,7 @@ export function TimelineView({
       ))}
 
       {undated > 0 && (
-        <p className="text-2xs uppercase tracking-wider text-tertiary">
+        <p className="text-2xs case-label tracking-wider text-tertiary">
           {undated} undated item{undated === 1 ? "" : "s"} hidden — see Gallery or Table
         </p>
       )}

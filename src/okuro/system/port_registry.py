@@ -34,17 +34,49 @@ Why three separate ports rather than one shared port:
 Every helper honors an env-var override (``OKURO_PORT``,
 ``OKURO_EMBED_PORT``, ``OKURO_WIZARD_PORT``, ``OKURO_EMBED_URL``) so
 operators can move things if they have to.
+
+PER-INSTALL PORTS (2026-09-16). The defaults above are HOST-wide
+constants, and a host can carry more than one okuro install — a second
+Linux account, a test account, a container. Two installs with the same
+constants collide on the loopback: the loser dies with a bare
+``[Errno 98]`` and the winner answers as if it were the caller's own.
+So a port is now a property of the INSTALL, declared in that install's
+``config.yaml``:
+
+    ports:
+      orchestrator: 13333
+      embed: 13334
+    mcp:
+      http:
+        port: 3090          # pre-existing key, unchanged
+
+Precedence is env → config → built-in default. Env still wins so an
+operator can move a service for one run; config is what survives a
+reboot; the default is what a single-install host has always had, so an
+install that never writes the block behaves exactly as before.
+``okuro ports reassign`` rewrites the block, the unit files and the MCP
+client config together — see ``okuro.system.port_assign``.
 """
 
 from __future__ import annotations
 
+import logging
 import os
 import socket
+from typing import Optional
+
+log = logging.getLogger("okuro.system.port_registry")
 
 ORCHESTRATOR_PORT_DEFAULT = 13333
 EMBED_PORT_DEFAULT = 13334
 WIZARD_PORT_DEFAULT = 13335
 WIZARD_FALLBACK_RANGE = (13336, 13399)
+#: Daemon HTTP-MCP band, per system/conventions.yaml.
+MCP_HTTP_RANGE = range(3090, 3100)
+#: Where a SECOND install on the same host lands when the canonical
+#: 13333/13334 pair is already taken. Above the wizard fallback range so
+#: a transient wizard can never be mistaken for a persistent service.
+ALT_INSTALL_RANGE = range(13400, 13500)
 # Dynamically-launched local inference engines (llama-server, vLLM, ComfyUI)
 # bind here so every okuro-owned engine lands in the 133xx band, below the
 # orchestrator (13333) and clear of embed/wizard — predictable for LAN policy.
@@ -70,6 +102,62 @@ def pick_free_port(port_range: range = LOCAL_INFERENCE_RANGE,
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         s.bind((host, 0))
         return s.getsockname()[1]
+
+
+def config_path():
+    """Path to THIS install's config.yaml (honours ``$OKURO_HOME``)."""
+    from okuro.db.engine import okuro_home
+
+    return okuro_home() / "config.yaml"
+
+
+def read_config() -> dict:
+    """Parse this install's config.yaml, or ``{}``.
+
+    Never raises: a malformed config must not stop a service from
+    resolving a port it has a perfectly good default for.
+    """
+    import yaml
+
+    path = config_path()
+    try:
+        if not path.is_file():
+            return {}
+        return yaml.safe_load(path.read_text()) or {}
+    except Exception as exc:  # noqa: BLE001
+        log.warning("port_registry: config unreadable at %s (%s)", path, exc)
+        return {}
+
+
+def _config_port(key: str) -> Optional[int]:
+    """``ports.<key>`` from this install's config, or None."""
+    block = read_config().get("ports")
+    if not isinstance(block, dict):
+        return None
+    value = block.get(key)
+    if value in (None, ""):
+        return None
+    try:
+        port = int(value)
+    except (TypeError, ValueError):
+        log.warning("port_registry: ports.%s is not an integer (%r)", key, value)
+        return None
+    if not 1 <= port <= 65535:
+        log.warning("port_registry: ports.%s out of range (%d)", key, port)
+        return None
+    return port
+
+
+def _config_mcp_http_port() -> Optional[int]:
+    """``mcp.http.port`` — the daemon's pre-existing config key."""
+    cfg = read_config()
+    value = ((cfg.get("mcp") or {}).get("http") or {}).get("port")
+    if value in (None, ""):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def _port_from_env(var: str, default: int) -> int:
@@ -99,13 +187,52 @@ def _port_from_env(var: str, default: int) -> int:
 
 
 def orchestrator_port() -> int:
-    """Port the persistent orchestrator API binds (and the wizard avoids)."""
-    return _port_from_env("OKURO_PORT", ORCHESTRATOR_PORT_DEFAULT)
+    """Port the persistent orchestrator API binds (and the wizard avoids).
+
+    env ``OKURO_PORT`` → config ``ports.orchestrator`` → 13333.
+    """
+    env = os.environ.get("OKURO_PORT")
+    if env is not None and env.strip():
+        return _port_from_env("OKURO_PORT", ORCHESTRATOR_PORT_DEFAULT)
+    return _config_port("orchestrator") or ORCHESTRATOR_PORT_DEFAULT
 
 
 def embed_port() -> int:
-    """Port the embedding service (``okuro-embed.plist``) binds."""
-    return _port_from_env("OKURO_EMBED_PORT", EMBED_PORT_DEFAULT)
+    """Port the embedding service binds.
+
+    env ``OKURO_EMBED_PORT`` → config ``ports.embed`` → 13334.
+    """
+    env = os.environ.get("OKURO_EMBED_PORT")
+    if env is not None and env.strip():
+        return _port_from_env("OKURO_EMBED_PORT", EMBED_PORT_DEFAULT)
+    return _config_port("embed") or EMBED_PORT_DEFAULT
+
+
+def mcp_http_port() -> Optional[int]:
+    """Daemon HTTP-MCP port, or None when it has never been allocated.
+
+    env ``OKURO_MCP_HTTP_PORT`` → config ``mcp.http.port`` → None.
+    None means "the daemon has never booted on this install" — the same
+    condition ``okuro.mcp.http_server.configured_port`` already reports,
+    and a read-only lookup must never allocate one as a side effect.
+    """
+    env = os.environ.get("OKURO_MCP_HTTP_PORT")
+    if env is not None and env.strip():
+        return _port_from_env("OKURO_MCP_HTTP_PORT", MCP_HTTP_RANGE.start)
+    return _config_mcp_http_port()
+
+
+def service_ports() -> dict:
+    """``{service: port}`` for this install's three long-running services.
+
+    Keys match ``okuro.system.install_identity`` service names so a
+    verdict can be rendered per service without a second mapping.
+    """
+    return {
+        "orchestrator": orchestrator_port(),
+        "embed": embed_port(),
+        "daemon": mcp_http_port(),
+    }
 
 
 def wizard_port_preferred() -> int:

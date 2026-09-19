@@ -23,9 +23,12 @@ logger = logging.getLogger("okuro.orchestrator.scheduler")
 def main():
     from okuro.orchestrator.config import load_config
     from okuro.orchestrator.recurring import (
+        KIND_COMMAND,
         load_recurring_defs,
         get_overdue_defs,
         create_recurring_run,
+        record_outcome,
+        run_command_def,
         update_recurring_after_run,
     )
 
@@ -53,6 +56,30 @@ def main():
     for def_ in overdue:
         logger.info(f"Triggering recurring task: {def_.id!r} (cron: {def_.scheduler!r})")
         try:
+            # A command definition never reaches the engine. It has no
+            # description to decompose and no judgement to make, so there is
+            # nothing for a model to do — see RECURRING_KINDS. The clock is
+            # advanced FIRST, exactly as on the LLM path, so a command that
+            # crashes every run still only fires on its schedule instead of
+            # being retried on every scheduler tick.
+            if def_.kind == KIND_COMMAND:
+                update_recurring_after_run(def_)
+                result = run_command_def(def_)
+                record_outcome(
+                    def_,
+                    run_id=f"cmd-{def_.id}",
+                    outcome=result["outcome"],
+                    summary=result["summary"],
+                )
+                log = logger.info if result["outcome"] == "useful" else logger.error
+                log(
+                    f"Command def {def_.id!r} finished rc={result['returncode']}: "
+                    f"{result['summary']}"
+                )
+                if result["stderr"]:
+                    logger.warning(f"{def_.id!r} stderr: {result['stderr'][:2000]}")
+                continue
+
             task_id = create_recurring_run(def_, config.tasks_dir)
             update_recurring_after_run(def_)
 

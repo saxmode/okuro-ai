@@ -14,6 +14,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { KIND_META, MediaLightbox } from "@/components/assets/media-lightbox";
 import { mediaApi, type MediaAsset, type MediaKind } from "@/lib/assets-api";
+import { countLabel } from "@/lib/capped-count";
 
 const KINDS: MediaKind[] = ["image", "video", "audio", "icon", "illustration"];
 
@@ -28,7 +29,7 @@ function Tile({ a, onOpen }: { a: MediaAsset; onOpen: () => void }) {
       className="group flex flex-col overflow-hidden rounded-lg border border-border text-left transition-colors hover:border-accent/60"
       title={a.title || a.id}
     >
-      <div className="flex aspect-square items-center justify-center bg-black/10">
+      <div className="flex aspect-square items-center justify-center bg-surface-subtle">
         {a.kind === "audio" ? (
           <Music className="h-8 w-8 text-tertiary" />
         ) : a.kind === "video" ? (
@@ -46,11 +47,35 @@ function Tile({ a, onOpen }: { a: MediaAsset; onOpen: () => void }) {
 }
 
 /** The unified media bucket grid. `onBack` returns to the icon browser. */
-export function MediaGrid({ onBack }: { onBack: () => void }) {
+/**
+ * The bucket grid.
+ *
+ * `kind` IS A PROP, NOT STATE, and that is what makes the four declared
+ * sections real. It was `useState("")`, so the shell's `?view=` could not
+ * reach it and `/deliver/media?view=image` rendered the All grid. The mount
+ * owns the mapping section-index <-> kind; this component only reports a
+ * change upward. `onKindChange` is optional so the live `/assets?view=media`
+ * path and any non-shell mount keep working with local state.
+ */
+export function MediaGrid({
+  onBack,
+  kind: kindProp,
+  onKindChange,
+}: {
+  onBack: () => void;
+  kind?: string;
+  onKindChange?: (kind: string) => void;
+}) {
   const [items, setItems] = useState<MediaAsset[]>([]);
   const [kinds, setKinds] = useState<Record<string, number>>({});
   const [tagVocab, setTagVocab] = useState<{ name: string; count?: number }[]>([]);
-  const [kind, setKind] = useState<string>("");
+  /** The fallback for a mount that does not drive the kind — see the header. */
+  const [localKind, setLocalKind] = useState<string>("");
+  const kind = kindProp ?? localKind;
+  const setKind = (next: string) => {
+    if (onKindChange) onKindChange(next);
+    else setLocalKind(next);
+  };
   const [studioOnly, setStudioOnly] = useState(false);
   const [tag, setTag] = useState<string>("");
   const [q, setQ] = useState("");
@@ -86,8 +111,24 @@ export function MediaGrid({ onBack }: { onBack: () => void }) {
   useEffect(() => { void load(); }, [load]);
   useEffect(() => { mediaApi.tags(kind || undefined).then((r) => setTagVocab((r.tags || []).filter((t) => t?.name))).catch(() => {}); }, [kind]);
 
+  /**
+   * R7 (372ccdb2) — "a capped list shows the TRUE TOTAL, never the cap".
+   *
+   * The header read `{total} in the bucket` with `total` = the sum of the
+   * endpoint's `kinds` summary, which IS the true total — so the letter of R7
+   * was already met. What it did not say is that you are not seeing all of
+   * them: `load()` asks for `limit: 120` and the bucket holds 149 (measured),
+   * so 29 assets had no statement and no route to them. There is no
+   * pagination on this grid.
+   *
+   * `countLabel` from the shared module rather than a fourth wording of the
+   * same sentence: "120 of 149 in the bucket" when capped, "29 in the bucket"
+   * when a filter makes the page the whole set. The total is KIND-AWARE — with
+   * IMAGE selected the honest denominator is `kinds.image`, not the sum.
+   */
   const total = Object.values(kinds).reduce((a, b) => a + b, 0);
-  const chip = (on: boolean) => `rounded-md border px-2 py-1 text-xs transition-colors ${on ? "border-accent bg-accent/10 text-accent" : "border-border text-fg hover:border-accent/50"}`;
+  const scopedTotal = kind ? (kinds[kind] ?? 0) : total;
+  const chip = (on: boolean) => `rounded-md border px-2 py-1 text-xs transition-colors ${on ? "border-accent bg-accent-subtle text-accent" : "border-border text-fg hover:border-accent/50"}`;
 
   return (
     <div className="flex h-full flex-col">
@@ -97,7 +138,9 @@ export function MediaGrid({ onBack }: { onBack: () => void }) {
           <ArrowLeft className="h-3.5 w-3.5" /> Icons
         </button>
         <span className="text-sm font-semibold text-fg">Assets · Media</span>
-        <span className="text-xs text-tertiary">{total} in the bucket</span>
+        <span className="text-xs text-tertiary">
+          {countLabel(items.length, scopedTotal, "in the bucket")}
+        </span>
         <div className="ml-auto flex items-center gap-1.5">
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="search…" className="w-40 rounded-md border border-border bg-transparent px-2 py-1 text-sm text-fg placeholder:text-tertiary focus:outline-none" />
           <button onClick={() => setStudioOnly((v) => !v)} className={chip(studioOnly)}>Studio</button>
@@ -122,7 +165,7 @@ export function MediaGrid({ onBack }: { onBack: () => void }) {
       <div className="flex min-h-0 flex-1">
         <div className="min-w-0 flex-1 overflow-y-auto p-4">
           {err ? (
-            <p className="text-sm text-[var(--color-status-error,#f92f77)]">{err}</p>
+            <p className="text-sm text-error">{err}</p>
           ) : loading ? (
             <p className="text-sm text-tertiary">Loading…</p>
           ) : items.length === 0 ? (
@@ -137,7 +180,7 @@ export function MediaGrid({ onBack }: { onBack: () => void }) {
           {/* tag vocabulary */}
           {tagVocab.length > 0 && (
             <div className="mt-4 flex flex-wrap gap-1 border-t border-border pt-3">
-              <span className="mr-1 text-[11px] uppercase tracking-wide text-tertiary">tags</span>
+              <span className="mr-1 text-[11px] case-label tracking-wide text-tertiary">tags</span>
               {tagVocab.slice(0, 40).map((t) => (
                 <button key={t.name} onClick={() => setTag(tag === t.name ? "" : t.name)} className={`rounded border px-1.5 py-0.5 text-[11px] ${tag === t.name ? "border-accent text-accent" : "border-border text-tertiary hover:text-fg"}`}>
                   {t.name}{t.count ? ` ${t.count}` : ""}

@@ -19,9 +19,12 @@ import {
 import { Link } from "react-router";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  ChangeSummary,
+  SourceStatusBadge,
+} from "@/components/sources/source-status";
 import { EmptyState } from "@/components/ui/empty-state";
 import { toast } from "@/components/ui/toast";
-import { PageHeader } from "@/components/shell/page-header";
 import {
   Dialog,
   DialogContent,
@@ -32,6 +35,7 @@ import {
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { formatAge, parseApiDate } from "@/lib/format";
+import { useSectionTitle } from "@/shell/components/PageTitle";
 
 /**
  * /repos — clone and manage repositories for AI code work.
@@ -224,60 +228,45 @@ function ageDays(iso: string | null): number | null {
   return Number.isNaN(d) ? null : (Date.now() - d) / 86_400_000;
 }
 
-// ── Change summary ───────────────────────────────────────────────────
+// ── Change summary + status badge: SHARED WITH CORPORA ───────────────
+// Both were written twice, byte-identically for the badge. Q10 ruled option A
+// (share the primitives, keep two leaves), so they live in
+// `components/sources/source-status.tsx` and this file maps its own data into
+// them. See that file for the measurements and for why `ui/status-badge.tsx`
+// is not the answer.
 
 /** What the last sync pulled in: commits + file delta, or "up to date". */
-function ChangeSummary({ change }: { change: RepoChange | null }) {
+function RepoChangeSummary({ change }: { change: RepoChange | null }) {
   if (!change) return null;
-  if (change.commits === 0)
-    return <span className="text-muted-foreground/70">up to date</span>;
-  return (
-    <span className="inline-flex items-center gap-2">
-      <span className="text-foreground">
-        ↑{change.commits} {change.commits === 1 ? "commit" : "commits"}
-      </span>
-      {change.files > 0 && (
-        <span>
-          {change.files} {change.files === 1 ? "file" : "files"}
-          {(change.insertions > 0 || change.deletions > 0) && (
-            <>
-              {" "}
-              {change.insertions > 0 && (
-                <span className="text-success">+{change.insertions}</span>
-              )}
-              {change.deletions > 0 && (
-                <span className="text-error">
-                  {change.insertions > 0 ? " " : ""}−{change.deletions}
-                </span>
-              )}
-            </>
-          )}
-        </span>
-      )}
-    </span>
-  );
-}
-
-// ── Status badge ─────────────────────────────────────────────────────
-
-function StatusBadge({ status }: { status: Repo["status"] }) {
-  if (status === "ready")
-    return (
-      <Badge className="gap-1 bg-success/15 text-success">
-        <CircleCheck className="size-3" /> ready
-      </Badge>
-    );
-  if (status === "error")
-    return (
-      <Badge className="gap-1 bg-error/15 text-error">
-        <CircleAlert className="size-3" /> error
-      </Badge>
-    );
-  return (
-    <Badge className="gap-1 bg-warning/15 text-warning">
-      <Loader2 className="size-3 animate-spin" /> {status}
-    </Badge>
-  );
+  const parts =
+    change.commits === 0
+      ? []
+      : [
+          <span key="c" className="text-foreground">
+            ↑{change.commits} {change.commits === 1 ? "commit" : "commits"}
+          </span>,
+          ...(change.files > 0
+            ? [
+                <span key="f">
+                  {change.files} {change.files === 1 ? "file" : "files"}
+                  {(change.insertions > 0 || change.deletions > 0) && (
+                    <>
+                      {" "}
+                      {change.insertions > 0 && (
+                        <span className="text-success">+{change.insertions}</span>
+                      )}
+                      {change.deletions > 0 && (
+                        <span className="text-error">
+                          {change.insertions > 0 ? " " : ""}−{change.deletions}
+                        </span>
+                      )}
+                    </>
+                  )}
+                </span>,
+              ]
+            : []),
+        ];
+  return <ChangeSummary parts={parts} idleLabel="up to date" />;
 }
 
 // ── Page ─────────────────────────────────────────────────────────────
@@ -285,6 +274,8 @@ function StatusBadge({ status }: { status: Repo["status"] }) {
 export function ReposPage() {
   const qc = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
+  /** R5 — the full re-index of EVERY repo is armed before it fires. */
+  const [armRetier, setArmRetier] = useState(false);
   const [removing, setRemoving] = useState<Repo | null>(null);
   const [editing, setEditing] = useState<Repo | null>(null);
   const [discoverOpen, setDiscoverOpen] = useState(false);
@@ -406,52 +397,93 @@ export function ReposPage() {
     return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   }, [repos]);
 
-  return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-6">
-      <PageHeader
-        title="Repos"
-        subtitle="Clone repositories and prepare them for precise AI code work."
-        right={
-          <div className="flex items-center gap-2">
+  /* THE FOUR CHROME ACTIONS GO TO THE PLATE — the sketch's ADD slot plus the
+     leaf's three bulk actions. R5's TWO-STEP ARM travels with Re-tier all: it
+     is one button in two states, so moving half of it would leave the confirm
+     behind in a page the arm can no longer be seen from. */
+  const header = useMemo(
+    () => ({
+      actions: (
+        <>
+          <Button
+            variant="outline"
+            className="gap-2"
+            disabled={repos.length === 0 || anyBusy || syncAllMut.isPending}
+            onClick={() => syncAllMut.mutate(false)}
+            title="Sync every repo (git pull + incremental re-ingest)"
+          >
+            <RefreshCw className={cn((anyBusy || syncAllMut.isPending) && "animate-spin")} />
+            Sync all
+          </Button>
+          {armRetier ? (
             <Button
-              variant="outline"
+              variant="destructive"
               className="gap-2"
               disabled={repos.length === 0 || anyBusy || syncAllMut.isPending}
-              onClick={() => syncAllMut.mutate(false)}
-              title="Sync every repo (git pull + incremental re-ingest)"
+              onClick={() => {
+                setArmRetier(false);
+                syncAllMut.mutate(true);
+              }}
+              title={`Re-parse every file of all ${repos.length} repos`}
             >
-              <RefreshCw
-                className={cn("size-4", (anyBusy || syncAllMut.isPending) && "animate-spin")}
-              />
-              Sync all
+              <Layers />
+              Confirm re-tier all
             </Button>
+          ) : (
             <Button
               variant="outline"
               className="gap-2"
               disabled={repos.length === 0 || anyBusy || syncAllMut.isPending}
-              onClick={() => syncAllMut.mutate(true)}
+              onClick={() => setArmRetier(true)}
               title="Full re-index every repo — re-parses all files to re-tier the code graph (extracted / inferred / ambiguous). Use once after upgrading the tier engine."
             >
-              <Layers className="size-4" />
+              <Layers />
               Re-tier all
             </Button>
-            <Button
-              variant="outline"
-              className="gap-2"
-              onClick={() => setDiscoverOpen((o) => !o)}
-              title="List every repo your stored credentials can see on their forge"
-            >
-              <Search className="size-4" /> Discover
-            </Button>
-            <Button onClick={() => setAddOpen(true)} className="gap-2">
-              <Plus className="size-4" /> Add repo
-            </Button>
-          </div>
-        }
-      />
+          )}
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => setDiscoverOpen((o) => !o)}
+            title="List every repo your stored credentials can see on their forge"
+          >
+            <Search /> Discover
+          </Button>
+          <Button onClick={() => setAddOpen(true)} className="gap-2">
+            <Plus /> Add repo
+          </Button>
+        </>
+      ),
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [repos.length, anyBusy, syncAllMut.isPending, armRetier],
+  );
+  useSectionTitle(header);
+
+  return (
+    /* R1 (86b8f1f0) + R2 (8546865f) — THE SHELL OWNS THE TITLE AND THE RING.
+       The page's own `<h1>Repos</h1>` is gone: `TopicBar` renders it. The four
+       real controls (Sync all, Re-tier all, Discover, Add repo) are on the
+       PLATE as of A-1 step 3b — they were relocated into the leaf's first
+       block first, which was still underneath it.
+
+       `p-6` AND `max-w-5xl` ARE GONE TOO, and both were measured defects of the
+       move: `p-6` computed 27.6px INSIDE the shell's 55.2/36.8/0/55.2 ring (net
+       inset 82.8 left, 64.4 right, and 27.6 at the bottom where the contract
+       says 0), and `max-w-5xl` is 1024px, which binds the moment the pane is
+       wider — at 1900 the pane is 1262px and the list sat in a 1024px column
+       with ~120px of dead gutter each side. R2 rules that pages absorb the
+       pane; a second width authority inside the ring is the old frame's
+       assumption surviving the move (p3 Q-R1, recommendation A). */
+    <div className="flex w-full flex-col gap-6">
+      {/* THE FOUR CONTROLS ARE ON THE PLATE NOW — see the memo above. The
+          sentence stays as the block's lead. */}
+      <p className="type-small text-fg-muted">
+        Clone repositories and prepare them for precise AI code work.
+      </p>
 
       {isLoading ? (
-        <div className="flex justify-center py-16 text-muted-foreground">
+        <div className="flex justify-center py-16 text-fg-muted">
           <Loader2 className="size-5 animate-spin" />
         </div>
       ) : repos.length === 0 ? (
@@ -469,7 +501,7 @@ export function ReposPage() {
         <div className="flex flex-col gap-8">
           {grouped.map(([ws, rows]) => (
             <section key={ws} className="flex flex-col gap-3">
-              <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <h2 className="text-xs font-medium case-label tracking-wider text-fg-muted">
                 {ws}
               </h2>
               <div className="flex flex-col divide-y divide-border rounded-lg border border-border">
@@ -481,12 +513,12 @@ export function ReposPage() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <span className="truncate font-medium">{r.name}</span>
-                        <StatusBadge status={r.status} />
-                        <span className="text-xs uppercase text-muted-foreground">
+                        <SourceStatusBadge status={r.status} />
+                        <span className="case-label text-xs text-fg-muted">
                           {r.tier}
                         </span>
                       </div>
-                      <div className="mt-0.5 flex items-center gap-3 text-xs text-muted-foreground">
+                      <div className="mt-0.5 flex items-center gap-3 text-xs text-fg-muted">
                         {r.default_branch && (
                           <span className="inline-flex items-center gap-1">
                             <GitBranch className="size-3" />
@@ -516,7 +548,7 @@ export function ReposPage() {
                             {(ageDays(r.last_synced_at) ?? 0) >= STALE_AFTER_DAYS && " · stale"}
                           </span>
                         )}
-                        <ChangeSummary change={r.last_change} />
+                        <RepoChangeSummary change={r.last_change} />
                         {r.status === "error" && r.error && (
                           <span className="truncate text-error" title={r.error}>
                             {r.error}
@@ -534,7 +566,7 @@ export function ReposPage() {
                         className={cn(r.status !== "ready" && "pointer-events-none opacity-40")}
                       >
                         <Link
-                          to={`/repos/${encodeURIComponent(r.id)}`}
+                          to={`/know/repos/${encodeURIComponent(r.id)}`}
                           title="Open code intelligence"
                         >
                           <Network className="size-4" />
@@ -695,21 +727,21 @@ function InsightsDialog({
         </DialogHeader>
 
         {isLoading ? (
-          <div className="flex justify-center py-12 text-muted-foreground">
+          <div className="flex justify-center py-12 text-fg-muted">
             <Loader2 className="size-5 animate-spin" />
           </div>
         ) : isError || !data ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">
+          <p className="py-8 text-center text-sm text-fg-muted">
             No code graph yet — try syncing the repo.
           </p>
         ) : (
           <div className="grid max-h-[60vh] gap-6 overflow-y-auto py-2 md:grid-cols-2">
             <section className="flex flex-col gap-2">
-              <h3 className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <h3 className="flex items-center gap-1.5 text-xs font-medium case-label tracking-wider text-fg-muted">
                 <Network className="size-3.5" /> God nodes
               </h3>
               {data.god_nodes.length === 0 ? (
-                <p className="text-sm text-muted-foreground">None found.</p>
+                <p className="text-sm text-fg-muted">None found.</p>
               ) : (
                 <ul className="flex flex-col gap-1.5">
                   {data.god_nodes.map((g) => (
@@ -718,7 +750,7 @@ function InsightsDialog({
                         <span className="truncate font-mono text-xs" title={g.node}>
                           {g.node}
                         </span>
-                        <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                        <span className="shrink-0 text-xs tabular-nums text-fg-muted">
                           {g.degree}
                         </span>
                       </div>
@@ -735,18 +767,18 @@ function InsightsDialog({
             </section>
 
             <section className="flex flex-col gap-2">
-              <h3 className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <h3 className="flex items-center gap-1.5 text-xs font-medium case-label tracking-wider text-fg-muted">
                 <Boxes className="size-3.5" /> Subsystems ({data.community_count})
               </h3>
               {data.communities.length === 0 ? (
-                <p className="text-sm text-muted-foreground">None detected.</p>
+                <p className="text-sm text-fg-muted">None detected.</p>
               ) : (
                 <ul className="flex flex-col gap-1.5">
                   {data.communities.slice(0, 15).map((c) => (
                     <li key={c.community} className="flex flex-col gap-0.5">
                       <div className="flex items-baseline justify-between gap-2">
                         <span className="truncate text-xs">{c.community}</span>
-                        <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                        <span className="shrink-0 text-xs tabular-nums text-fg-muted">
                           {c.files} {c.files === 1 ? "file" : "files"}
                         </span>
                       </div>
@@ -815,7 +847,7 @@ function AddRepoDialog({
 
         <div className="flex flex-col gap-4 py-2">
           <label className="flex flex-col gap-1 text-sm">
-            <span className="text-muted-foreground">Git URL</span>
+            <span className="text-fg-muted">Git URL</span>
             <input
               className={field}
               placeholder="https://github.com/org/repo"
@@ -827,7 +859,7 @@ function AddRepoDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <label className="flex flex-col gap-1 text-sm">
-              <span className="text-muted-foreground">Workspace</span>
+              <span className="text-fg-muted">Workspace</span>
               <input
                 className={field}
                 value={workspace}
@@ -835,7 +867,7 @@ function AddRepoDialog({
               />
             </label>
             <label className="flex flex-col gap-1 text-sm">
-              <span className="text-muted-foreground">Tier</span>
+              <span className="text-fg-muted">Tier</span>
               <select
                 className={field}
                 value={tier}
@@ -852,9 +884,9 @@ function AddRepoDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <label className="flex flex-col gap-1 text-sm">
-              <span className="text-muted-foreground">
+              <span className="text-fg-muted">
                 Keyring token name{" "}
-                <span className="opacity-60">(private repos)</span>
+                <span className="text-fg-muted">(private repos)</span>
               </span>
               <input
                 className={field}
@@ -864,9 +896,9 @@ function AddRepoDialog({
               />
             </label>
             <label className="flex flex-col gap-1 text-sm">
-              <span className="text-muted-foreground">
+              <span className="text-fg-muted">
                 Git username{" "}
-                <span className="opacity-60">(Bitbucket = username, not email)</span>
+                <span className="text-fg-muted">(Bitbucket = username, not email)</span>
               </span>
               <input
                 className={field}
@@ -878,9 +910,9 @@ function AddRepoDialog({
           </div>
 
           <label className="flex flex-col gap-1 text-sm">
-            <span className="text-muted-foreground">
+            <span className="text-fg-muted">
               PR author{" "}
-              <span className="opacity-60">
+              <span className="text-fg-muted">
                 (opening pull requests — Bitbucket = Atlassian account email)
               </span>
             </span>
@@ -943,18 +975,18 @@ function DiscoverSection({
   return (
     <section className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-3">
-        <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        <h2 className="text-xs font-medium case-label tracking-wider text-fg-muted">
           Discover
         </h2>
         {data && (
-          <span className="text-xs text-muted-foreground">
+          <span className="text-xs text-fg-muted">
             {data.new} not indexed · {data.managed} already managed ·{" "}
             {data.sources.length}{" "}
             {data.sources.length === 1 ? "source" : "sources"}
           </span>
         )}
         <div className="ml-auto flex items-center gap-2">
-          <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <label className="flex items-center gap-1.5 text-xs text-fg-muted">
             <input
               type="checkbox"
               checked={showManaged}
@@ -990,7 +1022,7 @@ function DiscoverSection({
               {e.host}
               {e.workspace ? `/${e.workspace}` : ""}
             </span>
-            <span className="block break-words opacity-80">{e.detail}</span>
+            <span className="block break-words text-fg-muted">{e.detail}</span>
           </span>
         </div>
       ))}
@@ -1000,11 +1032,11 @@ function DiscoverSection({
           {error instanceof Error ? error.message : "discovery failed"}
         </div>
       ) : isFetching && !data ? (
-        <div className="flex justify-center py-10 text-muted-foreground">
+        <div className="flex justify-center py-10 text-fg-muted">
           <Loader2 className="size-5 animate-spin" />
         </div>
       ) : rows.length === 0 ? (
-        <div className="rounded-lg border border-border px-4 py-6 text-center text-sm text-muted-foreground">
+        <div className="rounded-lg border border-border px-4 py-6 text-center text-sm text-fg-muted">
           {data?.repos.length
             ? "Everything your credentials can see is already indexed."
             : "No repositories found. Check that a credential is stored for this forge."}
@@ -1025,12 +1057,12 @@ function DiscoverSection({
                     </Badge>
                   )}
                   {r.private === false && (
-                    <span className="text-xs uppercase text-muted-foreground">
+                    <span className="case-label text-xs text-fg-muted">
                       public
                     </span>
                   )}
                 </div>
-                <div className="mt-0.5 flex items-center gap-3 text-xs text-muted-foreground">
+                <div className="mt-0.5 flex items-center gap-3 text-xs text-fg-muted">
                   {r.default_branch && (
                     <span className="inline-flex items-center gap-1">
                       <GitBranch className="size-3" />
@@ -1044,14 +1076,14 @@ function DiscoverSection({
                     </span>
                   )}
                   {r.description && (
-                    <span className="truncate opacity-80">{r.description}</span>
+                    <span className="truncate text-fg-muted">{r.description}</span>
                   )}
                 </div>
               </div>
 
               {r.managed ? (
                 <Button asChild variant="ghost" size="sm">
-                  <Link to={`/repos/${encodeURIComponent(r.repo_id ?? "")}`}>
+                  <Link to={`/know/repos/${encodeURIComponent(r.repo_id ?? "")}`}>
                     Open
                   </Link>
                 </Button>
@@ -1168,13 +1200,13 @@ function EditRepoDialog({
 
         <div className="flex flex-col gap-4 py-2">
           <label className="flex flex-col gap-1 text-sm">
-            <span className="text-muted-foreground">Git URL</span>
+            <span className="text-fg-muted">Git URL</span>
             <input className={field} value={url} onChange={(e) => setUrl(e.target.value)} />
           </label>
 
           <div className="grid grid-cols-2 gap-3">
             <label className="flex flex-col gap-1 text-sm">
-              <span className="text-muted-foreground">Tier</span>
+              <span className="text-fg-muted">Tier</span>
               <select
                 className={field}
                 value={tier}
@@ -1188,7 +1220,7 @@ function EditRepoDialog({
               </select>
             </label>
             <label className="flex flex-col gap-1 text-sm">
-              <span className="text-muted-foreground">Default branch</span>
+              <span className="text-fg-muted">Default branch</span>
               <input
                 className={field}
                 placeholder="main"
@@ -1199,9 +1231,9 @@ function EditRepoDialog({
           </div>
 
           <label className="flex flex-col gap-1 text-sm">
-            <span className="text-muted-foreground">
+            <span className="text-fg-muted">
               Keyring token name{" "}
-              <span className="opacity-60">(blank = public / anonymous)</span>
+              <span className="text-fg-muted">(blank = public / anonymous)</span>
             </span>
             <input
               className={field}
@@ -1213,9 +1245,9 @@ function EditRepoDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <label className="flex flex-col gap-1 text-sm">
-              <span className="text-muted-foreground">
+              <span className="text-fg-muted">
                 Git username{" "}
-                <span className="opacity-60">(clone · sync · push)</span>
+                <span className="text-fg-muted">(clone · sync · push)</span>
               </span>
               <input
                 className={field}
@@ -1225,9 +1257,9 @@ function EditRepoDialog({
               />
             </label>
             <label className="flex flex-col gap-1 text-sm">
-              <span className="text-muted-foreground">
+              <span className="text-fg-muted">
                 REST / PR user{" "}
-                <span className="opacity-60">(pull requests)</span>
+                <span className="text-fg-muted">(pull requests)</span>
               </span>
               <input
                 className={field}
@@ -1238,7 +1270,7 @@ function EditRepoDialog({
             </label>
           </div>
 
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-fg-muted">
             Bitbucket Atlassian API tokens need both, and they differ: git wants
             your Bitbucket <em>username</em>, the REST API wants your Atlassian{" "}
             <em>account email</em>.
@@ -1252,7 +1284,7 @@ function EditRepoDialog({
           )}
 
           {refused && (
-            <label className="flex items-start gap-2 text-xs text-muted-foreground">
+            <label className="flex items-start gap-2 text-xs text-fg-muted">
               <input
                 type="checkbox"
                 checked={force}
@@ -1306,7 +1338,7 @@ function VerifyLine({
       <span className="min-w-0">
         <span className="font-medium">{label}</span>
         {!r.ok && (
-          <span className="block break-words opacity-70">{r.detail}</span>
+          <span className="block break-words text-fg-muted">{r.detail}</span>
         )}
       </span>
     </div>

@@ -19,6 +19,58 @@
  * cascade layers Tailwind establishes above are what they slot into. */
 @import "tw-animate-css";
 
+/* ---------------------------------------------------------------------------
+ * THE SHELL'S OWN VOCABULARY — p2, 2026-09-14.
+ * ---------------------------------------------------------------------------
+ * The redesigned shell is this app's frame now (`src/shell/`), so its three
+ * stylesheets are part of this bundle rather than a sibling app's.
+ *
+ * THEY WANTED TO SIT AFTER THE `@theme inline` BLOCK BELOW, AND CSS REFUSES.
+ * Measured rather than assumed: with the three lines placed there, `vite build`
+ * emitted `[vite:css][postcss] @import must precede all other statements
+ * (besides @charset or empty @layer)` three times and the built stylesheet
+ * contained NONE of the shell — zero hits for `.app`, `.plane`, `.c-panes`,
+ * `--sh-bar-w` or the three `@property` rules. A misplaced `@import` is dropped,
+ * not reordered, so the frame would simply have had no stylesheet.
+ *
+ * SO THEY SIT HERE, AND THE ORDER COSTS NOTHING BECAUSE THE COLLISIONS WERE
+ * REMOVED RATHER THAN OUT-ORDERED. Later source order only decides a tie at
+ * equal specificity, and after p2 there are no ties left to decide: the shell
+ * gave up `*` and `html, body` to Tailwind's preflight and to this file, and
+ * moved its `body` typography onto `.app`. What remains is one shared declared
+ * name at `:root` — see below — and it has the same value on both sides.
+ *
+ * AFTER `tailwindcss`, though, and that part is not interchangeable: the import
+ * establishes the layers, and every rule the shell writes is unlayered, so it
+ * beats a utility either way. `tw-animate-css` keeps its place directly after
+ * `tailwindcss` for the reason its own comment gives.
+ *
+ * THE NAMESPACE IS WHAT MAKES THIS SAFE, and it was measured rather than
+ * trusted. Declared custom properties: 47 in the shell's three sheets, 128 in
+ * this file (125 inside `@theme inline`, 3 outside). The intersection is ONE
+ * name — `--interaction-duration` — and both files declare it as `120ms` and
+ * both document it as the one constant deliberately outside the brand
+ * vocabulary (line 313 here, `shell/styles/tokens.css:88` there). Every other
+ * shell name carries the `--sh-` prefix p1 gave it, so there is nothing else
+ * for the two vocabularies to fight over.
+ *
+ * SELECTORS INTERSECT IN FOUR PLACES and three of them were resolved on the
+ * shell's side, not here: `*` and `html,body` were its own document's reset and
+ * are gone (Tailwind's preflight and this file own them), and its `body`
+ * typography moved onto `.app`. See THE RESET in `shell/styles/shell.css`.
+ * `:root` intersects only through the one name above.
+ *
+ * `views.css` LAST, because it is the vocabulary INSIDE `.c-panes` and nothing
+ * it declares may move a number `shell.css` measured against Figma. The 31
+ * sketch views it was written for are superseded by the real pages and deleted,
+ * and so is the last of them, `views/placeholder.tsx` (2026-09-17). What still
+ * reads this file is the pages' own markup — `.v-row`, `.v-prose` and the rest
+ * are the vocabulary a page writes in, not the sketches' private stylesheet.
+ * --------------------------------------------------------------------------- */
+@import "./shell/styles/tokens.css";
+@import "./shell/styles/shell.css";
+@import "./shell/styles/views.css";
+
 /*
  * Okuro design token bridge.
  *
@@ -432,20 +484,42 @@
  * rule that publishes a ground: `:root`, every boundary, every portal. Not
  * frozen, and correct at unbounded depth. See design_engine/adapter.py.
  *
- * WHAT SURVIVES HERE, AND WHY EXACTLY THESE TWO. Sixteen of the twenty were only
- * ever read through Tailwind utilities, which under `@theme inline` above resolve
- * at the use site and never needed this block. Measured across 448 files, exactly
- * two of the twenty are read through a direct `var()` in app code that this
- * change does not touch: `--accent` (2 files) and `--border` (1). They stay as a
- * SHIM so the app keeps rendering before the engine sheet is linked, and the
- * adapter's own declaration -- later in source order, same specificity, and
- * present at boundaries where this one is not -- supersedes it wherever the sheet
- * is loaded. When those three files move to the canonical names, this block goes.
+ * NOTHING SURVIVES HERE — the last two went on 2026-09-17 (R6, S8). Sixteen of
+ * the twenty were only ever read through Tailwind utilities, which under
+ * `@theme inline` above resolve at the use site and never needed this block.
+ * Two were kept as a `:root` shim for the handful of direct `var()` reads an
+ * earlier count attributed to app code:
+ *
+ *   --accent: var(--color-accent-subtle, rgba(34, 197, 94, 0.12));
+ *   --border: var(--color-borders-default, #2a2a2a);
+ *
+ * THAT COUNT WAS RIGHT ABOUT THE FILES AND WRONG ABOUT THE CASCADE, so the
+ * retirement is a deletion and NOT a rename of the call sites. Measured in
+ * Chromium 153 against the live page, both appearances:
+ *
+ *   1. THE ADAPTER ALREADY OWNED THE NAMES AT `:root`. The engine sheet
+ *      declares `--accent` and `--border` as resolved literals in 64 rules —
+ *      `:root`, `:root[data-appearance="dark"]`, every `[data-branded]` /
+ *      `[data-signal]` / per-ground boundary. In dark the appearance rule beats
+ *      this one on specificity; in light both are plain `:root` and resolve to
+ *      the same literal anyway. Deleting this block moved the computed value at
+ *      `:root` by NOTHING: #131313 dark, #e6e6e6 light, before and after.
+ *
+ *   2. THE THREE CALL SITES NEVER READ `:root` AT ALL. All of them live in the
+ *      prism deck's SHADOW ROOT (`deck-chrome.css`, and `deck-matrix.tsx`'s
+ *      inline `borderColor`). `kit-assets.ts` rewrites the board kit's
+ *      `:root`/`body` selectors to `:host`, so the kit's own `theme.css`
+ *      declares `--accent:#22c55e` / `--border:#2a2a2a` ON that host and shadows
+ *      anything inherited from the document. Measured inside the shadow root:
+ *      --accent #22c55e, --border #2a2a2a, identical with this block present and
+ *      absent, in dark and in light.
+ *
+ * SO POINTING THOSE FILES AT `--color-accent-subtle` WOULD HAVE BEEN THE
+ * REGRESSION, not the fix: the deck's breadcrumb would have gone from the kit's
+ * green #22c55e to the shell's #131313 tint, invisible on the deck's own ground.
+ * The deck is shadow-isolated on purpose so the kit renders exactly as its
+ * specimen gallery; chrome inside it tracks the KIT's brand, not the shell's.
  */
-:root {
-  --accent: var(--color-accent-subtle, rgba(34, 197, 94, 0.12));
-  --border: var(--color-borders-default, #2a2a2a);
-}
 
 /*
  * A FIGURE WHOSE AFFORDANCE IS ITS BORDER CARRIES NO ELEVATION — register rule
@@ -683,12 +757,58 @@ select,
   text-transform: var(--type-label-transform, none);
 }
 
+/* CASE IS THE KIT'S DECISION, AND THIS IS THE ONLY WAY TAILWIND CAN SAY SO.
+ *
+ * Ruled 2026-09-14 (0d37d05e): "Upper/Lowercase is steered by the
+ * design-system: Title, Headings, Leads and Content can be either lowercase or
+ * uppercase by definition." The kit publishes `--type-<tier>-transform` for all
+ * seven tiers, and the `.type-*` classes above already read theirs — but a
+ * micro-label that wants the kit's CASE without the kit's 12px SIZE has no
+ * utility to reach for, so 510 sites across 130 files wrote the literal
+ * `uppercase` instead. A literal overrides the kit, which is exactly what D1
+ * forbids.
+ *
+ * `case-label` is that missing utility: one declaration, the engine's own name,
+ * `uppercase` as the fallback so a kit publishing nothing renders
+ * byte-identically to the literal it replaces. Measured under the active kit
+ * `standard`, which emits `--type-label-transform: uppercase`: zero visual
+ * delta today, correct under any kit that decides otherwise.
+ *
+ * NOT A SWEEP. 510 literals is its own commit, not a leaf pass — this adds the
+ * name and converts the sites the two START leaves own plus the two shared
+ * primitives they reach (`StatusBadge`, `SectionLabel` micro), so the next leaf
+ * pass has a pattern to copy rather than a decision to re-make.
+ */
+.case-label {
+  text-transform: var(--type-label-transform, none);
+}
+
 /* Form-field width tiers — replaces w-full on inputs that don't need
  * the full column. Use: <Input className="w-field-xs" /> etc. */
 .w-field-xs { width: var(--field-xs); }
 .w-field-sm { width: var(--field-sm); }
 .w-field-md { width: var(--field-md); }
 .w-field-lg { width: var(--field-lg); }
+
+/* THE SAME FOUR TIERS AS A FLOOR, and `min-width` is a different job from
+ * `width` inside a flex row. Added in the p4 DELIVER pass, for a defect a
+ * `width` utility cannot express: PEOPLE's detail header is
+ * `flex items-start justify-between` with `flex-wrap: nowrap`, so the name
+ * field — `min-w-0`, competing with a fixed 220px button pair — was CRUSHED
+ * rather than wrapped. Measured at the kit `standard`:
+ *
+ *   pane   detail column   name input   its scrollWidth
+ *   728        360.4          29.6px        208px
+ *   1262       894.4         259.6px        258px
+ *
+ * 29.6px holding 208px of a person's name, with no ellipsis and no way to
+ * widen it. A floor is what makes the row exceed its container and therefore
+ * WRAP, which is the behaviour that was wanted; without one, `flex-wrap`
+ * alone changes nothing because the shrinkable child absorbs the whole
+ * deficit. These are the kit's own `--field-*` values, not a literal. */
+.min-w-field-xs { min-width: var(--field-xs); }
+.min-w-field-sm { min-width: var(--field-sm); }
+.min-w-field-md { min-width: var(--field-md); }
 
 /* Row height tiers for list / table rows.
  * `row-default` matches Linear / Stripe norm (44px). Use `row-dense`
@@ -808,10 +928,48 @@ body {
   }
 }
 
-/* Scrollbar styling (architecture-noir: minimal) */
+/* Scrollbar styling (architecture-noir: minimal) — 2px, ruled by the owner
+   2026-09-17: *"Scrollbar needs to be very minimalistic: 2px wide."*
+
+   THIS RULE IS ALSO THE APP'S GUTTER RESERVATION, which is why the number is
+   here and nowhere else. `scrollbar-gutter: stable` reserves exactly the width
+   the scrollbar WOULD take, so `html` (line 827) and `.content`
+   (shell.css, the R2 scroller) follow this declaration without naming a number
+   of their own. MEASURED in both engines against the live app on 13333, 1366
+   wide, /work/tasks — before -> after:
+
+     engine    reserved  content box  track                  gap to page box
+     chromium  6 -> 2    836 -> 840   1242-1248 -> 1250-1252  32.00 -> 32.00
+     webkit    6 -> 2    842 -> 842   1248-1254 -> 1252-1254  32.00 -> 32.00
+
+   THE GAP IS THE INVARIANT AND IT DID NOT MOVE: --sh-s-32 exactly, in both
+   engines, before and after. The reservation sits between the inner border edge
+   and the OUTER padding edge, so padding is never consumed by it and the page
+   box and the bar move together.
+
+   WHY chromium'S BORDER BOX GROWS AND WEBKIT'S DOES NOT, measured rather than
+   reasoned: chromium honours `html { scrollbar-gutter: stable }` (its own
+   reservation went -6 -> -2), so the viewport-derived `100cqw` behind
+   `.content`'s width widens by 4 and the border box follows. WebKitGTK reserves
+   NOTHING at `html` (0 before and after), so there the border box is unchanged
+   and only the inner area gains the 4px. Both land on the same gap.
+
+   Both gates from memory 0b0b307e pass after the change: documentElement
+   scrollWidth - innerWidth is -2 (chromium) / 0 (webkit), never positive, and
+   the page root's own x is 0 in both.
+
+   DELIBERATELY NO `scrollbar-width`. Both engines report `scrollbar-width:auto`
+   today and both honour the width declared here. Setting it to `thin` would
+   DISABLE this block in WebKit and impose that engine's own thin metric (~11px),
+   which is five times what the ruling asks for — so the standard property is the
+   one thing that must stay unset for the 2px to survive.
+
+   A 2px thumb is a scroll INDICATOR, not a drag target: wheel, trackpad,
+   keyboard and touch are unaffected, but dragging the bar itself is not a
+   realistic gesture at this width. That is the trade the ruling buys. */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 2px;
+  height: 2px;
 }
 
 ::-webkit-scrollbar-track {
@@ -820,7 +978,9 @@ body {
 
 ::-webkit-scrollbar-thumb {
   background: var(--color-borders-default, #2a2a2a);
-  border-radius: 3px;
+  /* 1px, not 3px: a 3px radius on a 2px bar rounds the thumb into a lozenge
+     and eats its own length at both ends. */
+  border-radius: 1px;
 }
 
 ::-webkit-scrollbar-thumb:hover {

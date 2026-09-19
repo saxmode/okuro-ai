@@ -16,8 +16,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/toast";
+import { usePaneInterval } from "@/lib/pane-active";
 import { cn } from "@/lib/utils";
-import { PageHeader } from "@/components/shell/page-header";
+import { useSectionTitle } from "@/shell/components/PageTitle";
 import {
   bridgeApi,
   type ProviderStatus,
@@ -49,7 +50,9 @@ export function BridgePage() {
   } = useQuery({
     queryKey: ["bridge", "status"],
     queryFn: () => bridgeApi.status(),
-    refetchInterval: 15_000,
+    // The shell keeps ONE leaf per topic mounted — five panes counted live on
+    // this route — so a bare interval polls while the pane is off screen.
+    refetchInterval: usePaneInterval(15_000),
   });
 
   const { data: routing } = useQuery({
@@ -62,26 +65,42 @@ export function BridgePage() {
     queryFn: () => bridgeApi.usage("week"),
   });
 
+  /* REFRESH IS THE LEAF'S ONE CHROME ACTION, so it goes to the plate. */
+  const header = useMemo(
+    () => ({
+      actions: (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => refetchStatus()}
+          disabled={isFetching}
+          aria-label="Refresh bridge status"
+        >
+          <RefreshCw className={cn(isFetching && "animate-spin")} aria-hidden="true" />
+        </Button>
+      ),
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [isFetching, refetchStatus],
+  );
+  useSectionTitle(header);
+
   return (
     <div className="page-shell space-y-10">
-      <PageHeader
-        title="Bridge"
-        subtitle="LLM router — which provider handles each type of request."
-        right={
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => refetchStatus()}
-            disabled={isFetching}
-            aria-label="Refresh bridge status"
-          >
-            <RefreshCw
-              className={cn("h-4 w-4", isFetching && "animate-spin")}
-              aria-hidden="true"
-            />
-          </Button>
-        }
-      />
+      {/* R1 (86b8f1f0) — THE LEAF TITLE IS THE SHELL'S. `TopicBar` renders
+          `<h1 class="c-title">Bridge</h1>` above this pane, so the page's own
+          PageHeader h1 is gone; it was a 28px title stacked 88px under the
+          shell's 32px one, the same rank twice before any content. The
+          subtitle survives as the first content line — this page is a router
+          diagnostic and the sentence is the only place it says so — and
+          Refresh keeps the trailing edge of the same row, where the header had
+          it. The shape SERVICES, MODELS and STUDIO landed. `text-fg-muted`
+          rather than `PageHeader`'s `text-tertiary` (kit todo c581c9b2). */}
+      {/* REFRESH IS ON THE PLATE NOW — see the memo above — so the row that
+          held it beside the sentence is gone with it. */}
+      <p className="type-small text-fg-muted">
+        LLM router — which provider handles each type of request.
+      </p>
 
       <section className="space-y-3">
         <div className="flex items-center justify-between">
@@ -95,7 +114,7 @@ export function BridgePage() {
           </span>
         </div>
         {!status && isLoading ? (
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 @2xl:grid-cols-2 @4xl:grid-cols-4">
             {[0, 1, 2, 3].map((i) => (
               <div
                 key={i}
@@ -104,7 +123,7 @@ export function BridgePage() {
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 @2xl:grid-cols-2 @4xl:grid-cols-4">
             {(status?.providers ?? []).map((p) => (
               <ProviderCard
                 key={p.id}
@@ -121,7 +140,7 @@ export function BridgePage() {
         {routing && Object.keys(routing.routing).length > 0 ? (
           <div className="overflow-hidden rounded-md border border-border-subtle">
             <table className="w-full text-sm">
-              <thead className="bg-surface-subtle text-2xs uppercase tracking-wider text-tertiary">
+              <thead className="bg-surface-subtle text-2xs case-label tracking-wider text-tertiary">
                 <tr>
                   <th className="px-3 py-2 text-left">Capability</th>
                   <th className="px-3 py-2 text-left">Provider</th>
@@ -186,15 +205,23 @@ function ProviderCard({
           : "border-error/30 bg-error/5",
       )}
     >
+      {/* `min-w-0 truncate` because the name is a fixed identifier and the
+          badge beside it is not shrinkable: without a floor the longest
+          provider id spilled 4px past the card at the narrow pane (146 in a
+          142 box, measured at 1366 with the grid at four columns). The grid
+          now gives it 2 columns there, and this keeps a longer id honest
+          rather than letting it escape. */}
       <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-bold text-fg">{provider.id}</span>
+        <span className="min-w-0 truncate text-sm font-bold text-fg" title={provider.id}>
+          {provider.id}
+        </span>
         <StatusBadge
           tone={tone}
           label={provider.available ? "UP" : "DOWN"}
           showDot
         />
       </div>
-      <div className="text-2xs uppercase tracking-wider text-tertiary">
+      <div className="text-2xs case-label tracking-wider text-tertiary">
         {provider.type}
       </div>
       <div className="text-xs text-fg-muted">
@@ -264,7 +291,7 @@ function TryItOut({
 
   return (
     <div className="space-y-3 rounded-md border border-border-subtle bg-surface-elevated p-4">
-      <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
+      <div className="grid gap-3 @4xl:grid-cols-[1fr_auto_auto]">
         <div>
           <FieldLabel>Prompt</FieldLabel>
           <Input
@@ -277,7 +304,7 @@ function TryItOut({
             }}
           />
         </div>
-        <div className="min-w-[20rem]">
+        <div className="min-w-field-xs">
           <FieldLabel>Capability</FieldLabel>
           <Select value={capability} onValueChange={setCapability}>
             <SelectTrigger id="bridge-capability">
@@ -293,7 +320,7 @@ function TryItOut({
             </SelectContent>
           </Select>
         </div>
-        <div className="min-w-[20rem]">
+        <div className="min-w-field-xs">
           <FieldLabel>Provider</FieldLabel>
           <Select value={provider} onValueChange={setProvider}>
             <SelectTrigger id="bridge-provider">
@@ -334,7 +361,7 @@ function TryItOut({
               : "border-error/30 bg-error/5",
           )}
         >
-          <div className="flex items-center gap-3 text-2xs uppercase tracking-wider">
+          <div className="flex items-center gap-3 text-2xs case-label tracking-wider">
             <StatusBadge
               tone={lastResult.success ? "success" : "error"}
               label={lastResult.success ? "OK" : "ERROR"}

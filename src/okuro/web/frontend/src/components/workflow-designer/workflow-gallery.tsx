@@ -51,10 +51,14 @@ export function WorkflowGallery() {
 
   return (
     <div className="wf-gallery h-full w-full overflow-y-auto p-6">
+      {/* R1 (86b8f1f0) — THE LEAF TITLE IS THE SHELL'S. `TopicBar` renders
+          `<h1 class="c-title">Workflows</h1>` above this pane, so the
+          gallery's own h1 is gone; it was a 28px title at y 227 under the
+          shell's 32px one. The icon and the sentence stay: the sentence is
+          what tells you this leaf is NOT /flow. */}
       <div className="mb-5 flex items-center gap-3">
         <Workflow className="h-5 w-5 text-accent" />
         <div className="flex-1">
-          <h1 className="text-base font-semibold">Workflows</h1>
           <p className="text-xs text-fg-muted">
             Node graphs arranged by hand and compiled to an orchestrator plan —
             no decomposition, no LLM.
@@ -63,15 +67,14 @@ export function WorkflowGallery() {
         <div className="relative">
           <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-fg-subtle" />
           <input
-            className="wf-input pl-7"
-            style={{ width: 220 }}
+            className="wf-input w-field-sm pl-7"
             placeholder="search"
             aria-label="Search workflows"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <Button onClick={() => navigate("/workflows?new=1")}>
+        <Button onClick={() => navigate("/work/workflows?view=new")}>
           <Plus className="h-4 w-4" />
           New workflow
         </Button>
@@ -91,7 +94,7 @@ export function WorkflowGallery() {
             <button
               key={w.id}
               className="wf-card"
-              onClick={() => navigate(`/workflows?id=${encodeURIComponent(w.id)}`)}
+              onClick={() => navigate(`/work/workflows/${encodeURIComponent(w.id)}`)}
             >
               <span className="wf-card-name">{w.name}</span>
               {w.description && <span className="wf-card-desc">{w.description}</span>}

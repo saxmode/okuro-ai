@@ -7,7 +7,7 @@ import { useFrameStamp } from "@/lib/ground-portal";
 import { toast } from "@/components/ui/toast";
 import { getHandoverIR, openHandover } from "@/lib/handover-context";
 import { captureSnapshot } from "@/lib/capture-snapshot";
-import { NAV_TREE } from "@/components/shell/nav-bar";
+import { NAV_TREE } from "@/lib/nav-tree";
 import { useVisibleNavTree } from "@/lib/nav-visibility";
 import {
   Camera,

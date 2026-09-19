@@ -178,7 +178,7 @@ export function MaintenancePanel({ roleId, role }: MaintenancePanelProps) {
             ) : (
               <Clock className="h-3 w-3" />
             )}
-            <span className="font-medium uppercase tracking-wider">
+            <span className="font-medium case-label tracking-wider">
               {job.status}
             </span>
             <span className="text-tertiary">
@@ -210,7 +210,7 @@ export function MaintenancePanel({ roleId, role }: MaintenancePanelProps) {
 
       {/* Mandate */}
       <section className="space-y-2">
-        <h3 className="text-2xs font-medium uppercase tracking-wider text-tertiary">
+        <h3 className="text-2xs font-medium case-label tracking-wider text-tertiary">
           Research mandate
         </h3>
         {mandate ? (
@@ -220,7 +220,7 @@ export function MaintenancePanel({ roleId, role }: MaintenancePanelProps) {
             )}
             {mandate.research_mandate?.searches?.length ? (
               <div>
-                <span className="text-2xs uppercase tracking-wider text-tertiary">
+                <span className="text-2xs case-label tracking-wider text-tertiary">
                   Searches
                 </span>
                 <ul className="mt-1 space-y-0.5">
@@ -234,7 +234,7 @@ export function MaintenancePanel({ roleId, role }: MaintenancePanelProps) {
             ) : null}
             {mandate.research_mandate?.sources_to_check?.length ? (
               <div>
-                <span className="text-2xs uppercase tracking-wider text-tertiary">
+                <span className="text-2xs case-label tracking-wider text-tertiary">
                   Sources to check
                 </span>
                 <ul className="mt-1 space-y-0.5">
@@ -255,7 +255,7 @@ export function MaintenancePanel({ roleId, role }: MaintenancePanelProps) {
             ) : null}
             {mandate.research_mandate?.current_knowledge_summary && (
               <div>
-                <span className="text-2xs uppercase tracking-wider text-tertiary">
+                <span className="text-2xs case-label tracking-wider text-tertiary">
                   Current knowledge
                 </span>
                 <p className="mt-1 text-fg">
@@ -277,7 +277,7 @@ export function MaintenancePanel({ roleId, role }: MaintenancePanelProps) {
 
       {/* Stats */}
       <section className="space-y-2">
-        <h3 className="text-2xs font-medium uppercase tracking-wider text-tertiary">
+        <h3 className="text-2xs font-medium case-label tracking-wider text-tertiary">
           Knowledge stats
         </h3>
         <div className="grid grid-cols-3 gap-2 text-xs">
@@ -304,12 +304,12 @@ export function MaintenancePanel({ roleId, role }: MaintenancePanelProps) {
 
 function StatusPill({ stale }: { stale: boolean }) {
   return stale ? (
-    <span className="inline-flex items-center gap-1 rounded-full bg-error/10 px-2 py-0.5 text-2xs font-medium uppercase tracking-wider text-error">
+    <span className="inline-flex items-center gap-1 rounded-full bg-error/10 px-2 py-0.5 text-2xs font-medium case-label tracking-wider text-error">
       <span className="h-1.5 w-1.5 rounded-full bg-error" />
       Stale
     </span>
   ) : (
-    <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-2xs font-medium uppercase tracking-wider text-success">
+    <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-2xs font-medium case-label tracking-wider text-success">
       <span className="h-1.5 w-1.5 rounded-full bg-success" />
       Fresh
     </span>
@@ -319,7 +319,7 @@ function StatusPill({ stale }: { stale: boolean }) {
 function StatCell({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col">
-      <span className="text-3xs uppercase tracking-wider text-tertiary">
+      <span className="text-3xs case-label tracking-wider text-tertiary">
         {label}
       </span>
       <span className="text-xs text-fg">{value}</span>
@@ -330,7 +330,7 @@ function StatCell({ label, value }: { label: string; value: string }) {
 function StatBox({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded border border-border bg-surface-elevated p-2">
-      <div className="text-3xs uppercase tracking-wider text-tertiary">
+      <div className="text-3xs case-label tracking-wider text-tertiary">
         {label}
       </div>
       <div className="mt-0.5 text-sm font-medium text-fg">{value}</div>

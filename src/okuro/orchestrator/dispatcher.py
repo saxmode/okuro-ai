@@ -540,7 +540,7 @@ def build_position_prompt(role_content: str, node: DAGNode, task: Task,
     parts.append("## Tool Protocol\n")
     parts.append(
         "Bootstrap (below) loads the canonical tool protocol into your "
-        "session. For the durable reference, `read ~/.okuro/TOOL-PROTOCOL.md`."
+        "session. It is the whole protocol — there is no second document."
     )
     parts.append("")
 
@@ -1082,6 +1082,21 @@ def compose_brief(
     return "\n".join(parts)
 
 
+def _adr_subject_title(artifact_id: str) -> str:
+    """The title of the artifact an ADR was decided against, or ``""``.
+
+    Swallows every failure: a brief that cannot be built because a title
+    lookup failed would turn a cosmetic gap into a dead subtask. The id
+    is what the agent needs; the title only saves it a fetch.
+    """
+    try:
+        from okuro.orchestrator.gate_subject import subject_title
+
+        return subject_title(artifact_id)
+    except Exception:  # noqa: BLE001 — cosmetic, never load-bearing
+        return ""
+
+
 def build_role_prompt(role_content: str, subtask: Subtask, task: Task,
                       config: Config, session_id: str = None,
                       effective_project_path: "Optional[Path]" = None) -> str:
@@ -1216,11 +1231,10 @@ def build_role_prompt(role_content: str, subtask: Subtask, task: Task,
     # so the entire block was a silent no-op. Bootstrap (mandatory FIRST
     # tool call, see section 3.6) loads the canonical tool protocol into
     # the session; the inline Mandatory Tool Rules table (section 3.8)
-    # is the at-glance reminder. The pointer below is the fallback for
-    # callers that skip bootstrap (e.g. position prompts via different
-    # code path) and matches the CLAUDE.md convention:
-    # "Include `read ~/.okuro/TOOL-PROTOCOL.md` in every subagent prompt
-    # so the subagent honours the same protocol."
+    # is the at-glance reminder. The pointer that used to sit here named
+    # ~/.okuro/TOOL-PROTOCOL.md as a durable reference for callers that skip
+    # bootstrap. That file is gone (2026-09-13) and its doctrine renders into
+    # the packet, so a brief naming it would send the agent to a dead end.
     #
     # M5 recovery: the routing rules were emitted TWICE — this pointer, then a
     # four-row markdown table 60 lines later ("MANDATORY — Tool Rules") — while
@@ -1230,8 +1244,7 @@ def build_role_prompt(role_content: str, subtask: Subtask, task: Task,
     # one at-a-glance line; bootstrap remains the authority.
     prompt_parts.append("## Tool Protocol\n")
     prompt_parts.append(
-        "Bootstrap (below) loads the canonical protocol; "
-        "`read ~/.okuro/TOOL-PROTOCOL.md` is the durable reference. "
+        "Bootstrap (below) loads the canonical protocol, in full. "
         "At a glance — find code: `cortex_search`/`cortex_route` (never "
         "Grep/Glob); read: `cortex_read_header` then `cortex_read_section` "
         "(never full-file `Read`); system state: `sysinfo_*` (never "
@@ -1334,6 +1347,19 @@ def build_role_prompt(role_content: str, subtask: Subtask, task: Task,
             prompt_parts.append(
                 f"  → SELECTED: `{selected_id}` — {selected_label}"
             )
+            # S2 — the artifact the user approved, named by id. Without it a
+            # downstream agent implements against "the latest version" of
+            # whatever it finds, which is precisely the drift the gate's
+            # hash check refuses at the other end. Silent for legacy ADRs.
+            subject_id = adr.get("subject_artifact_id", "")
+            if subject_id:
+                subject_name = _adr_subject_title(subject_id)
+                prompt_parts.append(
+                    f"    basis: {subject_name or 'artifact'} [{subject_id}] "
+                    f"— this exact version was approved; read it with "
+                    f"artifact_get and implement against it, not against a "
+                    f"newer one."
+                )
             if rationale:
                 prompt_parts.append(f"    rationale: {rationale}")
         prompt_parts.append("")

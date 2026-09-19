@@ -19,6 +19,13 @@ import { parseApiDate } from "@/lib/format";
  *
  * Dismissible via a small × button — preference persists to
  * `profile.welcome.dismissed_at`. Re-showable from Settings → Welcome.
+ *
+ * ITS FIVE LINKS POINT AT CANONICAL SHELL ADDRESSES, ruled S8. They used to
+ * point at `/inbox`, `/agents`, `/brain`, `/cortex`, `/settings` and worked
+ * only because `LEGACY` (shell/routes.ts:201) answers every one — a redirect
+ * hop on each, and a table entry removed later would break navigation inside
+ * the ONE screen a brand-new user is shown, with no test naming it. That is the
+ * class; `__tests__/correctness/canonical-links.test.ts` is the gate.
  */
 export function WelcomePanel() {
   const [clis, setClis] = useState<InferenceCli[] | null>(null);
@@ -70,19 +77,29 @@ export function WelcomePanel() {
   const liveCount = activity?.live ?? 0;
 
   return (
-    <div className="relative rounded-lg border border-accent/30 bg-accent-subtle/30 p-6 space-y-6">
+    /* NAMED TINTS, NOT ALPHA MODIFIERS. Was `border-accent/30` +
+       `bg-accent-subtle/30`: the first is the strong accent at 30 %, the
+       second is a 12 %-alpha token taken to 30 % OF ITS ALPHA — 3.6 % of the
+       accent, which is a number nobody chose and no kit can move. okuro-ds
+       publishes `--color-accent-subtle` and `--color-border-subtle` for
+       exactly this surface, so the panel uses those names. D1 (685cc4b4). */
+    <div className="relative rounded-lg border border-border-subtle bg-accent-subtle p-6 space-y-6">
       <button
         type="button"
         onClick={dismiss}
         disabled={dismissing}
         aria-label="Dismiss welcome"
-        className="absolute right-3 top-3 rounded p-1 text-fg-tertiary hover:bg-surface-elevated hover:text-fg-primary disabled:opacity-30 transition-colors"
+        /* `disabled:text-fg-disabled`, not `disabled:opacity-30` — 6ba4d789,
+           an ink tier is a name. Opacity dimmed the whole control including
+           its focus ring; the name dims the glyph, which is what "disabled"
+           is describing. */
+        className="absolute right-3 top-3 rounded p-1 text-fg-tertiary hover:bg-surface-elevated hover:text-fg-primary disabled:text-fg-disabled transition-colors"
       >
         <X size={14} />
       </button>
 
       {err && (
-        <div className="rounded border border-error/40 bg-surface-elevated text-error text-xs px-3 py-2">
+        <div className="rounded border border-error bg-error-subtle text-error text-xs px-3 py-2">
           {err}
         </div>
       )}
@@ -94,7 +111,7 @@ export function WelcomePanel() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 @4xl:grid-cols-2">
         {/* Section 1 — Connected */}
         <Section title="Connected" icon={Check}>
           <ul className="space-y-1.5 text-sm">
@@ -157,7 +174,7 @@ export function WelcomePanel() {
               watch this number change.
             </p>
             <Link
-              to="/inbox"
+              to="/start/inbox"
               className="inline-flex items-center gap-1 text-xs text-accent hover:underline"
             >
               Open Inbox
@@ -170,22 +187,22 @@ export function WelcomePanel() {
         <Section title="What to try" icon={Wrench}>
           <ul className="space-y-2 text-sm">
             <TryRow
-              to="/agents"
+              to="/work/agents"
               title="See agents in action"
               detail="Live list of every running agent session."
             />
             <TryRow
-              to="/brain"
+              to="/know/brain"
               title="Browse your memory"
               detail="Everything okuro knows about you so far."
             />
             <TryRow
-              to="/cortex"
+              to="/know/cortex"
               title="Index a project"
               detail="Semantic search over any codebase you point it at."
             />
             <TryRow
-              to="/settings"
+              to="/system/settings"
               title="Fine-tune your style"
               detail="Deep cognitive / communication questionnaires and more."
             />
@@ -206,8 +223,8 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded border border-border-subtle bg-surface-elevated/60 p-4">
-      <div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-widest text-fg-tertiary">
+    <div className="rounded border border-border-subtle bg-surface-subtle p-4">
+      <div className="case-label mb-3 flex items-center gap-2 text-xs tracking-widest text-fg-tertiary">
         <Icon size={14} />
         {title}
       </div>

@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { roleApi } from "@/lib/api";
 import { formatAge } from "@/lib/format";
-import type { RoleInfo } from "@/types/api";
+import type { RoleFitSummary, RoleInfo } from "@/types/api";
 import {
   Select,
   SelectContent,
@@ -9,11 +9,35 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { FitBar, SEGMENT_LABEL, SEGMENT_MEANING, SEGMENT_ORDER } from "@/components/role/role-fit";
 
 interface RoleBrowserProps {
   roles: RoleInfo[];
   onSelectRole: (roleId: string) => void;
   selectedRole?: string;
+  /** Sort rows worst-fit first instead of alphabetically within a domain. */
+  sortByWorstFit?: boolean;
+}
+
+/** A row's fit, or null when the API could not compute one for it. */
+function fitOf(role: RoleInfo): RoleFitSummary | null {
+  const fit = role.fit;
+  if (!fit || "error" in fit) return null;
+  return fit;
+}
+
+/** The knowledge chip's tooltip — the three buckets, not just the total. */
+function knowledgeTitle(role: RoleInfo): string {
+  const total = role.knowledge_count ?? 0;
+  const fit = fitOf(role);
+  if (!fit) return `${total} knowledge entries`;
+  const { claimed, unverified, filler, suppressed, sourced_label } =
+    fit.knowledge;
+  return (
+    `${total} knowledge entries\n` +
+    `${claimed} ${sourced_label} · ${unverified} unverified · ` +
+    `${filler} no-change filler · ${suppressed} suppressed`
+  );
 }
 
 const TIERS = ["fast", "standard", "strategic"] as const;
@@ -26,6 +50,7 @@ export function RoleBrowser({
   roles,
   onSelectRole,
   selectedRole,
+  sortByWorstFit = false,
 }: RoleBrowserProps) {
   const queryClient = useQueryClient();
 
@@ -34,6 +59,32 @@ export function RoleBrowser({
     (acc[r.domain] ??= []).push(r);
     return acc;
   }, {});
+
+  /* Sorting by the WORST segment, not by the mean. The mean of a structurally
+     perfect role with no knowledge and a broken role with good knowledge is
+     the same number, and only one of them needs work today. A role whose fit
+     could not be computed sorts last rather than first — an error is not
+     evidence of a bad role. */
+  if (sortByWorstFit) {
+    for (const domain of Object.keys(grouped)) {
+      grouped[domain]!.sort((a, b) => {
+        const fa = fitOf(a);
+        const fb = fitOf(b);
+        if (!fa && !fb) return a.id.localeCompare(b.id);
+        if (!fa) return 1;
+        if (!fb) return -1;
+        /* A role whose segments could not be measured has no worst segment.
+           It sorts last, above 100, rather than first: nothing measured is
+           not evidence of a bad role. */
+        const key = (n: number | null) => (n === null ? 101 : n);
+        return (
+          key(fa.worst_score) - key(fb.worst_score) ||
+          key(fa.overall) - key(fb.overall) ||
+          a.id.localeCompare(b.id)
+        );
+      });
+    }
+  }
 
   const domains = Object.keys(grouped).sort();
 
@@ -52,7 +103,7 @@ export function RoleBrowser({
       <LegendRow />
       {domains.map((domain) => (
         <div key={domain}>
-          <h3 className="mb-1.5 text-2xs font-medium uppercase tracking-wider text-tertiary">
+          <h3 className="mb-1.5 text-2xs font-medium case-label tracking-wider text-tertiary">
             {domain}
             <span className="ml-1.5 text-tertiary">
               {grouped[domain]!.length}
@@ -84,18 +135,40 @@ function LegendRow() {
     >
       <span className="h-1.5 w-1.5 shrink-0" />
       <span className="flex-1 truncate">Role</span>
-      <span className="shrink-0 w-6 text-right" title="Knowledge entries">
-        Entries
+      {/* THE HEADER LABEL WAS WIDER THAN THE COLUMN IT NAMES, and with
+          `overflow: visible` it printed itself over its neighbour rather than
+          being clipped — measured "Entries" at 56px inside a 28px box. The
+          column is sized for a COUNT, so the label is abbreviated to match and
+          keeps the full text in `title`. Same for Sess. and Learn below. */}
+      <span className="w-6 shrink-0 truncate text-right" title="Knowledge entries">
+        Ent.
+      </span>
+      <span
+        className="w-9 shrink-0 truncate text-center"
+        title={SEGMENT_ORDER.map(
+          (s) => `${SEGMENT_LABEL[s]}: ${SEGMENT_MEANING[s]}`,
+        ).join("\n\n")}
+      >
+        Fit
       </span>
       <span className="min-w-[140px] text-center">Tier</span>
       <span className="min-w-[110px] text-center">Model</span>
-      <span className="w-8 text-right" title="Session count">
-        Sess.
+      <span className="w-8 shrink-0 truncate text-right" title="Session count">
+        Ses.
       </span>
-      <span className="w-8 text-right" title="Learning count">
-        Learn
+      <span className="w-8 shrink-0 truncate text-right" title="Learning count">
+        Lrn.
       </span>
-      <span className="hidden w-20 text-right md:inline">Refreshed</span>
+      {/* "Refreshed" read as a quality signal and is not one: the sweep resets
+          this clock by writing a no-change row, so green here means the cron
+          ran, not that the role is current. The quality answer is the Fit
+          column. Relabelled to say only what it measures. */}
+      <span
+        className="hidden w-20 text-right @2xl:inline"
+        title="When the maintenance sweep last ran on this role. Not a quality signal — the sweep resets this clock even when it found nothing."
+      >
+        Sweep ran
+      </span>
     </div>
   );
 }
@@ -113,6 +186,7 @@ function RoleRow({
   onTierChange: (tier: string) => void;
   onModelChange: (model: string) => void;
 }) {
+  const fit = fitOf(role);
   return (
     <div
       className={`flex items-center gap-2 rounded px-2 py-1.5 transition-colors cursor-pointer ${
@@ -141,9 +215,21 @@ function RoleRow({
       {/* Knowledge count */}
       <span
         className="shrink-0 w-6 text-right text-3xs text-tertiary tabular-nums"
-        title={`${role.knowledge_count ?? 0} knowledge entries`}
+        title={knowledgeTitle(role)}
       >
         {role.knowledge_count ?? 0}
+      </span>
+
+      {/* Five-segment fit bar. Sits next to the knowledge chip because the
+          knowledge segment is one of the five and the two are read together. */}
+      <span className="flex w-9 shrink-0 justify-center">
+        {fit ? (
+          <FitBar scores={fit.scores} rubricVersion={fit.rubric_version} />
+        ) : (
+          <span className="text-3xs text-tertiary" title="Fit could not be computed">
+            —
+          </span>
+        )}
       </span>
 
       {/* Inline tier select — widened so `strategic` fits without truncating */}
@@ -193,8 +279,15 @@ function RoleRow({
       >
         {role.learnings}
       </span>
-      {/* Last maintained */}
-      <span className="hidden w-20 text-right text-3xs text-tertiary md:inline">
+      {/* When the sweep last ran — deliberately NOT a quality signal. */}
+      <span
+        className="hidden w-20 text-right text-3xs text-tertiary @2xl:inline"
+        title={
+          role.last_maintained
+            ? `Sweep last ran ${formatAge(role.last_maintained)}. Says nothing about whether it found anything.`
+            : "The sweep has never run on this role."
+        }
+      >
         {role.last_maintained ? formatAge(role.last_maintained) : "—"}
       </span>
     </div>

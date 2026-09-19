@@ -18,6 +18,8 @@ import { NoteEditor, type NoteEditorHandle } from "@/components/notes/note-edito
 import { WysiwygEditor, type WysiwygEditorHandle } from "@/components/notes/wysiwyg-editor";
 import { NoteGraph } from "@/components/notes/note-graph";
 import { ScribbleWindow } from "@/components/notes/scribble-block";
+import { sectionSlugs } from "@/shell/views/sections";
+import type { LeafViewProps } from "@/shell/views/registry";
 import { HandoverDialog } from "@/components/handover/handover-dialog";
 import type { ContentIR } from "@/lib/handover-api";
 import { registerHandoverSource, registerSnapshotContext } from "@/lib/handover-context";
@@ -248,12 +250,60 @@ function renderBody(md: string): string {
   );
 }
 
-export function NotesPage() {
+/**
+ * THE EDITOR SURFACE IS A SECTION — the same conversion the other four KNOW
+ * leaves got, and here it closes N10 as well: the leaf declared ARCHIVED, which
+ * has no implementation at all.
+ *
+ * `mode` and `showGraph` were two independent `useState`s that together named
+ * four mutually exclusive surfaces, so neither a split view nor the backlink
+ * graph could be linked, and a reload always landed on Live. They are one
+ * value now, and that value is the address.
+ *
+ * `?tab=` resolves here too, through `routes.ts:605`, without this file's help.
+ */
+type Surface = Mode | "graph";
+const SURFACE_OF_SLUG: Record<string, Surface> = {
+  live: "wysiwyg",
+  source: "edit",
+  split: "split",
+  graph: "graph",
+};
+const NOTES_SLUGS = sectionSlugs("know", "notes");
+const SLUG_OF_SURFACE: Record<Surface, string> = {
+  wysiwyg: "live",
+  edit: "source",
+  split: "split",
+  graph: "graph",
+};
+const SECTION_OF = (surface: Surface): number =>
+  Math.max(0, NOTES_SLUGS.indexOf(SLUG_OF_SURFACE[surface]));
+const SURFACE_AT = (index: number): Surface =>
+  SURFACE_OF_SLUG[NOTES_SLUGS[index] ?? "live"] ?? "wysiwyg";
+
+export function NotesPage({ view, onSelectView }: Partial<LeafViewProps> = {}) {
   const qc = useQueryClient();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [mode, setMode] = useState<Mode>("wysiwyg");
-  const [showGraph, setShowGraph] = useState(false);
+  /* Local fallback for every context without the shell — `?embed=1`, a test. */
+  const [localSection, setLocalSection] = useState(0);
+  const current = view ?? localSection;
+  const surface = SURFACE_AT(current);
+  const selectSurface = (next: Surface) => {
+    const index = SECTION_OF(next);
+    if (index === current) return;
+    if (onSelectView) onSelectView(index);
+    else setLocalSection(index);
+  };
+  const mode: Mode = surface === "graph" ? "wysiwyg" : surface;
+  const setMode = (m: Mode) => selectSurface(m);
+  const showGraph = surface === "graph";
+  const setShowGraph = (
+    next: boolean | ((v: boolean) => boolean),
+  ) => {
+    const want = typeof next === "function" ? next(showGraph) : next;
+    selectSurface(want ? "graph" : "wysiwyg");
+  };
   const [drawOpen, setDrawOpen] = useState(false);
   // Which drawing the canvas is editing: null = a fresh one to insert at the
   // caret; an id = re-opening an embedded drawing the user clicked.
@@ -864,13 +914,43 @@ export function NotesPage() {
   return (
     <div className="flex h-full min-h-0">
       {/* --- list rail (folders + notes) — hidable, and hidden in zen --- */}
+      {/* R3 (8546865f) + Q8 option A — THE RAILS YIELD TO THE EDITOR, AND THEY
+          KEY TO THE PANE.
+
+          `md:w-72` was the whole defect. `md:` is 384px under the engine's 8px
+          root, so it was TRUE in every state the shell can produce, and the
+          rail took a fixed 331.2px out of a 728px pane. With the backlinks rail
+          also permanently on (`lg:` = 512px) the editor got 121.3px of a
+          measured 531px min-content, the pane clipped 134px it could not
+          scroll to, and EIGHT OF NINE header buttons were unreachable behind
+          an opaque rail — measured at HEAD 405f93804, both appearances.
+
+          THE ARITHMETIC, and the rungs come out of it rather than from taste.
+          The editor's floor is its min-content, 531px measured. So:
+
+            all three columns need   331.2 + 531 + 276 = 1138.2px of pane
+            list rail + editor need  331.2 + 531       =  862.2px
+
+          `@6xl` is 1152px and `@4xl` is 896px at this root, so those are the
+          two rungs that keep the floor with room to spare:
+
+            pane        columns                 editor gets
+            >= 1152     list + editor + links   >= 544.8
+            896..1151   list + editor           >= 564.8
+            < 896       editor alone            the whole pane
+
+          Below 896 the list is one click away on the `Panels` control, which
+          already exists as a user toggle — the fix drives it from the container
+          as well as from the click, which is exactly what Q8 option A asked
+          for. `railOpen`/`sidebarOpen` still win when the user turns a rail
+          off; the container can only take a rail AWAY, never force one on. */}
       <aside
         className={cn(
-          "w-full shrink-0 flex-col border-r border-border bg-surface md:w-72",
+          "w-full shrink-0 flex-col border-r border-border bg-surface @4xl:w-72",
           !zen && sidebarOpen
             ? // Mobile: hide the master list once a note is open (drill-in).
               mobileView === "editor"
-              ? "hidden md:flex"
+              ? "hidden @4xl:flex"
               : "flex"
             : "hidden",
         )}
@@ -1006,15 +1086,28 @@ export function NotesPage() {
         className={cn(
           "flex min-w-0 flex-1 flex-col",
           // Mobile: hide the editor while browsing the master list.
-          mobileView === "list" && "hidden md:flex",
+          mobileView === "list" && "hidden @4xl:flex",
         )}
       >
-        <div className={cn("flex items-center gap-2 border-b border-border px-4 py-2", zen && "hidden")}>
+        {/* THE HEADER ROW WRAPS, and that is what removes the editor's floor
+            pressure rather than a new overflow menu. Its min-content was 531px
+            because nine controls sat on one unbreakable line; wrapping makes
+            the min-content the widest single control (~105px), so every button
+            stays a button — reachable, in the same order, just on a second line
+            when the pane is narrow. An overflow menu would have hidden the mode
+            switch behind a second click on exactly the widths where it matters. */}
+        <div className={cn("flex flex-wrap items-center gap-2 border-b border-border px-4 py-2", zen && "hidden")}>
           {/* Mobile-only: drill back out to the folder/note list. */}
+          {/* THE WAY BACK KEYS TO THE SAME RUNG THE DRILL-IN DOES.
+              It was `md:hidden` — the window — while the list rail is
+              `@4xl` — the pane. Measured while fixing the rails: at a 728px
+              pane the rail correctly hid and this button was STILL hidden, so
+              opening a note was a one-way trip with no route back to the list.
+              A mismatched pair of breakpoints is worse than either one. */}
           <Button
             size="icon"
             variant="ghost"
-            className="md:hidden"
+            className="@4xl:hidden"
             onClick={() => setMobileView("list")}
             title="Back to notes"
           >
@@ -1023,7 +1116,7 @@ export function NotesPage() {
           {/* Panels — one control for folders / backlinks / zen (desktop). */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="icon" variant="ghost" className="hidden md:inline-flex" title="Panels">
+              <Button size="icon" variant="ghost" className="hidden @4xl:inline-flex" title="Panels">
                 <PanelLeft className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -1087,7 +1180,12 @@ export function NotesPage() {
               </span>
             )}
           </div>
-          <div className="flex items-center gap-1.5">
+          {/* THE CONTROL GROUP WRAPS TOO, and measuring is what caught it: with
+              only the outer row wrapping, this group was ONE flex item, so at a
+              386px pane its six controls still laid out on a 453px line and the
+              last two were unreachable. A wrapping row whose child cannot wrap
+              has not been fixed. */}
+          <div className="flex flex-wrap items-center justify-end gap-1.5">
             {/* Primary action — always visible (works with folders hidden / zen). */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -1282,7 +1380,16 @@ export function NotesPage() {
           {recording && (
             <span className="flex min-w-0 flex-1 items-center gap-1.5 truncate px-3">
               <span className="inline-block h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-error" />
-              <span className="truncate italic text-secondary">
+              {/* N5 — THIS TEXT WAS INVISIBLE IN BOTH APPEARANCES, and it is
+                  the live transcription: while you dictated you could not see
+                  what was being heard. `text-secondary` is a shadcn SURFACE
+                  token wearing an ink class name — the generated rule is
+                  `color: var(--secondary, #141414)` — measured rgb(31,31,31)
+                  on a #131313 ground (~1.13:1) and rgb(243,243,243) on #ffffff
+                  (~1.09:1). Memory 966d5379's failure class, one namespace
+                  over. `text-fg` is the ink tier for text you are reading as
+                  it arrives. */}
+              <span className="truncate italic text-fg">
                 {interim || "listening…"}
               </span>
             </span>
@@ -1303,7 +1410,10 @@ export function NotesPage() {
       <aside
         className={cn(
           "w-60 shrink-0 flex-col gap-4 border-l border-border bg-surface p-3",
-          railOpen && !zen ? "hidden lg:flex" : "hidden",
+          // `lg:` was 512px at this root, so this rail could never hide and it
+          // was the box painting over the editor's header. `@6xl` = 1152px is
+          // the pane width at which all three columns keep the editor's floor.
+          railOpen && !zen ? "hidden @6xl:flex" : "hidden",
         )}
       >
         <div>
@@ -1354,6 +1464,12 @@ export function NotesPage() {
 
       {drawOpen && activeId && (
         <ScribbleWindow
+          /* N6 — `fill` DEFAULTED TO "screen", i.e. `fixed inset-0 z-50`, so
+             "Insert drawing" covered the sidebar, the topic bars, the window
+             controls and the action plate. The contract says a leaf lives in
+             its pane; "region" is `absolute inset-0 z-10` inside the pane, and
+             it is the value the full-page drawing note already passes. */
+          fill="region"
           drawingId={drawEditId}
           noteId={activeId}
           onCreated={(id) => {

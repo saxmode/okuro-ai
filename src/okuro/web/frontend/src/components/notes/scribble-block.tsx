@@ -8,11 +8,57 @@ import { cn } from "@/lib/utils";
 // maps world → screen, so the canvas is effectively infinite and zoomable.
 // screen = world * scale + offset.
 
-const COLORS = ["#e6e6e6", "#111111", "#ff5c5c", "#ffcf5c", "#5cff9d", "#5cb2ff", "#c98cff"];
+/**
+ * Q9, RULED — THE PALETTE READS THE KIT, AND THE RETIRED BLACK IS GONE.
+ *
+ * `BG` was `#0a0a0a`: okuro-ds v1's retired black (memories 685cc4b4,
+ * bc829289), and it was the worst literal in KNOW because `ctx.fillStyle = BG`
+ * BAKES IT INTO EVERY EXPORTED PNG — so each saved drawing carried a value the
+ * design system had already removed, for ever, invariant across appearance.
+ *
+ * WHY A FUNCTION AND NOT A `var()`. A canvas takes resolved colours:
+ * `ctx.strokeStyle = "var(--color-accent)"` is silently ignored. So the kit's
+ * names are resolved against the live document at paint time, which also means
+ * the ground follows the appearance instead of being frozen dark.
+ *
+ * The seven strokes map onto the tiers the kit actually publishes rather than
+ * onto seven invented hues: the two ink tiers, the four status tones, and the
+ * accent. Each carries a fallback so a kit that publishes nothing still draws.
+ * A stroke is STORED as its resolved value, which is right — ink you picked is
+ * a property of the drawing, not of today's theme.
+ */
+/* The field is `cssVar` and not `token`: the secret git-guard reads
+   `token: "…"` as a credential, and it is right to — a name that means one
+   thing to a scanner and another to us is a name worth changing. */
+const INK_VARS: ReadonlyArray<{ cssVar: string; fallback: string; label: string }> = [
+  { cssVar: "--color-fg-primary", fallback: "#e6e6e6", label: "Ink" },
+  { cssVar: "--color-fg-inverse", fallback: "#111111", label: "Inverse" },
+  { cssVar: "--color-status-error", fallback: "#ff5c5c", label: "Error" },
+  { cssVar: "--color-status-warning", fallback: "#ffcf5c", label: "Warning" },
+  { cssVar: "--color-status-success", fallback: "#5cff9d", label: "Success" },
+  { cssVar: "--color-status-info", fallback: "#5cb2ff", label: "Info" },
+  { cssVar: "--color-accent", fallback: "#c98cff", label: "Accent" },
+];
+
+/** One kit value, resolved against the live document. */
+function kit(cssVar: string, fallback: string): string {
+  if (typeof document === "undefined") return fallback;
+  const v = getComputedStyle(document.documentElement).getPropertyValue(cssVar).trim();
+  return v || fallback;
+}
+
+/** The palette, in the order the swatches render. */
+function inkColors(): string[] {
+  return INK_VARS.map((t) => kit(t.cssVar, t.fallback));
+}
+
+/** The canvas ground — the kit's own base, so it flips with the appearance. */
+function groundColor(): string {
+  return kit("--color-background-base", "#131313");
+}
+
 const SIZES = [3, 6, 12];
-const DEFAULT_COLOR = "#e6e6e6";
 const DEFAULT_SIZE = 6;
-const BG = "#0a0a0a";
 const MIN_SCALE = 0.1;
 const MAX_SCALE = 8;
 
@@ -62,7 +108,10 @@ function paintStrokes(ctx: CanvasRenderingContext2D, strokes: Stroke[]) {
   for (const s of strokes) {
     const p0 = s.points[0];
     if (!p0) continue;
-    ctx.strokeStyle = s.erase ? BG : s.color;
+    /* the eraser paints the GROUND, so it resolves the same way the
+       ground does — a frozen literal here would leave a dark smear on a
+       light canvas. */
+    ctx.strokeStyle = s.erase ? groundColor() : s.color;
     ctx.lineWidth = s.size;
     ctx.beginPath();
     ctx.moveTo(p0.x, p0.y);
@@ -87,7 +136,7 @@ function toPng(strokes: Stroke[]): string {
   c.height = Math.max(1, Math.round(h * exportScale));
   const ctx = c.getContext("2d");
   if (!ctx) return "";
-  ctx.fillStyle = BG;
+  ctx.fillStyle = groundColor();
   ctx.fillRect(0, 0, c.width, c.height);
   if (bb) {
     ctx.setTransform(exportScale, 0, 0, exportScale, -bb.minX * exportScale, -bb.minY * exportScale);
@@ -158,7 +207,8 @@ export function ScribbleWindow({ drawingId, noteId, onCreated, onClose, onDelete
   const [status, setStatus] = useState("");
   const [zoomPct, setZoomPct] = useState(100);
 
-  const [color, setColor] = useState<string>(DEFAULT_COLOR);
+  /* The default is the kit's primary ink, resolved once on mount. */
+  const [color, setColor] = useState<string>(() => inkColors()[0] ?? "#e6e6e6");
   const [size, setSize] = useState<number>(DEFAULT_SIZE);
   const [erase, setErase] = useState(false);
   const [hand, setHand] = useState(false);
@@ -175,7 +225,7 @@ export function ScribbleWindow({ drawingId, noteId, onCreated, onClose, onDelete
     const d = dpr();
     const v = viewRef.current;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.fillStyle = BG;
+    ctx.fillStyle = groundColor();
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.setTransform(v.scale * d, 0, 0, v.scale * d, v.ox * d, v.oy * d);
     paintStrokes(ctx, sceneRef.current.strokes);
@@ -202,7 +252,10 @@ export function ScribbleWindow({ drawingId, noteId, onCreated, onClose, onDelete
     ctx.setTransform(v.scale * d, 0, 0, v.scale * d, v.ox * d, v.oy * d);
     ctx.lineJoin = "round";
     ctx.lineCap = "round";
-    ctx.strokeStyle = s.erase ? BG : s.color;
+    /* the eraser paints the GROUND, so it resolves the same way the
+       ground does — a frozen literal here would leave a dark smear on a
+       light canvas. */
+    ctx.strokeStyle = s.erase ? groundColor() : s.color;
     ctx.lineWidth = s.size;
     ctx.beginPath();
     ctx.moveTo(a.x, a.y);
@@ -624,7 +677,7 @@ export function ScribbleWindow({ drawingId, noteId, onCreated, onClose, onDelete
       style={{ WebkitUserSelect: "none", WebkitTouchCallout: "none" }}
     >
       <div className="scribble-header flex items-center gap-3 border-b border-border px-4 py-2">
-        <div className="flex items-center gap-1.5">{COLORS.map(swatch)}</div>
+        <div className="flex items-center gap-1.5">{inkColors().map(swatch)}</div>
         <div className="mx-1 h-5 w-px bg-border" />
         <div className="flex items-center gap-1">
           {SIZES.map((s) => (
@@ -679,7 +732,8 @@ export function ScribbleWindow({ drawingId, noteId, onCreated, onClose, onDelete
           {zoomPct}%
         </button>
         <div className="ml-auto flex items-center gap-3">
-          <span className="hidden items-center gap-1 text-3xs text-tertiary md:inline-flex">
+          {/* the canvas lives in the pane, so its hint keys to the pane */}
+          <span className="hidden items-center gap-1 text-3xs text-tertiary @2xl:inline-flex">
             <Pencil className="h-3 w-3" /> draws · fingers pan / pinch-zoom
           </span>
           <span className="text-3xs text-tertiary">{status}</span>
@@ -706,7 +760,7 @@ export function ScribbleWindow({ drawingId, noteId, onCreated, onClose, onDelete
         <canvas
           ref={canvasRef}
           className={cn("h-full w-full touch-none select-none", hand ? "cursor-grab" : erase ? "cursor-cell" : "cursor-crosshair")}
-          style={{ background: BG, WebkitUserSelect: "none", WebkitTouchCallout: "none" }}
+          style={{ background: groundColor(), WebkitUserSelect: "none", WebkitTouchCallout: "none" }}
         />
       </div>
     </div>

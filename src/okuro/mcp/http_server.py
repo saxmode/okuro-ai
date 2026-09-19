@@ -40,6 +40,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import secrets
 import signal
 import socket
@@ -75,18 +76,38 @@ MCP_MOUNT = "/mcp"
 # Config + token helpers
 # ---------------------------------------------------------------------------
 
+def _config_path() -> Path:
+    """Resolve the config path at CALL time, honouring ``$OKURO_HOME``.
+
+    ``CONFIG_PATH`` below is a module constant evaluated at import, so any
+    process whose OKURO_HOME changed after the first import kept reading
+    the old install's file forever. That is tolerable for a single-install
+    host and is not tolerable for the port read: the port feeds the
+    who-owns-this-socket check, so resolving it against the WRONG install's
+    config is precisely the confusion this whole mechanism exists to end.
+
+    The constant stays exported — callers reference it — but nothing here
+    reads it any more.
+    """
+    from okuro.db.engine import okuro_home
+
+    return okuro_home() / "config.yaml"
+
+
 def _read_config() -> dict:
-    if not CONFIG_PATH.is_file():
+    path = _config_path()
+    if not path.is_file():
         return {}
     try:
-        return yaml.safe_load(CONFIG_PATH.read_text()) or {}
+        return yaml.safe_load(path.read_text()) or {}
     except Exception:
         return {}
 
 
 def _write_config(data: dict) -> None:
-    CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    CONFIG_PATH.write_text(yaml.safe_dump(data, sort_keys=False))
+    path = _config_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(yaml.safe_dump(data, sort_keys=False))
 
 
 def _pick_free_port() -> int:
@@ -113,6 +134,17 @@ def configured_port() -> int | None:
     home's config. Callers that merely reference the daemon use this instead
     and treat None as "not booted yet".
     """
+    # Env first, so this install's unit file can pin the port the same way
+    # OKURO_PORT and OKURO_EMBED_PORT already pin the other two. Without it
+    # the daemon was the one service whose unit could not declare its port,
+    # so `okuro ports reassign` could not move it.
+    env = os.environ.get("OKURO_MCP_HTTP_PORT")
+    if env and env.strip():
+        try:
+            return int(env.strip())
+        except ValueError:
+            log.warning("OKURO_MCP_HTTP_PORT is not an integer (%r) — ignoring", env)
+
     cfg = _read_config()
     port = ((cfg.get("mcp") or {}).get("http") or {}).get("port")
     return int(port) if port else None
@@ -124,13 +156,11 @@ def resolve_port() -> int:
     Allocates and WRITES when unset. Only the listening process should call
     this; see :func:`configured_port` for a read-only lookup.
     """
-    cfg = _read_config()
-    mcp_cfg = cfg.get("mcp", {}) or {}
-    http_cfg = mcp_cfg.get("http", {}) or {}
-    port = http_cfg.get("port")
-    if port:
-        return int(port)
+    declared = configured_port()
+    if declared:
+        return declared
 
+    cfg = _read_config()
     port = _pick_free_port()
     cfg.setdefault("mcp", {}).setdefault("http", {})["port"] = port
     _write_config(cfg)
@@ -239,6 +269,15 @@ def build_app(session_manager: StreamableHTTPSessionManager, token: str) -> Star
             # "can't tell" must never read as "safe".
             "restart_safe": sessions == 0 and not handlers,
         }
+        # WHO is answering. Fixed loopback ports are host-wide, so a second
+        # okuro install on the same host answers this endpoint exactly as
+        # convincingly as the caller's own. One shared helper, one shape,
+        # on all three services — see okuro.system.install_identity.
+        try:
+            from okuro.system.install_identity import IDENTITY_KEY, install_identity
+            payload[IDENTITY_KEY] = install_identity("okuro-daemon")
+        except Exception:  # a diagnostic must never take /health down
+            pass
         # Surface daemon-level supervisor state (scheduler, mcp-http,
         # ingress) and per-adapter ingress state so sysinfo_service_health
         # callers and the web UI can drill into a single endpoint.
@@ -384,6 +423,16 @@ async def serve(
     log.info("uvicorn running on http://%s:%d%s (mcp http)", host, port, MCP_MOUNT)
     try:
         await uvicorn_server.serve()
+    except OSError as exc:
+        # BIND FAILURE. "[Errno 98] address already in use" names a port and
+        # stops there, so the journal entry from the 2026-09-16 outage could
+        # not distinguish "my own stale process" from "another account's
+        # install". Resolve the holder the same way every client does and say
+        # who it is, here, before the process exits.
+        from okuro.system.install_identity import SERVICE_DAEMON, bind_failure_line
+
+        log.error("%s", bind_failure_line(SERVICE_DAEMON, port, exc))
+        raise
     finally:
         if watcher is not None and not watcher.done():
             watcher.cancel()

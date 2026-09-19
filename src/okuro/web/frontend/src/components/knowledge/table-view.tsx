@@ -95,7 +95,7 @@ export function TableView({ nodes, onSelect, selectedId }: TableViewProps) {
             </button>
           )}
         </div>
-        <div className="ml-auto text-2xs uppercase tracking-wider text-tertiary">
+        <div className="ml-auto text-2xs case-label tracking-wider text-tertiary">
           <span className="font-mono text-fg-muted">{rows.length}</span> / {nodes.length}
         </div>
       </div>
@@ -162,14 +162,14 @@ export function TableView({ nodes, onSelect, selectedId }: TableViewProps) {
             })}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={6} className="py-12 text-center text-2xs uppercase tracking-wider text-tertiary">
+                <td colSpan={6} className="py-12 text-center text-2xs case-label tracking-wider text-tertiary">
                   no matches
                 </td>
               </tr>
             )}
             {count < rows.length && (
               <tr ref={sentinelRef}>
-                <td colSpan={6} className="py-4 text-center text-2xs uppercase tracking-wider text-tertiary">
+                <td colSpan={6} className="py-4 text-center text-2xs case-label tracking-wider text-tertiary">
                   {count} / {rows.length} — scroll for more
                 </td>
               </tr>
@@ -200,7 +200,7 @@ function Th({
     <th
       onClick={() => onClick(col)}
       className={cn(
-        "cursor-pointer select-none px-2 py-1.5 text-left text-2xs uppercase tracking-wider",
+        "cursor-pointer select-none px-2 py-1.5 text-left text-2xs case-label tracking-wider",
         active ? "text-accent" : "text-tertiary hover:text-fg-muted",
       )}
     >

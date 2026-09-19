@@ -593,7 +593,7 @@ def _assert_roles_resolvable(plan_dict: dict) -> None:
     """REMAP any subtask whose role has no prompt content to a runnable role.
 
     The decomposer LLM can pick a role that is in the index but has no prompt
-    — a catalog YAML checked in empty (`vfx-specialist`, 2026-05-07), or a
+    — a roles-table row with an empty body (`vfx-specialist`, 2026-05-07), or a
     project-level agent name the planner knows but the orchestrator can't run
     (`caddy-web-maintainer`, surfaced LIVE 2026-06-19). Pre-fix this RAISED and
     the ENTIRE task hard-failed at planning with no recovery — a CEO just saw

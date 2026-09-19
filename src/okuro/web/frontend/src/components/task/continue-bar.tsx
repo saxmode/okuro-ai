@@ -168,7 +168,7 @@ export function ContinueBar({
       {/* Suggestion node cards */}
       {activeSuggestions.length > 0 && (
         <>
-          <div className="text-3xs uppercase tracking-wider text-tertiary">
+          <div className="text-3xs case-label tracking-wider text-tertiary">
             Proposed next steps · click to review
           </div>
           <div className="flex flex-wrap justify-center gap-3">
@@ -406,7 +406,7 @@ function SuggestionNode({
         <span className="truncate text-2xs font-medium text-fg-muted">
           {categoryLabel}
         </span>
-        <span className="text-3xs font-bold uppercase tracking-wider text-tertiary">
+        <span className="text-3xs font-bold case-label tracking-wider text-tertiary">
           Proposed
         </span>
       </div>
@@ -456,7 +456,7 @@ function SuggestionDetailDialog({
     <DialogContent className="max-w-lg">
       <DialogHeader>
         <DialogTitle className="flex items-center gap-2">
-          <span className="rounded border border-border px-1.5 py-0.5 text-3xs font-bold uppercase tracking-wider text-fg-muted">
+          <span className="rounded border border-border px-1.5 py-0.5 text-3xs font-bold case-label tracking-wider text-fg-muted">
             {categoryLabel}
           </span>
           <span>Proposed next step</span>
@@ -472,14 +472,14 @@ function SuggestionDetailDialog({
         </div>
 
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
-          <dt className="text-2xs uppercase tracking-wider text-tertiary">
+          <dt className="text-2xs case-label tracking-wider text-tertiary">
             Effort
           </dt>
           <dd className="text-fg-muted">{effortLabel}</dd>
 
           {suggestion.source_role && (
             <>
-              <dt className="text-2xs uppercase tracking-wider text-tertiary">
+              <dt className="text-2xs case-label tracking-wider text-tertiary">
                 Proposed by
               </dt>
               <dd className="text-fg-muted">{suggestion.source_role}</dd>
@@ -488,7 +488,7 @@ function SuggestionDetailDialog({
 
           {suggestion.timestamp && (
             <>
-              <dt className="text-2xs uppercase tracking-wider text-tertiary">
+              <dt className="text-2xs case-label tracking-wider text-tertiary">
                 When
               </dt>
               <dd className="text-fg-muted">

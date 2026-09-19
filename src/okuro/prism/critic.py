@@ -19,7 +19,7 @@ claims and returns actionable defects. Two core gates implemented here:
   no restatement/contradiction, density rising)?
 
 Uses opus (capability="quality") — the critic is the one stage worth the tier.
-Mirrors the ``prism-critic`` charter (roles/catalog).
+Mirrors the ``prism-critic`` charter (the roles table).
 """
 
 from __future__ import annotations

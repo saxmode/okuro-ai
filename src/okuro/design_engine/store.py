@@ -33,6 +33,7 @@ from pydantic import BaseModel
 from . import kits as shipped
 from .schema import Brand
 from okuro.db.engine import okuro_home
+from okuro.fsutil import data_entries
 
 _SAME = object()
 """Sentinel: this field does not override its base. Distinct from `None`, which
@@ -93,24 +94,50 @@ def list_kits() -> list[dict]:
         {"id": kit_id, "origin": "package", "editable": False}
         for kit_id in shipped_ids()
     ]
-    directory = store_dir()
-    if directory.is_dir():
-        for path in sorted(directory.glob("*.json")):
-            out.append({"id": path.stem, "origin": "user", "editable": True})
+    # A FILE IN THE STORE IS NOT AUTOMATICALLY A BRAND.
+    #
+    # This listing never parses a kit — it reports the stem as an id and lets
+    # the open path do the reading — so the filename rule is the whole guard
+    # available here, and it is the half that matters: a generated sidecar or
+    # a stray json would otherwise appear in the gallery as an editable brand
+    # that fails the moment someone opens it. Shared with canon and the
+    # recurring loader (okuro.fsutil), which is where the same defect was
+    # found twice before.
+    for path in data_entries(store_dir(), suffixes=(".json",)):
+        out.append({"id": path.stem, "origin": "user", "editable": True})
     return out
 
 
-RETIRED_SLOTS = ("base", "root_percent")
+RETIRED_SLOTS = ("base", "root_percent", "defaults", "sizes")
 """Fields a brand used to author and no longer may.
 
-His ruling of 2026-08-17 made both system constants -- "Brands do not change
-their base. Base is always the same." A brand saved before that carries them,
-and `Brand` forbids extra keys, so loading one would raise instead of opening.
+His ruling of 2026-08-17 made `base` and `root_percent` system constants --
+"Brands do not change their base. Base is always the same." His ruling of
+2026-09-17 did the same to `defaults`, whose only member was the rung: "the font
+sizes are everywhere the same. The font rungs aren't ... standard for the
+viewer". The rung is now `schema.ViewportRungs`, one system setting per viewport
+class that every kit inherits. The SAME ruling, option A, took `sizes` too: the
+five factor slots behind it -- the 168 text cells, the component anchor, the rung
+step, the role ratios and a whole override of the component ladder -- are engine
+constants now, because "the font sizes are everywhere the same" cannot be true
+while a kit can rewrite the table. Measured before the lock: no kit had ever set
+one, and no kit file even carried the key.
+
+A brand saved before any of these rulings carries the field, and `Brand` forbids extra
+keys, so loading one would raise instead of opening.
 
 Dropping rather than translating is the whole migration, and it is lossless by
-construction: both fields only ever held the values that are now the constants,
-and a brand that had moved one is a brand whose sizes the ruling redefined
-anyway. The file is rewritten without them the next time it is saved.
+construction. For `base` and `root_percent`: both only ever held the values that
+are now the constants. For `defaults`: the rung it held is a question that is no
+longer the kit's to answer, so there is nowhere to translate it TO -- the value
+that matters lives on the profile and is set once for every kit at a time. The
+file is rewritten without them the next time it is saved.
+
+MEASURED before this landed, 2026-09-17: of the user kits on this machine
+exactly ONE file carried it -- the active one, with a desktop and a mobile rung
+of XL. The rest had no `defaults` key at all, because the store writes sparse
+diffs against the base kit and they had never differed from it. So the migration
+surface was one file, and every one of them opens cleanly either way.
 """
 
 

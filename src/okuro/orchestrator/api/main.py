@@ -108,6 +108,8 @@ from okuro.orchestrator.api.signals import router as signals_router
 from okuro.orchestrator.api.inbox import router as inbox_router
 from okuro.orchestrator.api.sessions import router as sessions_router
 from okuro.orchestrator.api.roles import router as roles_router
+from okuro.orchestrator.api.roles_fit import router as roles_fit_router
+from okuro.orchestrator.api.roles_structure import router as roles_structure_router
 from okuro.orchestrator.api.preview import router as preview_router
 from okuro.orchestrator.api.state_reader import (
     list_all_tasks, read_task_detail, read_task_logs,
@@ -266,6 +268,8 @@ _STATE_CHANGE_EVENTS = frozenset({
     "capability_gap",
     "await_user_decision", "await_user_decision_resolved",
     "await_user_decision_skipped",
+    # Basis moved while the gate parked: the panel must refetch to show the warning.
+    "await_user_decision_basis_moved",
     "approval_batch",
     # Single-subtask approvals — POST /api/tasks/:id/approve. Measured
     # 2026-07-27 against a live /ws probe: an allowlisted event reaches the
@@ -1598,21 +1602,63 @@ async def lifespan(app: FastAPI):
     logger.info(f"Tasks dir: {TASKS_DIR}")
     TASKS_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Auto-sync new role catalog YAMLs into the live DB. seed_if_empty
-    # only triggers on a fresh install, so adding a new role to the
-    # repo (e.g. workforce-reviewer) wouldn't reach existing users
-    # without a manual seeder call. seed_from_catalog with overwrite=False
-    # only inserts roles whose role_id isn't already present, so user
-    # edits to existing roles aren't clobbered.
+    # This line used to re-seed the role catalog from YAML on every start,
+    # which is what made role drift RECURRING rather than a one-off: the
+    # catalog and the table were two homes for the same content, and each
+    # restart re-litigated which one won. There is one home now — the table —
+    # so nothing is synced here any more.
+    #
+    # What remains is derived data. A role with no row in vec_roles is
+    # invisible to roles_match, and the two paths that can write a role row
+    # without reaching the embed service are a SQL migration and an embed
+    # service that was down at the time. Both are settled here, on the next
+    # start. Costs one anti-join when there is nothing to do.
     try:
         from okuro.db import get_db
-        from okuro.roles.seed import seed_from_catalog
+        from okuro.roles.vectors import backfill_missing_role_vectors
 
-        inserted, _ = seed_from_catalog(get_db(), overwrite=False)
-        if inserted:
-            logger.info(f"Auto-seeded {inserted} new role(s) from catalog")
+        written = backfill_missing_role_vectors(get_db())
+        if written:
+            logger.info(f"Embedded {written} role(s) with a missing or stale vector")
     except Exception as exc:
-        logger.warning(f"Role catalog auto-sync failed: {exc}")
+        logger.warning(f"Role vector backfill failed: {exc}")
+
+    # The user's own role-file layer under the okuro home is no longer loaded
+    # by anything. The files are the user's, so they are not touched — but a
+    # directory that silently stopped working is worse than one that is gone:
+    # drop a YAML in, restart, and without this there is no error, no log line
+    # and no role. Say so once per start, by name.
+    #
+    # This is the ONE place allowed to look at that directory, and it only
+    # counts and names the files — it never parses one. tests/roles/
+    # test_no_role_catalog.py pins both halves of that sentence.
+    try:
+        from okuro.db.engine import okuro_home
+
+        # Dotfiles excluded via okuro.fsutil: this is the very directory the
+        # catalog pin test asserted was absent and cortex recreated, WITH its
+        # sidecar. Without the filter this warning would tell the user they
+        # have an inert role file called `.okuro-index` — a false alarm about
+        # a file that was never a role, in the one message whose whole job is
+        # to be believed.
+        from okuro.fsutil import data_entries
+
+        orphaned = data_entries(
+            okuro_home() / "roles" / "catalog", suffixes=(".yaml",)
+        )
+        if orphaned:
+            logger.warning(
+                "%d role YAML file(s) under %s are no longer loaded by anything "
+                "— the role catalog was removed in migration 155 and roles live "
+                "only in the database now. These roles already have rows and "
+                "keep working; the FILES are inert. Create a new role with "
+                "POST /api/roles or store_designed_role instead: %s",
+                len(orphaned),
+                okuro_home() / "roles" / "catalog",
+                ", ".join(p.name for p in orphaned),
+            )
+    except Exception as exc:  # noqa: BLE001 — advisory only
+        logger.debug(f"orphaned role-file check skipped: {exc}")
 
     # Hydrate the orchestrator-state snapshot from disk so a server restart
     # doesn't reset the OkuroThinker to "no current state". Scans every task
@@ -2051,6 +2097,21 @@ app.include_router(inbox_router)
 # the reissue-bearer suffix).
 app.include_router(sessions_router)
 
+# -- Roles Fit Router (five-segment fit analytics: fleet rollup + per-role) --
+# Registered BEFORE roles_router, not after, because roles_router carries a
+# GET /{role_id} wildcard partway down its file. Appended after it, the literal
+# GET /api/roles/fit would never be reached — Starlette matches in registration
+# order and every request would land on the detail route as role "fit".
+app.include_router(roles_fit_router)
+
+# -- Roles Structure Router (source registry + the research dispatch) --
+# Ahead of roles_router for the same reason roles_fit is: /{role_id} is a
+# wildcard partway down that file, so a literal appended after it is
+# unreachable and every request comes back "Role 'structure-sources' not
+# found". Third literal caught by the same trap; a module is cheaper than a
+# fourth debugging session.
+app.include_router(roles_structure_router)
+
 # -- Roles Router (list/detail/CRUD + knowledge + maintenance surface) --
 # Registered BEFORE web_router because both expose /api/roles — the roles
 # router is the source of truth now (extended with stale + knowledge_count).
@@ -2426,13 +2487,24 @@ def health():
     from okuro.mcp.inline_http import live_session_count
     from okuro.orchestrator.api.chat_session import turns_in_flight
 
-    return {
+    payload = {
         "status": "healthy",
         # null = the SDK's internals moved; callers must treat it as unknown,
         # never as zero.
         "mcp_sessions": live_session_count(),
         "chat_turns_in_flight": turns_in_flight(),
     }
+    # WHO is answering. Public by design and safe to be: install home, uid,
+    # username, code rev, unit, pid. None of it is a secret, and without it a
+    # caller cannot tell this orchestrator from a second install's on the same
+    # loopback port — which is how a bearer token minted here ends up posted
+    # to someone else's API. See okuro.system.install_identity.
+    try:
+        from okuro.system.install_identity import IDENTITY_KEY, install_identity
+        payload[IDENTITY_KEY] = install_identity("okuro-orchestrator")
+    except Exception:  # a diagnostic must never take /api/health down
+        pass
+    return payload
 
 
 @app.get("/api/status", response_model=SystemStatus)
@@ -3400,7 +3472,17 @@ def active_roles():
 def list_recurring_defs():
     """List all recurring task definitions with schedule info."""
     from okuro.orchestrator.recurring import load_recurring_defs
-    defs = load_recurring_defs(OKURO_ROOT / "recurring")
+    # A REFUSED FILE MUST EXIST SOMEWHERE A PERSON LOOKS.
+    #
+    # The loader's log was the only place a stray YAML in the recurring
+    # directory was reported, and nobody reads a scheduler log to find out why
+    # a job they wrote is absent. `ignored` carries the ones worth acting on —
+    # a draft, a backup, a typo — so the panel can say "this file is here and
+    # is not scheduled, here is why". Generated sidecars are excluded by the
+    # loader itself: surfacing those would be clutter, which is how a panel
+    # stops being read.
+    ignored: list[dict] = []
+    defs = load_recurring_defs(OKURO_ROOT / "recurring", ignored=ignored)
     now = datetime.now()
     result = []
     for d in defs:
@@ -3430,8 +3512,25 @@ def list_recurring_defs():
             # declared, so it is stated here rather than stored per-def.
             "kind": "orchestrator",
             "tier": d.tier,
+            # WHY THIS DEFINITION CANNOT RUN AS WRITTEN, if it cannot.
+            #
+            # A definition with a missing or blank cron used to be dropped by
+            # the loader, and dropping it took the repair route with it: absent
+            # from this list meant PATCH answered 404, so the one route that
+            # could have fixed the cron could not reach the file. It loads now
+            # and arrives here flagged instead. `needs_repair` is the flag a
+            # panel can render without knowing the vocabulary; `problems`
+            # carries the sentences.
+            #
+            # `status` is deliberately left as the FILE says. It is a
+            # user-settable field with three legal values (scheduled | paused
+            # | disabled) and PATCH validates against exactly those, so
+            # inventing a fourth here would put a value in the response that
+            # cannot be sent back.
+            "problems": list(d.problems),
+            "needs_repair": bool(d.problems),
         })
-    return {"definitions": result}
+    return {"definitions": result, "ignored": ignored}
 
 
 class RecurringCreate(BaseModel):
@@ -5735,7 +5834,7 @@ def generate_suggestion(task_id: str):
 
     Uses the same generator as the engine's completion hook — one prompt,
     one schema, one set of bugs. The role owns the prompt + output contract
-    (src/okuro/roles/catalog/workforce-reviewer.yaml); tune there, no code
+    (the `workforce-reviewer` row in the roles table); tune there, no code
     change needed.
     """
     _validate_task_id(task_id)
@@ -6206,6 +6305,7 @@ class GateResolveRequest(BaseModel):
 def list_gates(task_id: str):
     """List every decision gate on a task with its current status."""
     _validate_task_id(task_id)
+    from okuro.orchestrator.gate_subject import basis_moved, subject_title
     from okuro.orchestrator.state import load_task
     if not (TASKS_DIR / task_id).exists():
         raise HTTPException(404, f"Task {task_id} not found")
@@ -6232,6 +6332,28 @@ def list_gates(task_id: str):
             "selected_option_id": gate.selected_option_id,
             "selected_rationale": gate.selected_rationale,
             "resolved_at": gate.resolved_at,
+            # S2 — the artifact this decision is made against. Empty for
+            # every gate that has none, which is every legacy gate.
+            "subject_artifact_id": gate.subject_artifact_id,
+            "subject_sha256": gate.subject_sha256,
+            # Resolved here rather than in the browser: the panel needs a
+            # NAME to render "Basis: …", and a second round trip per gate
+            # to fetch one title would be the more expensive answer.
+            "subject_title": (
+                subject_title(gate.subject_artifact_id)
+                if gate.subject_artifact_id else ""
+            ),
+            # Whether resolving would be refused right now. The panel that
+            # polls this IS the resolver, so without it the UI offers an
+            # approve button for a decision the backend will reject.
+            # PENDING only: a resolved gate's basis is history, and
+            # re-checking it would make a locked decision start reporting
+            # a problem nobody can act on.
+            "basis_moved": (
+                basis_moved(gate.subject_artifact_id, gate.subject_sha256)
+                if gate.subject_artifact_id and gate.status == "pending"
+                else False
+            ),
         })
     return {"task_id": task_id, "gates_enabled": task.gates_enabled, "gates": gates}
 
@@ -6251,6 +6373,14 @@ def resolve_gate(task_id: str, gate_id: str, body: GateResolveRequest):
     The engine's headless wait_for_decision poll picks up the resolution
     on its next 2s tick. ADR (when not skipped) is appended to task.adrs
     and injected into every downstream subagent brief.
+
+    S2 — 409 now has a second cause. A gate carrying a subject artifact
+    is refused when that artifact's body no longer hashes to what the
+    gate recorded, or when it is gone; the message names the artifact and
+    the gate stays pending. `skipped=true` is never refused for that
+    reason — a skip is not an approval. No new code path here: the
+    ValueError → 409 mapping below already carries the message the
+    resolver raises.
     """
     _validate_task_id(task_id)
     from okuro.orchestrator.state import load_task, resolve_decision_gate

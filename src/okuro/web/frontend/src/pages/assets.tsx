@@ -5,16 +5,24 @@
 // AGENT_HEADER_END -->
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { MediaGrid } from "@/components/assets/media-grid";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Search, Copy, Check, Star, LayoutGrid, Boxes, X, Plus, Pencil, Trash2, Upload, Download } from "lucide-react";
-import { useSearchParams } from "react-router";
+import { useNavigate } from "react-router";
+import { leafSlugs, pathFor } from "@/shell/routes";
+import { useSectionTitle } from "@/shell/components/PageTitle";
 import { useInView } from "@/hooks/use-in-view";
-import { PageHeader } from "@/components/shell/page-header";
 import { SectionLabel } from "@/components/ui/section-label";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { iconsApi, type IconResult, type IconSet } from "@/lib/assets-api";
 import { toCurrentColor, combineSvgs } from "@/lib/icon-color";
@@ -176,12 +184,56 @@ function Inspector({ icon, onClose, onToggleFav, onTagsChanged, onDelete }: {
   );
 }
 
+/** Resolved from the IA by slug, never pinned (3417a932's mount rule). */
+const MEDIA_LEAF = leafSlugs("deliver").indexOf("media");
+
 export function AssetsPage() {
+  const navigate = useNavigate();
+  /**
+   * R5 (372ccdb2), PERMANENT BRANCH — ONE MODAL, THREE ACTIONS, AND
+   * `window.confirm` IS GONE FROM THIS LEAF.
+   *
+   * There were three `window.confirm` calls here — delete a set, delete the
+   * selection, delete one icon. R5 rules a modal for the permanent branch and
+   * reserves the two-step arm for what can be set back; all three of these
+   * are permanent (`iconsApi.deleteIcons` and `containers.remove` have no
+   * undo). `window.confirm` was the wrong instrument for a second reason the
+   * STACKS pass measured: it BLOCKS the event loop, and the shell runs a
+   * 650ms topic transition through it.
+   *
+   * ONE piece of state rather than three: a discriminated pending action, so
+   * the three sentences live beside each other and cannot drift apart.
+   */
+  const [pending, setPending] = useState<
+    | { kind: "set"; id: string; name: string }
+    | { kind: "bulk"; count: number }
+    | { kind: "one"; id: string }
+    | null
+  >(null);
   const qc = useQueryClient();
-  const [searchParams] = useSearchParams();
   // Open straight into the Media browser when linked as /assets?view=media (the
   // "MEDIA" nav) — otherwise the icon manager. Read once on mount.
-  const [view, setView] = useState<"icons" | "media">(searchParams.get("view") === "media" ? "media" : "icons");
+  /**
+   * D1 — ASSETS PAINTED THE **MEDIA LEAF** AT ITS OWN ADDRESS, and the state
+   * that did it is gone.
+   *
+   * This was `useState(searchParams.get("view") === "media" ? "media" : "icons")`
+   * with an early `return <MediaGrid …/>` further down and an in-page button
+   * calling `setView("media")` — none of it touching the URL. Measured
+   * consequences, all user-visible: the rail highlighted ASSETS while the
+   * bucket was on screen, the address was not bookmarkable, browser Back did
+   * not undo it, and the "Icons" button meant two different things depending
+   * on how you arrived (a leaf change through the mount, local state here).
+   *
+   * Q-D8 ruled A: two leaves, two addresses, one page file. So this page has
+   * exactly one job now, and the `?view=media` LINK still works — it is
+   * intercepted before the LEGACY table and sent to `/deliver/media`
+   * (`shell/routes.ts`), which is where the mount lives.
+   *
+   * THE GRAMMAR COLLISION THE MOUNT'S HEADER DESCRIBES DIES WITH IT: this file
+   * no longer reads `?view=` at all, so the shell's own section slugs are the
+   * only meaning that key has.
+   */
   const [rawQuery, setRawQuery] = useState("");
   const [filter, setFilter] = useState<Filter>({ kind: "all" });
   const query = useDebounced(rawQuery.trim(), 250);
@@ -337,7 +389,6 @@ export function AssetsPage() {
     qc.invalidateQueries({ queryKey: ["icon-sets"] });
   };
   const deleteSet = async (id: string, name: string) => {
-    if (!window.confirm(`Delete set “${name}”? Icons are kept; only the set membership is removed.`)) return;
     await iconsApi.containers.remove("set", id);
     if (filter.kind === "set" && filter.value === name) setFilter({ kind: "all" });
     qc.invalidateQueries({ queryKey: ["icon-sets"] });
@@ -368,7 +419,6 @@ export function AssetsPage() {
 
   // F — delete selected icons.
   const bulkDelete = async () => {
-    if (!window.confirm(`Delete ${sel.size} icon(s) from the library? This cannot be undone.`)) return;
     const ids = [...sel];
     await iconsApi.deleteIcons(ids);
     setItems((prev) => prev.filter((it) => !sel.has(it.id)));
@@ -378,7 +428,6 @@ export function AssetsPage() {
   };
 
   const deleteOne = async (id: string) => {
-    if (!window.confirm("Delete this icon from the library? This cannot be undone.")) return;
     await iconsApi.deleteIcons([id]);
     setItems((prev) => prev.filter((it) => it.id !== id));
     setSelectedId(null);
@@ -405,13 +454,48 @@ export function AssetsPage() {
   const activeLabel = filter.kind === "all" ? "All icons" : filter.kind === "favorites" ? "Favorites" : filter.label;
   const setOptions = (sets.data?.sets ?? []).filter((s) => !s.parent_set_id);
 
-  if (view === "media") return <MediaGrid onBack={() => setView("icons")} />;
+  /* THE SEARCH BOX IS THE PLATE'S. It is the leaf's one genuine
+     search/sort/filter/add control; the icon-size and import controls sit
+     with the grid they act on and stay. `c-band-pin` names this glyph for
+     the band's centring rule rather than letting `.absolute` catch every
+     positioned node the plate is handed (audit C5-1). */
+  const header = useMemo(
+    () => ({
+      actions: (
+        <div className="relative w-56">
+          <Search className="c-band-pin pointer-events-none absolute left-3 text-fg-muted" />
+          <Input
+            value={rawQuery}
+            onChange={(e) => setRawQuery(e.target.value)}
+            placeholder="search icons…"
+            aria-label="Search icons"
+            className="pl-8"
+          />
+        </div>
+      ),
+    }),
+    [rawQuery],
+  );
+  useSectionTitle(header);
 
   return (
     <div className="flex h-full">
       <SidePanel
         side="left"
-        desktopClassName="w-60 shrink-0 overflow-y-auto border-r border-border px-3 py-4"
+        /* R3 (8546865f) — THE LIBRARY RAIL ASKS THE PANE, NOT THE WINDOW.
+           `w-60` is 276px at the 8px root and it was fixed, so inside a 728px
+           pane the rail took 37% and the icon grid got 462px; at 1900 the same
+           276px is 22% of 1262. p3's Q2 recommended C — "the problem is
+           measured as width, not as information architecture" — and the rung
+           comes out of the grid rather than from taste: the tiles are
+           `repeat(auto-fill, minmax(120px, 1fr))`, so a grid under ~500px
+           shows three columns, and 500 + 276 = 776. `@4xl` is 896px here,
+           which is the first rung that clears it with room.
+           Below the rung the rail narrows rather than disappearing: its
+           visibility is `SidePanel`'s `useIsMobile()` + `MobilePanelTrigger`'s
+           `md:hidden`, a matched WINDOW pair, and re-keying one half of that
+           is a one-way trip to no rail at all (the NOTES lesson, 477b0449). */
+        desktopClassName="w-44 @4xl:w-60 shrink-0 overflow-y-auto border-r border-border px-3 py-4"
         open={libOpen}
         onOpenChange={setLibOpen}
         title="Library"
@@ -434,7 +518,7 @@ export function AssetsPage() {
               actions={
                 <span className="flex gap-1 pr-1">
                   <button onClick={() => renameSet(set.id, set.name)} className="text-fg-muted hover:text-fg"><Pencil className="h-3 w-3" /></button>
-                  <button onClick={() => deleteSet(set.id, set.name)} className="text-fg-muted hover:text-accent"><Trash2 className="h-3 w-3" /></button>
+                  <button onClick={() => setPending({ kind: "set", id: set.id, name: set.name })} aria-label={`Delete set ${set.name}`} className="text-fg-muted hover:text-error"><Trash2 className="h-3 w-3" /></button>
                 </span>
               } />
             {children.map((c) => (
@@ -444,7 +528,7 @@ export function AssetsPage() {
                 actions={
                   <span className="flex gap-1 pr-1">
                     <button onClick={() => renameSet(c.id, c.name)} className="text-fg-muted hover:text-fg"><Pencil className="h-3 w-3" /></button>
-                    <button onClick={() => deleteSet(c.id, c.name)} className="text-fg-muted hover:text-accent"><Trash2 className="h-3 w-3" /></button>
+                    <button onClick={() => setPending({ kind: "set", id: c.id, name: c.name })} aria-label={`Delete set ${c.name}`} className="text-fg-muted hover:text-error"><Trash2 className="h-3 w-3" /></button>
                   </span>
                 } />
             ))}
@@ -471,30 +555,34 @@ export function AssetsPage() {
           className="mb-3"
         />
         <div className="mb-3 flex gap-1">
-          <button className="rounded-md border border-accent bg-accent/10 px-2.5 py-1 text-xs text-accent">Icons</button>
-          <button onClick={() => setView("media")} className="rounded-md border border-border px-2.5 py-1 text-xs text-fg hover:border-accent hover:text-accent">Media</button>
+          <button className="rounded-md border border-accent bg-accent-subtle px-2.5 py-1 text-xs text-accent">Icons</button>
+          {/* NAVIGATES, rather than flipping local state — see D1 above. The
+              index is resolved from the IA by slug, never pinned (3417a932). */}
+          <button onClick={() => navigate(pathFor("deliver", MEDIA_LEAF < 0 ? 2 : MEDIA_LEAF))} className="rounded-md border border-border px-2.5 py-1 text-xs text-fg hover:border-accent hover:text-accent">Media</button>
         </div>
-        <PageHeader title="ASSETS · ICONS"
-          subtitle={stats.data?.icons_total != null
+        {/* R1 (86b8f1f0) — THE LEAF TITLE IS THE SHELL'S. `TopicBar` renders
+            `<h1 class="c-title">Assets</h1>` above this pane, so the page's own
+            `ASSETS · ICONS` h1 is gone. The COUNTS survive as the first content
+            line, because they are the only place the library's size is stated
+            and R7 wants a true total said out loud. `text-fg-muted` rather than
+            `PageHeader`'s `text-tertiary` (kit todo c581c9b2). */}
+        <p className="type-small mb-4 text-fg-muted">
+          {stats.data?.icons_total != null
             ? `${stats.data.icons_total.toLocaleString()} icons · ${stats.data.sets_total} sets · ${stats.data.vec_loaded ? "semantic + keyword" : "keyword only"}`
-            : "icon library"} />
+            : "icon library"}
+        </p>
 
         {noLibrary ? (
           <EmptyState title="No icon library installed"
             description="Import a library pack to enable icon search: okuro assets icons import <pack.zip>" />
         ) : (
           <>
-            {/* Sticky search bar — pinned to the top of the scroll container.
-                -mx-8 px-8 spans the container's horizontal padding; the base
-                background occludes content scrolling underneath. */}
-            <div className="sticky top-0 z-20 -mx-8 px-8 pb-3 pt-6"
-              style={{ background: "var(--color-background-base)" }}>
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-muted" />
-                <Input value={rawQuery} onChange={(e) => setRawQuery(e.target.value)}
-                  placeholder="search icons by meaning or keyword…" className="pl-9" />
-              </div>
-            </div>
+            {/* THE SEARCH BAR WAS HERE, `sticky top-0 z-20`, and that is audit
+                C4-3: `.c-panes{z-index:0}` is a containment boundary, so a
+                leaf's sticky header pins BEHIND the plate however high its own
+                z-index climbs. It is published onto the plate now, which IS
+                the sticky surface. BRAIN and KNOWLEDGE carried the same shape
+                and are fixed the same way. */}
 
             {sel.size > 0 ? (
               <div className="mt-4 flex items-center gap-3 rounded-md border border-accent/40 bg-accent-subtle px-3 py-2 text-xs">
@@ -513,7 +601,7 @@ export function AssetsPage() {
                 <Button variant="outline" size="sm" onClick={bulkExport}>
                   <Download className="mr-1 h-3.5 w-3.5" /> Export
                 </Button>
-                <Button variant="outline" size="sm" onClick={bulkDelete}>
+                <Button variant="outline" size="sm" onClick={() => setPending({ kind: "bulk", count: sel.size })}>
                   <Trash2 className="mr-1 h-3.5 w-3.5" /> Delete
                 </Button>
                 <button onClick={clearSel} className="ml-auto text-fg-muted hover:text-fg">clear</button>
@@ -535,7 +623,7 @@ export function AssetsPage() {
                 <div className="flex items-center overflow-hidden rounded border border-border" title="Icon size">
                   {(["s", "m", "l"] as const).map((k) => (
                     <button key={k} onClick={() => setSize(k)}
-                      className={"px-2 py-0.5 text-2xs uppercase transition-colors " +
+                      className={"px-2 py-0.5 text-2xs case-label transition-colors " +
                         (size === k ? "bg-accent-subtle text-accent" : "text-fg-muted hover:bg-surface-subtle hover:text-fg")}>
                       {k}
                     </button>
@@ -579,9 +667,57 @@ export function AssetsPage() {
         >
           <Inspector icon={selected} onClose={() => setSelectedId(null)}
             onToggleFav={() => toggleFav(selected)} onTagsChanged={(tags) => patchItem(selected.id, { tags })}
-            onDelete={() => deleteOne(selected.id)} />
+            onDelete={() => setPending({ kind: "one", id: selected.id })} />
         </SidePanel>
       ) : null}
+
+      {/* R5 (372ccdb2), PERMANENT BRANCH — ONE MODAL FOR ALL THREE DELETES.
+          Each sentence names what is lost; "this cannot be undone" on its own
+          tells the reader nothing they did not already assume. `ui/dialog`
+          steers `open` through `usePaneModalOpen`, so this cannot survive a
+          topic change and leave the app unclickable. */}
+      <Dialog open={!!pending} onOpenChange={(o) => { if (!o) setPending(null); }}>
+        <DialogContent className="max-w-md">
+          {pending && (
+            <>
+              <DialogHeader>
+                <DialogTitle>
+                  {pending.kind === "set"
+                    ? `Delete the set \u201c${pending.name}\u201d?`
+                    : pending.kind === "bulk"
+                      ? `Delete ${pending.count} icon${pending.count === 1 ? "" : "s"} permanently?`
+                      : "Delete this icon permanently?"}
+                </DialogTitle>
+                <DialogDescription>
+                  {pending.kind === "set"
+                    ? "The set goes; the icons in it stay in the library. Only the membership is removed, so nothing you imported is lost — but the grouping is, and okuro cannot reconstruct which icons were in it."
+                    : "The SVG leaves the library for good. Anything that referenced it by id — a deck, a note, a generated page — will render nothing there, and re-importing gives it a new id."}
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button variant="outline" size="sm" onClick={() => setPending(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-error"
+                  onClick={() => {
+                    const p = pending;
+                    setPending(null);
+                    if (p.kind === "set") void deleteSet(p.id, p.name);
+                    else if (p.kind === "bulk") void bulkDelete();
+                    else void deleteOne(p.id);
+                  }}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  {pending.kind === "set" ? "Delete the set" : "Delete permanently"}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

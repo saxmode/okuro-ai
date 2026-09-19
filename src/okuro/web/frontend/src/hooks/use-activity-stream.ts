@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import ReconnectingWebSocket from "reconnecting-websocket";
 import { api, getToken } from "@/lib/api";
+import { usePaneInterval } from "@/lib/pane-active";
 import type { PulseActivity } from "@/lib/pulse-engine";
 
 export interface ActivityStreamEntry {
@@ -66,11 +67,52 @@ export interface UsePulseDataResult {
   connected: boolean;
 }
 
+/**
+ * THE THREE POLLS HERE ARE START/NOW'S WHOLE REMAINDER, and they only ran
+ * while nobody was looking because a page under the shell could not ask.
+ *
+ * Law 3 keeps five panes mounted at all times (deb246b8), so four pages are
+ * live behind a 48px rail with their `refetchInterval`s firing. Measured at
+ * HEAD cd25161db over 16-second windows with the pathname asserted while away:
+ * `/start/now` made 15 calls on its route and 15 after switching topic —
+ * live-agents x6, active-roles x3, doctor x2, tasks?limit=20, brain. This hook
+ * owns nine of those fifteen.
+ *
+ * `usePaneInterval` (ebe028f8) pauses the INTERVAL, never the query, so the
+ * cache survives and a stale query refetches the moment the pane returns — the
+ * page shows current data rather than the numbers it had when you left. Its
+ * default is `true`, which is the load-bearing half of the contract: outside a
+ * provider (`?embed=1`, `/onboarding`, `/q/:token`, a unit test) nothing is
+ * off-screen and every consumer behaves exactly as before.
+ *
+ * THE "NO ALWAYS-MOUNTED CHROME DEPENDS ON THESE" CLAUSE IS GONE, 2026-09-16.
+ * It used to read *"verified safe to pause: two consumers, both of them NOW's
+ * own files; Blob.tsx deliberately does NOT subscribe"*. The sidebar blob now
+ * does, through `shell/components/PulseData.tsx` mounted in the frame, because
+ * the engine's SIZE is the activity visualization and fed nothing it sat at its
+ * floor forever.
+ *
+ * WHAT THAT CHANGES, EXACTLY: the frame sits in no pane, so `usePaneInterval`'s
+ * default `true` applies to the provider's mount and these three intervals run
+ * on every route rather than only while `/start/now` is visible. The pause
+ * still works for NOW's own two consumers — this hook is unchanged; only who
+ * mounts it is. React Query dedupes on `queryKey`, so the provider and the page
+ * share ONE set of requests, and `refetchIntervalInBackground` defaults to
+ * `false`, so nothing polls while the tab is hidden.
+ *
+ * THE WEBSOCKET IS NOT PAUSED, and that is a decision rather than an omission.
+ * It is a push channel, so an idle socket costs no requests; closing it would
+ * drop `connected`, and the narrative sentence NOW renders from it would read
+ * "Connecting to orchestrator…" on every return until the reconnect landed.
+ * The 2 s local pruner is likewise left running: it makes no request, and
+ * pausing it would let `activity.calls` report a minute that has already
+ * passed for the first tick after a return.
+ */
 export function usePulseData(): UsePulseDataResult {
   const { data: doctor } = useQuery({
     queryKey: ["doctor"],
     queryFn: () => api<DoctorResult>("/api/doctor"),
-    refetchInterval: 8_000,
+    refetchInterval: usePaneInterval(8_000),
     staleTime: 4_000,
   });
 
@@ -86,7 +128,7 @@ export function usePulseData(): UsePulseDataResult {
           description: string;
         }>;
       }>("/api/active-roles"),
-    refetchInterval: 5_000,
+    refetchInterval: usePaneInterval(5_000),
   });
 
   // Live agents — CLI/orchestrator processes with a recent heartbeat.
@@ -98,7 +140,7 @@ export function usePulseData(): UsePulseDataResult {
   const { data: liveAgentsData } = useQuery({
     queryKey: ["live-agents"],
     queryFn: () => api<{ agents: LiveAgent[] }>("/api/live-agents"),
-    refetchInterval: 3_000,
+    refetchInterval: usePaneInterval(3_000),
     staleTime: 1_500,
   });
 

@@ -140,6 +140,8 @@ DEFAULT_TIER_RULES: dict[str, Tier] = {
     "roles_match": "read",
     "roles_domains": "read",
     "roles_knowledge": "read",
+    "roles_actions_list": "read",
+    "roles_actions_get": "read",
     "artifact_get": "read",
     "artifact_list": "read",
     "artifact_search": "read",
@@ -228,6 +230,51 @@ DEFAULT_TIER_RULES: dict[str, Tier] = {
     "principle_set_upsert": "write",
     "role_diary_write": "write",
     "roles_learn": "write",
+    # An unlisted tool falls through to `read`, which is auto-approved — so a
+    # verb that inserts a role row would have been classified as a read purely
+    # by omission. It creates a draft, never overwrites, and refuses an id
+    # that exists, so it is a write and not destructive.
+    "roles_create": "write",
+    # Promotion is what makes a role reachable by matching, so it changes what
+    # every later dispatch can resolve to. Gated on the structure audit, never
+    # destructive — it cannot remove or overwrite a role.
+    "roles_promote": "write",
+    # Opening an action row is a write, and a cheap one to get wrong in
+    # the other direction: an unlisted tool falls through to `read`, which
+    # is auto-approved, so a verb that inserts rows would be classified as
+    # a read purely by omission. It cannot approve anything and it cannot
+    # touch a `roles` row.
+    "roles_actions_propose": "write",
+    # Moves an action along its state machine. Never to `approved` — that
+    # state is not in the verb's enum and the function refuses a non-human
+    # actor — so this changes workflow state, never okuro's canon.
+    "roles_actions_transition": "write",
+    # ----- the update pipeline -----
+    #
+    # The first three write artifacts and workflow state and no role body at
+    # all; they are classified explicitly rather than left to fall through,
+    # because an unlisted tool lands on `read`, which is auto-approved, and a
+    # verb that opens rows would be a read purely by omission.
+    "roles_update_plan": "write",
+    "roles_update_critique": "write",
+    "roles_update_dry_run": "write",
+    # IMPLEMENT IS A WRITE AND NOT DESTRUCTIVE, and the reason is the state
+    # machine rather than the size of the change. It refuses from any state
+    # but `approved`, so reaching it means the owner has already decided; it
+    # snapshots the store before the first write, so there is a way back; and
+    # it cannot delete a role. What it changes is bodies it was authorised to
+    # change. Denying it by default would put a deny prompt in front of
+    # carrying out a decision that has already been made.
+    "roles_update_implement": "write",
+    "roles_update_verify": "write",
+    # ----- and the one that goes backwards -----
+    #
+    # Restore overwrites CURRENT role bodies with older ones, and no approval
+    # stands behind it — the approval was for the change it undoes. Today the
+    # only surface is `okuro roles restore`, a CLI command that asks first;
+    # this entry is what makes an MCP verb of that name fail CLOSED on the day
+    # somebody adds one, rather than inheriting `read` from the fall-through.
+    "roles_update_restore": "destructive",
     "run_maintenance": "write",
     "keyring_set": "write",  # storing a new secret is a normal write
     "bridge_stream_start": "write",  # spawning a CLI is a state change

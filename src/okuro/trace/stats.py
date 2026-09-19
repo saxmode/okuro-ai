@@ -2,7 +2,7 @@
 # <!-- AGENT_HEADER
 # role: code
 # purpose: Aggregation over the raw-trace store — counts, rates, post-signature routing.
-# index: helpers | tool_counts | tool_adoption | session_tools | after_signature
+# index: helpers | tool_counts | tool_adoption | session_tools | after_signature | composition | instruction_cohort
 # AGENT_HEADER_END -->
 """Aggregation over ``agent_events`` / ``agent_sessions``.
 
@@ -146,12 +146,42 @@ def _scope(provider, project) -> tuple[list[str], list, dict]:
     return clauses, params, {"provider": provider, "project": project}
 
 
-def _tool_filter(tool, tool_prefix) -> tuple[list[str], list]:
+def _like_suffix(suffix: str) -> str:
+    """Build a LIKE pattern matching anything ending with ``suffix``."""
+    esc = suffix.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return f"%{esc}"
+
+
+def _tool_filter(tool, tool_prefix, *, match_bare: bool = False) -> tuple[list[str], list]:
+    """Filter clauses for a tool name.
+
+    ``match_bare`` makes the match CROSS-PROVIDER. The same okuro tool is
+    stored under a different name by every front-end: measured on the live
+    store 2026-09-17, ``bootstrap`` appears as ``mcp__okuro__bootstrap``
+    (claude-code, 5,263 events), bare ``bootstrap`` (codex, 140),
+    ``mcp__okuro-sense__bootstrap`` (16) and two one-off spellings. An exact
+    filter therefore answers for ONE provider and returns a confident zero
+    for the others — which is indistinguishable from a provider that never
+    called the tool, and is exactly the reading a cross-provider comparison
+    must not make.
+
+    The bare match accepts the name itself or any ``mcp__<server>__<name>``
+    form. It does NOT accept ``<name>_<something>``: ``bootstrap`` must not
+    quietly count ``bootstrap_project``, and the underscore is escaped so
+    LIKE's single-character wildcard cannot make it.
+    """
     clauses: list[str] = []
     params: list = []
     if tool:
-        clauses.append("e.tool_name = ?")
-        params.append(tool)
+        if match_bare:
+            bare = _bare_tool(tool)
+            clauses.append(
+                "(e.tool_name = ? OR e.tool_name LIKE ? ESCAPE '\\')"
+            )
+            params.extend([bare, _like_suffix(f"__{bare}")])
+        else:
+            clauses.append("e.tool_name = ?")
+            params.append(tool)
     if tool_prefix:
         clauses.append("e.tool_name LIKE ? ESCAPE '\\'")
         params.append(_like_prefix(tool_prefix))
@@ -235,11 +265,17 @@ def tool_adoption(
     project: str | None = None,
     since_days: int | None = 7,
     all_history: bool = False,
+    match_bare: bool = False,
 ) -> dict:
     """What share of sessions called this tool at least once.
 
     Denominator is sessions that made >=1 tool call in the window — a
     session that never called any tool cannot be said to have skipped one.
+
+    Pass ``match_bare=True`` for any comparison ACROSS providers: the same
+    tool is stored under a different name per front-end and an exact filter
+    reports a confident zero for every provider but the one it was spelled
+    for. See :func:`_tool_filter`.
     """
     from okuro.db import get_db
 
@@ -249,7 +285,7 @@ def tool_adoption(
 
     wc, wp, window = _window(since_days, all_history)
     sc, sp, scope = _scope(provider, project)
-    tc, tp = _tool_filter(tool, tool_prefix)
+    tc, tp = _tool_filter(tool, tool_prefix, match_bare=match_bare)
 
     base = ["e.tool_name IS NOT NULL", *wc, *sc]
     base_params = [*wp, *sp]
@@ -291,7 +327,12 @@ def tool_adoption(
     return {
         "mode": "tool_adoption",
         "window": window,
-        "filters": {**scope, "tool": tool, "tool_prefix": tool_prefix},
+        "filters": {
+            **scope,
+            "tool": tool,
+            "tool_prefix": tool_prefix,
+            "match_bare": match_bare,
+        },
         "denominator": "sessions with >=1 tool call in window",
         "sessions_total": total_d,
         "sessions_with_tool": total_n,
@@ -716,4 +757,269 @@ def composition(
             if capped else "all groups"
         ),
         "measurement_note": _MEASUREMENT_NOTE,
+    }
+
+
+# ---------------------------------------------------------------------------
+# instruction_cohort — the denominator fix
+# ---------------------------------------------------------------------------
+
+_COHORT_NOTE = (
+    "A session joins a cohort only when the instruction bundle live at its "
+    "FIRST event and at its LAST are the same — boundaries are totally "
+    "ordered in time, so that equality is proof no change was crossed, not a "
+    "sample. A session whose ends disagree is reported under 'spanning' and "
+    "belongs to no cohort: it received both versions. Sessions starting "
+    "before the ledger's earliest row for their provider are reported under "
+    "bundle=null. Neither bucket may be pooled with an attributed cohort — a "
+    "rate over a mixed cohort is the defect this mode exists to end."
+)
+
+
+def instruction_cohort(
+    *,
+    tool: str | None = None,
+    provider: str | None = None,
+    project: str | None = None,
+    since_days: int | None = 30,
+    all_history: bool = False,
+    session_kind: str | None = None,
+    limit: int = 20,
+) -> dict:
+    """Sessions grouped by the instruction version in force for their whole run.
+
+    THE QUESTION THIS ANSWERS, AND WHY THE OTHER MODES CANNOT. Every rate in
+    this module pools sessions over a time window. okuro rewrites each
+    provider's instruction files on the daemon's ``*/5`` refresh, so any
+    window wider than five minutes can straddle a change, and the resulting
+    number is an average of two populations presented as one measurement.
+    This mode makes the instruction bundle the grouping key, so a rate is
+    always computed inside one version.
+
+    A SESSION IS NOT A MOMENT. ``first_ts`` is when the transcript FILE began,
+    not when a run began: Claude Code resumes sessions and one JSONL
+    accumulates across days. So the bundle is resolved at BOTH ends and a
+    session joins a cohort only if they agree — which is proof, not a sample,
+    because version boundaries are totally ordered in time. A session whose
+    ends disagree received both versions and goes to ``spanning``.
+
+    FOUR THINGS IT REFUSES TO HIDE, because each one has already been read
+    as a result:
+
+    * ``bundle: null`` is its own cohort, never folded into the newest one.
+      It means the ledger has nothing at or before that session's start — the
+      honest state for every session that ran before the ledger existed.
+
+    * ``session_kind`` is reported per cohort. 110 of the newest 200
+      claude-code transcripts are subagent sidechains and 278 of 650 codex
+      rollouts are ``codex exec`` runs; pooling them with interactive
+      sessions measures fan-out, not adoption.
+
+    * ``numerator_valid`` goes False for any provider with zero tool_name
+      coverage in the window. antigravity's ingester writes NULL into
+      ``tool_name`` for every event it has ever produced, so every
+      tool-shaped query in this module returns a structural zero for it no
+      matter how healthy ingestion is. A zero that means "cannot see" must
+      not render the same as a zero that means "never called".
+
+    * ``spanning`` is counted and never folded in. A large value is itself
+      the finding: it means instruction content is changing faster than
+      sessions finish, and session-level attribution is the wrong unit until
+      that changes.
+    """
+    from okuro.db import get_db
+    from okuro.sense.providers._instruction_ledger import (
+        PROVIDER_TO_ADAPTER, bundle_at, versions_at,
+    )
+
+    db = get_db()
+    n = _cap(limit, 20, 200)
+
+    # Window applies to the SESSION's start, not to event timestamps: the
+    # cohort is defined by when a session began, and a long session whose
+    # events fall inside the window did not start inside it.
+    #
+    # last_ts comes along because a session is NOT a moment. `first_ts` is
+    # when the transcript FILE began, not when a run began — Claude Code
+    # resumes sessions and one JSONL accumulates across days (measured in
+    # sense/interaction/bridge.py: start-time delta up to 210,543 s, mean
+    # 7.2 h; 1,930 okuro sessions collapse to 118 native ids). Measured here
+    # 2026-09-17: 718 of 1,014 claude-code sessions in the last 30 days span
+    # more than the 5-minute refresh interval and 35 span more than a day.
+    # Stamping such a session with the version live at first_ts would emit a
+    # confident digest for instructions half its turns never saw.
+    clauses = ["s.first_ts IS NOT NULL"]
+    params: list = []
+    if all_history:
+        window = {"all_history": True, "since_days": None}
+    else:
+        days = _cap(since_days, 30, 3650)
+        clauses.append(f"s.first_ts >= {_TS_THRESHOLD}")
+        params.append(f"-{days} days")
+        window = {"all_history": False, "since_days": days}
+    if provider:
+        clauses.append("s.provider = ?")
+        params.append(provider)
+    if project:
+        clauses.append("s.project_path LIKE ?")
+        params.append(f"{project}%")
+    if session_kind:
+        clauses.append("s.session_kind IS ?" if session_kind == "null"
+                       else "s.session_kind = ?")
+        params.append(None if session_kind == "null" else session_kind)
+
+    sessions = db.fetchall(
+        f"""
+        SELECT s.session_id AS session_id, s.provider AS provider,
+               s.first_ts AS first_ts, s.last_ts AS last_ts,
+               s.session_kind AS session_kind
+        FROM agent_sessions s
+        WHERE {' AND '.join(clauses)}
+        """,
+        tuple(params),
+    )
+    if not sessions:
+        return {
+            "mode": "instruction_cohort",
+            "window": window,
+            "filters": {"provider": provider, "project": project,
+                        "tool": tool, "session_kind": session_kind},
+            "cohorts": [],
+            "spanning": {"sessions": 0, "by_provider": {}},
+            "sessions_total": 0,
+            "sessions_attributed": 0,
+            "counting_note": _COHORT_NOTE,
+        }
+
+    # Which sessions called the tool. Bare-name matched, so one call answers
+    # for every provider (see _tool_filter).
+    called: set[str] = set()
+    if tool:
+        tc, tp = _tool_filter(tool, None, match_bare=True)
+        ids = [r["session_id"] for r in sessions]
+        for i in range(0, len(ids), 400):
+            chunk = ids[i:i + 400]
+            marks = ",".join("?" * len(chunk))
+            # `e.` alias: _tool_filter emits clauses against it, shared with
+            # every other mode in this module.
+            for r in db.fetchall(
+                f"""
+                SELECT DISTINCT e.session_id AS session_id FROM agent_events e
+                WHERE e.session_id IN ({marks}) AND {' AND '.join(tc)}
+                """,
+                (*chunk, *tp),
+            ):
+                called.add(r["session_id"])
+
+    # Providers whose events carry NO tool_name at all in this set — their
+    # numerator is structurally zero and is reported as unusable, not as 0.
+    tool_capable: set[str] = set()
+    ids = [r["session_id"] for r in sessions]
+    for i in range(0, len(ids), 400):
+        chunk = ids[i:i + 400]
+        marks = ",".join("?" * len(chunk))
+        for r in db.fetchall(
+            f"""
+            SELECT DISTINCT s.provider AS provider
+            FROM agent_events e JOIN agent_sessions s ON s.session_id = e.session_id
+            WHERE e.session_id IN ({marks}) AND e.tool_name IS NOT NULL
+            """,
+            tuple(chunk),
+        ):
+            tool_capable.add(r["provider"])
+
+    # Resolve each session's bundle at BOTH ENDS. The ledger is small (one row
+    # per content change) and lookups repeat heavily, so memoize on
+    # (adapter, timestamp) rather than querying per session.
+    memo: dict[tuple[str, str], str | None] = {}
+
+    def _bundle(adapter: str | None, when: str | None) -> str | None:
+        if not adapter or not when:
+            return None
+        key = (adapter, when)
+        if key not in memo:
+            memo[key] = bundle_at(adapter, when)
+        return memo[key]
+
+    groups: dict[tuple[str, str | None], dict] = {}
+    spanning: dict[str, int] = {}
+    spanning_total = 0
+    for row in sessions:
+        adapter = PROVIDER_TO_ADAPTER.get(row["provider"] or "")
+        start = _bundle(adapter, row["first_ts"])
+        end = _bundle(adapter, row["last_ts"] or row["first_ts"])
+        if start != end:
+            # The session ran across a version change and received BOTH. It
+            # belongs to neither cohort, and folding it into either would put
+            # a confident digest on instructions half its turns never saw.
+            # Boundaries are totally ordered in time, so start == end is proof
+            # that none was crossed; start != end is proof that one was.
+            spanning_total += 1
+            spanning[row["provider"]] = spanning.get(row["provider"], 0) + 1
+            continue
+        bundle = start
+        gk = (row["provider"], bundle)
+        g = groups.setdefault(gk, {
+            "provider": row["provider"],
+            "bundle": bundle,
+            "sessions": 0,
+            "sessions_with_tool": 0,
+            "by_session_kind": {},
+            "first_ts_min": row["first_ts"],
+            "first_ts_max": row["first_ts"],
+        })
+        g["sessions"] += 1
+        kind = row["session_kind"] or "unknown"
+        g["by_session_kind"][kind] = g["by_session_kind"].get(kind, 0) + 1
+        if row["session_id"] in called:
+            g["sessions_with_tool"] += 1
+        if row["first_ts"] < g["first_ts_min"]:
+            g["first_ts_min"] = row["first_ts"]
+        if row["first_ts"] > g["first_ts_max"]:
+            g["first_ts_max"] = row["first_ts"]
+
+    cohorts = []
+    for g in sorted(groups.values(), key=lambda x: (x["provider"], x["first_ts_min"])):
+        valid = g["provider"] in tool_capable
+        adapter = PROVIDER_TO_ADAPTER.get(g["provider"] or "")
+        cohorts.append({
+            **g,
+            # The per-path set the bundle digest collapses. The digest is for
+            # grouping; this is for reading — "which file changed" is not
+            # answerable from a hash, and a bundle moves whenever ANY of a
+            # provider's managed paths does.
+            "paths": (
+                versions_at(adapter, g["first_ts_min"]) if adapter and g["bundle"]
+                else {}
+            ),
+            "adoption_rate": (
+                round(g["sessions_with_tool"] / g["sessions"], 4)
+                if tool and valid and g["sessions"] else None
+            ),
+            "numerator_valid": valid if tool else None,
+            "numerator_note": None if valid else (
+                f"{g['provider']} has zero events with tool_name set in this "
+                "window — its ingester does not denormalize tool names, so "
+                "the numerator cannot be measured and is not reported as 0"
+            ),
+            "attributed": g["bundle"] is not None,
+        })
+
+    return {
+        "mode": "instruction_cohort",
+        "window": window,
+        "filters": {"provider": provider, "project": project,
+                    "tool": tool, "session_kind": session_kind},
+        "sessions_total": len(sessions),
+        "sessions_attributed": sum(
+            c["sessions"] for c in cohorts if c["attributed"]
+        ),
+        # Its own bucket, never a cohort. Large here means the instruction
+        # content is changing faster than sessions finish, which makes
+        # session-level attribution the wrong unit — a finding, not noise.
+        "spanning": {"sessions": spanning_total, "by_provider": spanning},
+        "cohorts": cohorts[:n],
+        "returned": min(len(cohorts), n),
+        "capped": len(cohorts) > n,
+        "counting_note": _COHORT_NOTE,
     }

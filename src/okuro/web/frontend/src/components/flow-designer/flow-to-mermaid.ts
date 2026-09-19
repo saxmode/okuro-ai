@@ -19,7 +19,7 @@ const SHAPE = {
 };
 
 // category -> stroke/fill for classDef fidelity. These hex are FALLBACKS only;
-// the canonical values live in the --fd-cat-* CSS vars (flow-designer.css),
+// the canonical values live in the --fd-cat-* CSS vars (graph/graph.css),
 // resolved at generation time by resolveCat() so mermaid classDefs match the
 // canvas. Mermaid classDef needs a literal color string, so a plain var()
 // reference (as graph.ts uses) won't work here — hence getComputedStyle.

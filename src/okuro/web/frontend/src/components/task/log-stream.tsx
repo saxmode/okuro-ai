@@ -79,6 +79,7 @@ const LOG_LABELS: Record<string, string> = {
   await_user_decision: "waiting on your decision",
   await_user_decision_resolved: "you decided — continuing",
   await_user_decision_skipped: "decision skipped — continuing",
+  await_user_decision_basis_moved: "what you decide about has changed — re-read it",
   subtask_waiting_approval: "waiting for your go-ahead",
   approval_approved: "you approved it — running",
   approval_rejected: "you rejected it",
@@ -192,7 +193,7 @@ export const LogStream = memo(function LogStream({
             {onToggleCollapsed && (
               <ChevronUp className="h-3 w-3 text-tertiary" />
             )}
-            <span className="text-2xs uppercase tracking-wider text-tertiary">
+            <span className="text-2xs case-label tracking-wider text-tertiary">
               Log
             </span>
             <span
@@ -225,7 +226,7 @@ export const LogStream = memo(function LogStream({
             {onToggleCollapsed && (
               <ChevronDown className="h-3 w-3 text-tertiary" />
             )}
-            <span className="text-2xs uppercase tracking-wider text-tertiary">
+            <span className="text-2xs case-label tracking-wider text-tertiary">
               Log
             </span>
             <span
@@ -237,7 +238,7 @@ export const LogStream = memo(function LogStream({
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className={`text-3xs uppercase tracking-wider px-1.5 py-0.5 rounded ${
+                className={`text-3xs case-label tracking-wider px-1.5 py-0.5 rounded ${
                   filter === f
                     ? "bg-accent text-inverse"
                     : "text-tertiary hover:text-tertiary"

@@ -15,6 +15,13 @@ import {
 import React from "react";
 
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { usePaneKeyboardArmed } from "@/lib/pane-active";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
@@ -50,17 +57,25 @@ import {
   migrateGroupEdges,
   migrateNode,
   migrateNodePorts,
+  reconcileEdgePorts,
   mw,
   portDir,
   portSide,
   portsOf,
   unfoldEdge,
   withRel,
-} from "./graph";
-import { FlowCanvas } from "./flow-canvas";
-import { useGraphEditor } from "./use-graph-editor";
+  inkFor,
+  BridgeContext,
+  FlowNode,
+  GroupNode,
+  LabeledEdge,
+  NOOP_BRIDGE,
+  PortSelContext,
+  vDefault,
+} from "@/components/graph/nodes";
+import { FlowCanvas } from "@/components/graph/canvas";
+import { useGraphEditor } from "@/components/graph/editor";
 import { FloatingToolbar } from "./flow-toolbar";
-import { BridgeContext, FlowNode, GroupNode, LabeledEdge, NOOP_BRIDGE, PortSelContext, vDefault } from "./nodes";
 import { flowToMermaid } from "./flow-to-mermaid";
 import { HandoverDialog } from "@/components/handover/handover-dialog";
 import { MermaidViewer } from "@/components/mermaid/mermaid-viewer";
@@ -108,7 +123,28 @@ function FSelect({ value, onValueChange, options, placeholder, className, title 
   );
 }
 
-export function FlowDesigner({ flowId, embed = false }: { flowId: string | null; embed?: boolean }) {
+/**
+ * Default for a mount with no router around it — the read-only embed, a test.
+ * The address is a convenience: a designer that cannot write it still works,
+ * and that beats reaching for `history` when no router is listening.
+ */
+const NOOP_SYNC_ID = () => {};
+
+export function FlowDesigner({
+  flowId,
+  embed = false,
+  syncId = NOOP_SYNC_ID,
+}: {
+  flowId: string | null;
+  embed?: boolean;
+  /** Put `id` into the address THROUGH THE ROUTER. See useGraphEditor's own
+   *  `syncId` doc for why this module must not touch `history` itself. */
+  syncId?: (id: string | null) => void;
+}) {
+  // The stream's onDone resolves long after this render, so it reads the
+  // callback through a ref rather than closing over one.
+  const syncIdRef = React.useRef(syncId);
+  syncIdRef.current = syncId;
   // Inline-edit callbacks handed to the nodes through BridgeContext.
   //
   // Two layers on purpose. The SLOTS are filled by plain assignment further
@@ -131,6 +167,12 @@ export function FlowDesigner({ flowId, embed = false }: { flowId: string | null;
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selId, setSelId] = React.useState(null);
   const [msg, setMsg] = React.useState("");
+  // Edges the loaded document stores but that CANNOT be drawn, because their
+  // endpoint node does not exist. reconcileEdgePorts repairs every other
+  // cause; this one has nothing to attach to, so the only honest treatment is
+  // to say so. It was silent before, and one stored flow showed 35 stored
+  // edges as 0 drawn connections with no indication at all.
+  const [undrawable, setUndrawable] = React.useState({ dangling: 0, portless: 0 });
   const [estyle, setEstyle] = React.useState("default");
   // Tablet multi-select mode: one-finger drag draws a selection box instead of
   // panning the canvas (pinch-zoom + two-finger pan stay active either way).
@@ -151,9 +193,9 @@ export function FlowDesigner({ flowId, embed = false }: { flowId: string | null;
   // resolved accent hex — canvas SVG fills (edges, minimap) can't read CSS vars
   const ACCENT = React.useMemo(() => {
     try {
-      return getComputedStyle(document.documentElement).getPropertyValue("--color-accent").trim() || "#8ff0a4";
+      return getComputedStyle(document.documentElement).getPropertyValue("--color-accent").trim() || "#9c9c9c";
     } catch (e) {
-      return "#8ff0a4";
+      return "#9c9c9c";
     }
   }, []);
   const idc = React.useRef(1);
@@ -238,15 +280,27 @@ export function FlowDesigner({ flowId, embed = false }: { flowId: string | null;
   const isMobile = useIsMobile();
   // Restore chrome when leaving the flow page so other pages keep their chrome.
   React.useEffect(() => () => chrome.show(), [chrome.show]);
+  /**
+   * D7 · A `window`-LEVEL LISTENER MUST NOT BE ARMED OFF-SCREEN. The shell
+   * keeps ONE leaf per topic mounted — five panes counted live on a single
+   * address — so this editor's global keydown stayed armed while the user was
+   * reading a different topic, and an Escape there would have exited a
+   * full-screen state they could not see.
+   *
+   * Read ONCE into a const and used as a GUARD, never wrapped around the hook:
+   * `armed && useEffect(...)` is a conditional hook, which is how the p4
+   * DELIVER pane-gate adoption broke out loud.
+   */
+  const kbdArmed = usePaneKeyboardArmed();
   // Esc exits full-screen — a safety hatch since the nav is hidden while in it.
   React.useEffect(() => {
-    if (!chrome.hidden) return;
+    if (!chrome.hidden || !kbdArmed) return;
     const onEsc = (e) => {
       if (e.key === "Escape") chrome.show();
     };
     window.addEventListener("keydown", onEsc);
     return () => window.removeEventListener("keydown", onEsc);
-  }, [chrome.hidden, chrome.show]);
+  }, [chrome.hidden, chrome.show, kbdArmed]);
   // Auto-hide inspector: on desktop, open it the moment a node is selected and
   // collapse it when the selection clears. On mobile the auto-open is suppressed
   // — a selection is also the start of a drag-to-rearrange, so the panel would
@@ -311,6 +365,7 @@ export function FlowDesigner({ flowId, embed = false }: { flowId: string | null;
     origin,
     defaultName: NEW_NAME,
     initialId: flowId || null,
+    syncId,
     serialize: () => serializeRef.current(),
     getName: () => flowNameRef.current,
     getDescription: () => flowDescRef.current,
@@ -832,6 +887,7 @@ export function FlowDesigner({ flowId, embed = false }: { flowId: string | null;
       if (e.code === "Space") document.querySelector(".fd-root")?.classList.remove("fd-panning");
     };
     const onBlur = () => document.querySelector(".fd-root")?.classList.remove("fd-panning");
+    if (!kbdArmed) return;
     window.addEventListener("keydown", onKey);
     window.addEventListener("keyup", onKeyUp);
     window.addEventListener("blur", onBlur);
@@ -840,7 +896,8 @@ export function FlowDesigner({ flowId, embed = false }: { flowId: string | null;
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onBlur);
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kbdArmed]);
 
   const addNode = (k) => {
     const t = TPLN[k];
@@ -1107,8 +1164,16 @@ export function FlowDesigner({ flowId, embed = false }: { flowId: string | null;
     // included), and — defensively — ReactFlow throws (reading 'x' of undefined)
     // if any node lacks a valid position, so a single bad node from an agent/API
     // write would otherwise crash the whole canvas. Coerce a safe default.
+    // Three load-time normalisations now, and the third one is new. After the
+    // ins/outs -> ports[] rename, reconcile what the EDGES reference against
+    // what the nodes DECLARE: React Flow refuses an edge whose handle is not
+    // declared and silently does not draw it. Audited 2026-09-15 over the
+    // whole store — 40 of 1,306 edges across 15 of 106 flows, and one flow
+    // rendered 0 of its 35.
+    const edges0 = migrateGroupEdges(g.edges || []).map(normEdge);
+    const rec = reconcileEdgePorts(migrateNodePorts(g.nodes || []), edges0);
     setNodes(
-      migrateNodePorts(g.nodes || []).map((n) => ({
+      rec.nodes.map((n) => ({
         ...n,
         position:
           n.position && typeof n.position.x === "number" && typeof n.position.y === "number"
@@ -1117,7 +1182,12 @@ export function FlowDesigner({ flowId, embed = false }: { flowId: string | null;
         selected: false,
       })),
     );
-    setEdges(migrateGroupEdges(g.edges || []).map(normEdge));
+    setEdges(edges0);
+    // Two kinds of edge cannot be repaired, only reported: one whose endpoint
+    // node is GONE, and one attached to a section title or a prose note, which
+    // render no handle by design. Silence was the defect this pass was sent to
+    // fix — one stored flow showed 35 stored edges as 0 connections.
+    setUndrawable({ dangling: rec.dangling.length, portless: rec.portless.length });
     setSelId(null);
     setTimeout(() => {
       if (g.viewport && rf) {
@@ -1147,11 +1217,7 @@ export function FlowDesigner({ flowId, embed = false }: { flowId: string | null;
     setFlowName(d.name || NEW_NAME);
     setFlowDesc(d.description || "");
     applyGraph(d.graph);
-    try {
-      const u = new URL(window.location.href);
-      u.searchParams.set("id", d.id);
-      window.history.replaceState({}, "", u);
-    } catch (e) {}
+    syncId(d.id);
   };
 
   serializeRef.current = serialize;
@@ -1212,18 +1278,53 @@ export function FlowDesigner({ flowId, embed = false }: { flowId: string | null;
   //
   // The comparison is against the previous render's signature, so it needs no
   // knowledge of save state. Selection no longer even reaches here (focus mode
-  // is derived now), and ReactFlow's own select/measure changes serialize
-  // identically — so neither can start the clock.
+  // is derived now).
+  //
+  // A MEASUREMENT IS NOT AN EDIT, and the sentence that used to stand here —
+  // "ReactFlow's own select/measure changes serialize identically" — is false
+  // for any node whose height depends on its rendered content. Measured on
+  // 2026-09-15 by recording what actually differed on an in-app gallery click:
+  //
+  //   measured (note1): {"width":560,"height":593} -> {"width":560,"height":532}
+  //   measured (note2): {"width":560,"height":749} -> {"width":560,"height":740}
+  //   measured (note3): {"width":560,"height":541} -> {"width":560,"height":635}
+  //
+  // Three markdown notes reflowing as their bodies render, after applyGraph's
+  // 60 ms load window has closed. So OPENING a flow marked it dirty and wrote
+  // it straight back — which is why one flow's rev had climbed to 30 with
+  // nobody editing it. A cold page load never showed it, because `bootedRef`
+  // is still false through the first measurement; it takes an in-app click,
+  // which is what every real user does.
+  //
+  // `measured` stays IN the payload — the canvas wants its sizes persisted —
+  // it just does not start the clock. The next real edit carries whatever the
+  // current measurements are, which is the behaviour always intended here.
+  const dirtySig = (g) => {
+    const nodes = (g.nodes || []).map((n) => {
+      if (!n || n.measured === undefined) return n;
+      const { measured, ...rest } = n;
+      return rest;
+    });
+    // Viewport is deliberately excluded too: panning is not an edit, and it was
+    // not in this effect's dependencies before either.
+    return JSON.stringify([nodes, g.edges, g.settings, flowName, flowDesc]);
+  };
   const prevSigRef = React.useRef(null);
   React.useEffect(() => {
     const g = serialize();
-    // Viewport is deliberately excluded: panning is not an edit, and it was not
-    // in this effect's dependencies before either.
-    const sig = JSON.stringify([g.nodes, g.edges, g.settings, flowName, flowDesc]);
+    const sig = dirtySig(g);
     const prev = prevSigRef.current;
     prevSigRef.current = sig;
     if (!bootedRef.current || loadingRef.current) return;
-    if (prev !== null && sig === prev) return; // nothing persistable changed
+    // THE FIRST OBSERVATION IS A BASELINE, NOT A CHANGE. `prev === null` means
+    // this effect has never seen a signature — which cannot be evidence that
+    // something changed, and reading it as one is a defect with a measurable
+    // cost: clicking a gallery card opened a flow and wrote it straight back
+    // with a BYTE-IDENTICAL graph, so one flow's rev had climbed to 30 with
+    // nobody editing it. A cold page load never did it (`bootedRef` is still
+    // false through the first measurement), so it read as "opening is safe"
+    // right up to the first in-app click.
+    if (prev === null || sig === prev) return; // nothing persistable changed
     markDirty();
   }, [nodes, edges, flowName, flowDesc]);
 
@@ -1237,22 +1338,34 @@ export function FlowDesigner({ flowId, embed = false }: { flowId: string | null;
     setNodes([]);
     setEdges([]);
     setSelId(null);
-    try {
-      const u = new URL(window.location.href);
-      u.searchParams.delete("id");
-      window.history.replaceState({}, "", u);
-    } catch (e) {}
+    syncId(null);
     setTimeout(() => (loadingRef.current = false), 60);
     flash("new flow");
   };
 
+  /**
+   * R5 (372ccdb2), PERMANENT BRANCH — A MODAL, NOT AN ARM, and the weight came
+   * from the store rather than from the word "delete".
+   *
+   * This was the only native browser dialog left in WORK, and a
+   * `window.confirm` is the one surface okuro-ds can never style. The spec's
+   * Q3 recommended the TASKS two-step; the store says otherwise.
+   * `graphdoc/store.py:274::delete_doc` — the SAME store WORKFLOWS uses —
+   * runs `DELETE FROM docs` AND `DELETE FROM history` in ONE transaction, with
+   * the comment "History dies with its document", because ids are name slugs
+   * and leaving snapshots behind would let a later flow of the same name
+   * inherit a stranger's history. Nothing survives, so R5 gives it the modal
+   * and reserves the arm for acts that can be undone.
+   */
+  const [pendingDelete, setPendingDelete] = React.useState(false);
   const deleteFlow = async () => {
     const id = currentIdRef.current;
+    setPendingDelete(false);
     if (!id) {
       newFlow();
       return;
     }
-    if (!window.confirm("Delete this flow? This cannot be undone.")) return;
+
     try {
       await flowDesignerApi.remove(id, origin);
       newFlow();
@@ -1310,11 +1423,11 @@ export function FlowDesigner({ flowId, embed = false }: { flowId: string | null;
           onDone: (r) => {
             setCurrentId(r.flow.id);
             if (r.flow.name) setFlowName(r.flow.name);
-            try {
-              window.history.replaceState(null, "", `/flow?id=${encodeURIComponent(r.flow.id)}`);
-            } catch {
-              /* ignore */
-            }
+            // This wrote `/flow?id=…` — the LEGACY path — while the shell is
+            // mounted at /work/flow, so the flow the app had just drawn was
+            // not at the address it wrote. Through the router now, which keeps
+            // the canonical path and merges the id into the live query.
+            syncIdRef.current(r.flow.id);
             if (rf) setTimeout(() => rf.fitView({ duration: 300, padding: 0.2 }), 80);
           },
           onError: (msg) => {
@@ -1828,11 +1941,11 @@ export function FlowDesigner({ flowId, embed = false }: { flowId: string | null;
             gap: 10,
             padding: "22px 30px",
             borderRadius: 16,
-            background: "var(--color-surface-elevated, rgba(16,16,16,0.92))",
-            border: "1px solid var(--color-accent, #8ff0a4)",
-            boxShadow: "0 0 40px var(--color-accent, #8ff0a4)33",
+            background: "var(--color-surface-elevated)",
+            border: "1px solid var(--color-accent)",
+            boxShadow: "0 0 40px var(--color-accent)33",
             fontFamily: "var(--font-mono, 'JetBrains Mono', ui-monospace, 'SF Mono', 'Cascadia Code', 'Roboto Mono', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace)",
-            color: "var(--color-accent, #8ff0a4)",
+            color: "var(--color-accent)",
             pointerEvents: "none",
             textAlign: "center",
             minWidth: 220,
@@ -1843,7 +1956,7 @@ export function FlowDesigner({ flowId, embed = false }: { flowId: string | null;
               width: 14,
               height: 14,
               borderRadius: "50%",
-              background: "var(--color-accent, #8ff0a4)",
+              background: "var(--color-accent)",
               animation: "okuroPulse 1.1s ease-in-out infinite",
             }}
           />
@@ -1857,7 +1970,7 @@ export function FlowDesigner({ flowId, embed = false }: { flowId: string | null;
         </div>
       )}
       <div className="fd-topbar">
-        <a className="fd-gallery-back" href="/flow" title="back to flow gallery">
+        <a className="fd-gallery-back" href="/work/flow" title="back to flow gallery">
           ← Flows
         </a>
         <Select value={currentId || "__new__"} onValueChange={(v) => (v === "__new__" ? newFlow() : loadFlow(v))}>
@@ -1885,7 +1998,7 @@ export function FlowDesigner({ flowId, embed = false }: { flowId: string | null;
         <Button variant="outline" size="sm" onClick={() => doSave()} title="save now">
           Save
         </Button>
-        <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={deleteFlow}>
+        <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setPendingDelete(true)}>
           Delete
         </Button>
         <span className={"fd-savebadge " + saveState}>{saveBadge}</span>
@@ -1923,6 +2036,41 @@ export function FlowDesigner({ flowId, embed = false }: { flowId: string | null;
         <input type="file" accept="application/json,.json" ref={fileRef} style={{ display: "none" }} onChange={onFile} />
         <div className="fd-canvas">
           {msg && <div className="fd-toast">{msg}</div>}
+          {/* `ui/dialog` steers `open` through `usePaneModalOpen`, so this
+              cannot survive a topic change and leave the app unclickable (the
+              class fix from commit 164647757). */}
+          <Dialog open={pendingDelete} onOpenChange={(o) => !o && setPendingDelete(false)}>
+            <DialogContent className="max-w-md">
+              <DialogTitle>Delete “{flowName}”?</DialogTitle>
+              <DialogDescription>
+                This removes the flow AND its version history in one
+                transaction — the store deletes both together on purpose, so a
+                later flow of the same name cannot inherit these snapshots.
+                There is nothing to restore afterwards. {nodes.length} nodes and{" "}
+                {edges.length} connections go with it.
+              </DialogDescription>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" size="sm" onClick={() => setPendingDelete(false)}>
+                  Keep it
+                </Button>
+                <Button variant="destructive" size="sm" onClick={deleteFlow}>
+                  Delete permanently
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {undrawable.dangling + undrawable.portless > 0 && (
+            <div className="fd-undrawable" role="status">
+              {undrawable.dangling + undrawable.portless} stored{" "}
+              {undrawable.dangling + undrawable.portless === 1 ? "connection" : "connections"}{" "}
+              could not be drawn
+              {undrawable.dangling > 0 &&
+                ` — ${undrawable.dangling} ${undrawable.dangling === 1 ? "has" : "have"} no node to attach to`}
+              {undrawable.portless > 0 &&
+                ` — ${undrawable.portless} ${undrawable.portless === 1 ? "ends" : "end"} on a section title or a note, which carry no ports`}
+            </div>
+          )}
           {view === "mermaid" ? (
             <MermaidView code={mermaidCode} accent={ACCENT} />
           ) : (
@@ -2058,12 +2206,12 @@ export function FlowDesigner({ flowId, embed = false }: { flowId: string | null;
           {sel && (
             <div className="fd-det">
               <div>
-                <span className="dtag" style={{ background: sel.data.color || "var(--color-accent)" }}>
+                <span className="dtag" style={{ background: sel.data.color || "var(--color-accent)", ...inkFor(sel.data.color) }}>
                   {sel.data.tag || sel.type}
                 </span>
                 {sel.type === "group" && (
                   <span
-                    style={{ float: "right", cursor: "pointer", color: "#b79cff", fontSize: 11 }}
+                    style={{ float: "right", cursor: "pointer", color: "var(--fd-cat-group)", fontSize: 11 }}
                     onClick={() => (sel.data.collapsed === false ? collapseGroup(sel.id) : expandGroup(sel.id))}
                   >
                     {sel.data.collapsed === false ? "✕ collapse" : "⤢ expand"}
@@ -2074,7 +2222,7 @@ export function FlowDesigner({ flowId, embed = false }: { flowId: string | null;
                 const ins = edges.filter((e) => e.target === sel.id);
                 const outs = edges.filter((e) => e.source === sel.id);
                 return (
-                  <div style={{ margin: "8px 0", borderBottom: "1px solid #2c2c3a", paddingBottom: 8 }}>
+                  <div style={{ margin: "8px 0", borderBottom: "1px solid var(--fd-line-2)", paddingBottom: 8 }}>
                     <div className="k">
                       connections ({ins.length} in · {outs.length} out) — ✕ to delete
                     </div>
@@ -2145,7 +2293,7 @@ export function FlowDesigner({ flowId, embed = false }: { flowId: string | null;
                 <span
                   className={"sw def" + (!sel.data.color ? " sel" : "")}
                   title="accent (default)"
-                  style={{ background: "var(--color-accent)" }}
+                  style={{ background: "var(--color-accent)", ...inkFor(undefined) }}
                   onClick={() => setColor(sel.id, undefined)}
                 >
                   {!sel.data.color ? "✓" : "∅"}
@@ -2248,7 +2396,7 @@ export function FlowDesigner({ flowId, embed = false }: { flowId: string | null;
                   <div className="k" style={{ marginTop: 8 }}>
                     {(sel.data.members || []).length} nodes inside · 1 merged input · 1 merged output
                   </div>
-                  <div style={{ marginTop: 8, color: "#9aa0aa", fontSize: 11 }}>
+                  <div style={{ marginTop: 8, color: "var(--fd-mut)", fontSize: 11 }}>
                     A collapsed group is a black box exposing one in / one out. Double-click to expand it in place and see every connection.
                   </div>
                 </>

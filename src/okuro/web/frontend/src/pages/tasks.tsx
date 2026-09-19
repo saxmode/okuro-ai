@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { Pause, Pencil, Play, Plus, X, Search } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -14,7 +14,8 @@ import { toast } from "@/components/ui/toast";
 import { ScheduleEditor } from "@/components/schedule/schedule-editor";
 import { CreateDialog } from "@/components/task/create-dialog";
 import { Segmented } from "@/components/ui/segmented";
-import { PageHeader } from "@/components/shell/page-header";
+import { sectionSlugs } from "@/shell/views/sections";
+import { useSectionTitle } from "@/shell/components/PageTitle";
 
 const FILTERS: { label: string; value: string | undefined }[] = [
   { label: "ALL", value: undefined },
@@ -24,8 +25,13 @@ const FILTERS: { label: string; value: string | undefined }[] = [
   { label: "BLOCKED", value: "blocked" },
 ];
 
+/** Resolved from the declared list, never a pinned index — inserting a section
+ *  above SCHEDULES must not silently render the run list under its label. */
+const SCHEDULES = sectionSlugs("work", "tasks").indexOf("schedules");
+
 export function TasksPage({
   taskSummariesOverride,
+  view,
 }: {
   /**
    * Test-only injection. When supplied, replaces the live useTasks
@@ -33,7 +39,14 @@ export function TasksPage({
    * against `task.color_class + task.label` without an HTTP mock.
    */
   taskSummariesOverride?: TaskSummary[];
+  /** Which section `?view=` selects. 0 (RUNS) for a bare leaf. */
+  view?: number;
 } = {}) {
+  /* SCHEDULES is its own address now (spec Q3). The recurring definitions used
+     to render inline UNDER the run list, which measures 8,238px tall — so the
+     AGENTS link that points here expecting to land on them
+     (`?focus=<defId>`) arrived 8,000px above its target. */
+  const onSchedules = SCHEDULES >= 0 && view === SCHEDULES;
   const [filter, setFilter] = useState<string | undefined>(undefined);
   const [search, setSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
@@ -52,72 +65,103 @@ export function TasksPage({
       t.id.includes(search),
   );
 
+  /* ===================================================================
+     THE HEADER IS ON THE PLATE NOW, NOT UNDER IT.
+     ===================================================================
+     the owner, 2026-09-17: *"the page Titles are not in the glass part. They
+     are underneath it. Section titles need to be on top."* These three
+     controls used to render as the first two rows of this page, which put
+     them below the blurred plate and made the page start with a header the
+     shell had already drawn one of.
+
+     `SECTION INTRO`, HIS WORD, IS THE TITLE — *"e.g. in tasks: section
+     title: 'recent work'"*, and the Figma frame prints it as YOUR RECENT
+     WORK. It overrides the shell's derived "Tasks" because it says
+     something the shell cannot derive: what this list is FOR. R1 is intact
+     — the title is still the plate's one `<h1>`, it is just this leaf's
+     copy rather than the router's.
+
+     MEMOISED HERE BECAUSE THE DEPENDENCIES LIVE HERE. `useSectionTitle`
+     keys on the slot's identity and deliberately does not guess at a
+     dependency list for state it cannot see — see `PageTitle.tsx`. */
+  const header = useMemo(
+    () => ({
+      title: "YOUR RECENT WORK",
+      actions: (
+        <>
+          <div className="relative w-40">
+            {/* `c-band-pin` — the band centres what the leaf NAMES, never every
+                absolutely positioned node it is handed (audit C5-1). */}
+            <Search className="c-band-pin absolute left-2.5 h-3.5 w-3.5 text-tertiary" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search tasks..."
+              className="bg-surface pl-8 text-sm text-fg placeholder:text-tertiary"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch("")}
+                aria-label="Clear search"
+                className="c-band-pin absolute right-2 text-tertiary hover:text-fg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:rounded-sm"
+              >
+                <X className="h-4 w-4" aria-hidden="true" />
+              </button>
+            )}
+          </div>
+          <Segmented
+            ariaLabel="Filter tasks by status"
+            value={filter ?? "all"}
+            onChange={(v) => setFilter(v === "all" ? undefined : v)}
+            options={FILTERS.map((f) => ({
+              label: f.label.charAt(0) + f.label.slice(1).toLowerCase(),
+              value: f.value ?? "all",
+            }))}
+          />
+          <Button size="sm" onClick={() => setCreateOpen(true)}>
+            <Plus className="mr-1.5 h-3.5 w-3.5" />
+            Create
+          </Button>
+        </>
+      ),
+    }),
+    [search, filter],
+  );
+  useSectionTitle(header);
+
   return (
     <div className="page-shell space-y-8">
-      <PageHeader
-        title="Tasks"
-        right={
-          <div className="flex items-center gap-2">
-            <Button asChild size="sm" variant="outline">
-              <Link to="/work/gantt">Gantt</Link>
-            </Button>
-            <Button size="sm" onClick={() => setCreateOpen(true)}>
-              <Plus className="mr-1.5 h-3.5 w-3.5" />
-              Create
-            </Button>
-          </div>
-        }
-      />
-
-      {/* Search + filters */}
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-tertiary" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search tasks..."
-            className="bg-surface pl-8 text-sm text-fg placeholder:text-tertiary"
-          />
-          {search && (
-            <button
-              onClick={() => setSearch("")}
-              aria-label="Clear search"
-              className="absolute right-2 top-2 text-tertiary hover:text-fg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:rounded-sm"
-            >
-              <X className="h-4 w-4" aria-hidden="true" />
-            </button>
-          )}
-        </div>
-        <Segmented
-          ariaLabel="Filter tasks by status"
-          value={filter ?? "all"}
-          onChange={(v) => setFilter(v === "all" ? undefined : v)}
-          options={FILTERS.map((f) => ({
-            label: f.label.charAt(0) + f.label.slice(1).toLowerCase(),
-            value: f.value ?? "all",
-          }))}
-        />
-      </div>
 
       {/* Task instances split into two segments per user model: self-
           invoked (top) vs. recurring cron-spawned (bottom). task_type
           === "recurring" is the orchestrator's own label for instances
           spawned by a RecurringDef on schedule; everything else the user
           or another agent kicked off directly. */}
-      {isLoading ? (
-        <p className="text-sm text-tertiary">Loading...</p>
-      ) : tasks.length === 0 ? (
-        <p className="text-sm text-tertiary">No tasks found</p>
-      ) : (
-        <TaskSegments tasks={tasks} />
-      )}
+      {!onSchedules &&
+        (isLoading ? (
+          <p className="text-sm text-tertiary">Loading...</p>
+        ) : tasks.length === 0 ? (
+          <p className="text-sm text-tertiary">No tasks found</p>
+        ) : (
+          <TaskSegments tasks={tasks} />
+        ))}
 
-      {/* Recurring definitions (the schedules themselves, not individual
-          runs). Kept below the instance lists so the page reads
-          top-to-bottom: 'what ran just now' → 'what will run later'. */}
-      {recurringData?.definitions && recurringData.definitions.length > 0 && (
-        <RecurringSection defs={recurringData.definitions} />
+      {/* THE DEFINITIONS THEMSELVES, at their own address. These are recurring
+          TASK DEFINITIONS — SYSTEM/SCHEDULED holds the daemon's timers, which
+          is a different thing, and the sentence below says so rather than
+          leaving the reader to infer it. */}
+      {onSchedules && (
+        <>
+          <p className="type-small text-fg-muted">
+            The recurring definitions that spawn runs. For the daemon&apos;s own
+            timers, see System · Scheduled.
+          </p>
+          {recurringData?.definitions && recurringData.definitions.length > 0 ? (
+            <RecurringSection defs={recurringData.definitions} />
+          ) : (
+            <p className="text-sm text-tertiary">No recurring definitions</p>
+          )}
+        </>
       )}
 
       <CreateDialog open={createOpen} onOpenChange={setCreateOpen} />
@@ -157,7 +201,7 @@ function TaskSegment({
   return (
     <section>
       <div className="mb-2 flex items-baseline gap-3">
-        <h2 className="text-xs font-medium uppercase tracking-wider text-tertiary">
+        <h2 className="text-xs font-medium case-label tracking-wider text-tertiary">
           {title}
         </h2>
         <span className="text-2xs text-fg-subtle">{subtitle}</span>
@@ -212,7 +256,7 @@ function TaskRow({ task }: { task: TaskSummary }) {
         className="flex flex-1 items-center gap-4 min-w-0"
       >
         <span
-          className={`w-16 shrink-0 text-2xs font-semibold uppercase tracking-wider ${color}`}
+          className={`w-16 shrink-0 text-2xs font-semibold case-label tracking-wider ${color}`}
         >
           {label}
         </span>
@@ -245,7 +289,7 @@ function TaskRow({ task }: { task: TaskSummary }) {
         {task.status === "active" && (
           <button
             onClick={() => handleAction("cancel")}
-            className={`text-3xs uppercase tracking-wider px-1.5 py-0.5 rounded transition-colors ${
+            className={`text-3xs case-label tracking-wider px-1.5 py-0.5 rounded transition-colors ${
               confirming === "cancel"
                 ? "bg-error text-inverse"
                 : "text-tertiary hover:text-error"
@@ -256,7 +300,7 @@ function TaskRow({ task }: { task: TaskSummary }) {
         )}
         <button
           onClick={() => handleAction("delete")}
-          className={`text-3xs uppercase tracking-wider px-1.5 py-0.5 rounded transition-colors ${
+          className={`text-3xs case-label tracking-wider px-1.5 py-0.5 rounded transition-colors ${
             confirming === "delete"
               ? "bg-error text-inverse"
               : "text-tertiary hover:text-error"
@@ -285,7 +329,7 @@ function RecurringSection({ defs }: { defs: RecurringDef[] }) {
 
   return (
     <section id="recurring">
-      <h2 className="mb-2 text-xs font-medium uppercase tracking-wider text-tertiary">
+      <h2 className="mb-2 text-xs font-medium case-label tracking-wider text-tertiary">
         Recurring Tasks
       </h2>
       <div className="rounded border border-border">
@@ -481,7 +525,7 @@ function RecurringDetail({ def_ }: { def_: RecurringDef }) {
       {/* Recent run history */}
       {outcomes.length > 0 && (
         <div className="space-y-0.5">
-          <div className="text-3xs uppercase tracking-wider text-tertiary">
+          <div className="text-3xs case-label tracking-wider text-tertiary">
             Recent runs
           </div>
           {outcomes.slice(-8).reverse().map((o) => (

@@ -8,6 +8,7 @@
 #   def _setup_cortex
 #   def _detect_environment
 #   def _setup_database
+#   def _install_recurring_defs
 #   def _setup_keyring
 #   def _register_mcp_servers
 #   def _detect_providers
@@ -83,6 +84,23 @@ def _run_web_init(host: str, port: int | None, no_browser: bool) -> None:
         info("Try --cli for diagnostic output")
         raise SystemExit(1)
 
+    # Claim a free port set for THIS install before anything binds. On a host
+    # that already carries another okuro install (a second account, a test
+    # account, a container) the canonical 13333/13334/309x set is taken, and
+    # without this the fresh install inherits the same constants and loses the
+    # race at every boot from then on. Idempotent: an install that has already
+    # declared its ports keeps them.
+    try:
+        from okuro.system.port_assign import ensure_install_ports
+
+        claimed = ensure_install_ports()
+        ok(
+            "Ports: orchestrator {orchestrator}, embed {embed}, "
+            "daemon {daemon}".format(**claimed)
+        )
+    except Exception as exc:  # noqa: BLE001
+        warn(f"Port allocation failed ({exc}) — falling back to defaults")
+
     # The wizard MUST avoid every port the persistent services own:
     # 13333 (orchestrator) and 13334 (embed). If the wizard squats on either
     # of those, the matching plist can't bind at /complete (orchestrator) or
@@ -146,6 +164,10 @@ def _run_cli_init(non_interactive: bool, migrate: bool) -> None:
     # --- Roles ---
     heading("Roles")
     _seed_roles()
+
+    # --- Scheduled jobs ---
+    heading("Scheduled Jobs")
+    _install_recurring_defs()
 
     # --- Keyring ---
     heading("Keyring")
@@ -294,24 +316,52 @@ def _setup_database():
 
 
 def _seed_roles():
-    """Seed the role catalog on fresh install. Idempotent — no-op when the
-    roles table already has rows (returning user, tm-* migration, manual
-    additions). Roles are a hard dependency for roles_match / role-based
-    agent routing; an empty table silently breaks every downstream feature.
+    """Give every role its embedding. The rows themselves arrive by migration.
+
+    Roles used to be seeded here from YAML. They are not any more — migration
+    155 writes them, because the database is their only home. What a migration
+    cannot do is reach the embed service, and `roles_match` searches the vector
+    index rather than the table: without this pass a fresh install has a full
+    roles table and matches nothing. Idempotent — embeds only what has no
+    vector yet.
     """
     try:
         from .db_helpers import get_db
-        from okuro.roles.seed import seed_if_empty
+        from okuro.roles.vectors import backfill_missing_role_vectors
 
         db = get_db()
-        inserted = seed_if_empty(db)
+        written = backfill_missing_role_vectors(db)
+        total = db.fetchone("SELECT COUNT(*) AS c FROM roles")["c"]
         db.close()
-        if inserted:
-            ok(f"Seeded {inserted} roles from catalog")
+        if written:
+            ok(f"{total} roles present — embedded {written} for matching")
         else:
-            ok("Roles already present — no seed needed")
+            ok(f"{total} roles present — embeddings already in place")
     except Exception as e:  # noqa: BLE001
-        warn(f"Role seed skipped: {e}")
+        warn(f"Role embedding skipped: {e}")
+
+
+def _install_recurring_defs():
+    """Put the shipped recurring definitions into ``~/.okuro/.../recurring/``.
+
+    The definitions that ship with okuro live in the package; the ones the
+    scheduler reads live under the user's home, because the scheduler writes
+    run counts and outcome history back into them. This is the copy across.
+    Idempotent and never overwriting — a definition already on disk belongs to
+    whoever edited it.
+    """
+    try:
+        from okuro.orchestrator.config import load_config
+        from okuro.orchestrator.recurring import install_bundled_defs
+
+        recurring_dir = load_config().recurring_dir
+        installed = install_bundled_defs(recurring_dir)
+        if installed:
+            ok(f"installed {len(installed)} scheduled job(s): {', '.join(installed)}")
+        else:
+            ok("scheduled jobs already in place")
+    except Exception as e:  # noqa: BLE001
+        warn(f"Scheduled job install skipped: {e}")
 
 
 def _setup_keyring(non_interactive: bool):
@@ -402,8 +452,7 @@ def _generate_instruction_files():
     """Generate CLAUDE.md, AGENTS.md, etc. for detected providers.
 
     ``generate_all()`` writes each adapter's file to its canonical home
-    (e.g. ``~/.claude/``, ``~/.codex/``) plus the standalone
-    ``~/.okuro/TOOL-PROTOCOL.md`` — no output_dir argument, by design.
+    (e.g. ``~/.claude/``, ``~/.codex/``) — no output_dir argument, by design.
     """
     try:
         from okuro.sense.providers import generate_all

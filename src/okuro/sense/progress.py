@@ -2,7 +2,7 @@
 # <!-- AGENT_HEADER
 # role: code
 # purpose: Continuous work logging — upsert pattern with rich history.
-# index: imports | def _ensure_project | def _infer_project_path | def _fetch_linked_memories | def _current_session_id | def _link_session_project | def _project_from_task | def resolve_write_project | def log_progress | def merged_history | def get_progress
+# index: imports | def _forbidden_project_path | def _ensure_project | def _infer_project_path | def _fetch_linked_memories | def _current_session_id | def _link_session_project | def _project_from_task | def resolve_write_project | def log_progress | def merged_history | def get_progress
 # AGENT_HEADER_END -->
 """Continuous work logging — upsert pattern with rich history.
 
@@ -10,10 +10,13 @@ Ported from tm-launcher brain/progress.py.
 """
 
 import json
+import logging
 import os
 import uuid
 from pathlib import Path
 from okuro.db.engine import okuro_home
+
+log = logging.getLogger(__name__)
 
 _HISTORY_CAP = 20
 _UUID_LEN = 36
@@ -27,6 +30,52 @@ _UUID_DASHES = 4
 # is 43% of the whole budget for one section priced at 150.
 _COMPACT_SUMMARY = 140
 _COMPACT_NEXT = 110
+
+
+# Provider GLOBAL config directories. These are okuro's own install targets —
+# the adapters write hooks and settings INTO them on every daemon refresh. A
+# project row pointing at one turns that install into a purge target.
+_PROVIDER_GLOBAL_DIRS = (".claude", ".codex", ".cursor", ".gemini")
+
+
+def _forbidden_project_path(path_str: str) -> str | None:
+    """Why ``path_str`` may not be a project root — or None if it may.
+
+    A project row is a LICENCE TO WRITE inside its path: the Claude adapter's
+    ``_purge_stale_project_overrides`` walks every active project and treats
+    ``<path>/.claude`` as a stale project-local override to archive and delete.
+    Pointed at ``$HOME`` that directory IS the user's global Claude config, so
+    the purge deletes the hooks the same daemon pass just installed. Measured
+    2026-09-17: a row auto-registered with the user's home directory as its
+    id wiped the global hooks and 12 of 14 ``settings.json`` hook entries every 5 minutes
+    for six hours. Refuse the path at the registration choke point (DP11).
+    """
+    if not path_str or path_str.startswith("unknown/"):
+        return None
+    try:
+        p = Path(path_str).expanduser().resolve()
+        home = Path.home().resolve()
+    except (OSError, RuntimeError):
+        return None
+
+    if p == Path(p.root):
+        return "the filesystem root"
+    if p == home:
+        return "the user's home directory"
+    if p in home.parents:
+        return "an ancestor of the user's home directory"
+    try:
+        if p == Path("/tmp").resolve():
+            return "the shared temp directory"
+    except (OSError, RuntimeError):
+        pass
+    for name in _PROVIDER_GLOBAL_DIRS:
+        try:
+            if p == (home / name).resolve():
+                return f"a provider's global config directory (~/{name})"
+        except (OSError, RuntimeError):
+            continue
+    return None
 
 
 def _ensure_project(db, project: str):
@@ -44,6 +93,25 @@ def _ensure_project(db, project: str):
     row = db.fetchone("SELECT 1 FROM projects WHERE id = ?", (project,))
     if row is None:
         path = _infer_project_path(project)
+        reason = _forbidden_project_path(path)
+        if reason is not None:
+            # Refused: keep the FK anchor (nine write paths depend on it) but
+            # strip what makes the row dangerous — the path and the active
+            # flag. Every destructive sweep selects `WHERE active = 1`, so an
+            # inactive, path-less row is inert.
+            log.warning(
+                "refusing to auto-register project %r at %s: that is %s. "
+                "Row kept INACTIVE and path-less; a project row is a licence "
+                "to write inside its path.",
+                project, path, reason,
+            )
+            db.execute(
+                """INSERT OR IGNORE INTO projects (id, name, path, description, active, provisional)
+                   VALUES (?, ?, ?, ?, 0, 1)""",
+                (project, project, f"unknown/{project}",
+                 "Auto-registration refused — unsafe path"),
+            )
+            return
         db.execute(
             """INSERT OR IGNORE INTO projects (id, name, path, description, active, provisional)
                VALUES (?, ?, ?, ?, 1, 1)""",

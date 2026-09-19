@@ -11,6 +11,7 @@
 #   def score_quality
 #   def score_potential
 #   def usable_vram_gb
+#   def variant_tags | def identity_variants   (P4 — ruling 3: tag, never filter)
 #   def rank
 #   def from_hf_model
 #   def from_civitai_model
@@ -72,6 +73,91 @@ def _image_footprint(*parts: Optional[str]) -> tuple[str, float]:
             return family, size_gb
     return _DEFAULT_IMAGE_FOOTPRINT
 
+
+# Bytes per weight for HuggingFace's safetensors dtype labels. Used to turn a
+# published parameter count into an on-disk footprint.
+_DTYPE_BYTES = {
+    "F64": 8.0, "I64": 8.0,
+    "F32": 4.0, "I32": 4.0,
+    "BF16": 2.0, "F16": 2.0, "FP16": 2.0, "I16": 2.0,
+    "F8_E4M3": 1.0, "F8_E5M2": 1.0, "FP8": 1.0, "I8": 1.0, "U8": 1.0, "BOOL": 1.0,
+    "U4": 0.5, "I4": 0.5, "F4": 0.5,
+}
+_DEFAULT_DTYPE_BYTES = 2.0  # bf16 — what almost every modern release ships as
+
+
+def _safetensors_footprint(
+    data: dict,
+) -> tuple[Optional[float], Optional[float], Optional[str]]:
+    """(params_b, size_gb, precision) from HuggingFace's safetensors index.
+
+    MEASURED, not declared. HF publishes the exact parameter count and the
+    dtype breakdown on the LIST endpoint under ``expand=safetensors``, so a
+    release whose NAME carries no ``B`` still gets a real footprint. This is
+    what makes the vision / 3d / music / video / embedding categories rankable
+    at all: every one of them is full of models named without a size, and the
+    runnability gate in :func:`rank` drops anything with no known footprint.
+
+    Returns ``(None, None, None)`` when the repo publishes no index — GGUF
+    repos and single-blob checkpoints do not, and those fall back to the name
+    or to a declared modality footprint.
+    """
+    st = data.get("safetensors")
+    if not isinstance(st, dict):
+        return None, None, None
+    total = st.get("total")
+    try:
+        total = float(total or 0)
+    except (TypeError, ValueError):
+        return None, None, None
+    if total <= 0:
+        return None, None, None
+
+    by_dtype = st.get("parameters") if isinstance(st.get("parameters"), dict) else {}
+    dominant, bytes_total = None, 0.0
+    best_count = 0.0
+    for dtype, count in (by_dtype or {}).items():
+        try:
+            n = float(count or 0)
+        except (TypeError, ValueError):
+            continue
+        bytes_total += n * _DTYPE_BYTES.get(str(dtype).upper(), _DEFAULT_DTYPE_BYTES)
+        if n > best_count:
+            best_count, dominant = n, str(dtype).upper()
+    if bytes_total <= 0:
+        bytes_total = total * _DEFAULT_DTYPE_BYTES
+    return (
+        round(total / 1e9, 2),
+        round(bytes_total / (1024 ** 3), 2),
+        dominant.lower() if dominant else None,
+    )
+
+
+# Declared footprints for a media release that publishes NEITHER a parameter
+# count in its name NOR a safetensors index — a single-blob checkpoint. These
+# are ESTIMATES, in the same sense P3 labels its media constants: they exist so
+# a real release is rankable instead of invisible, not because anyone measured
+# this particular repo. A candidate placed on one of these carries
+# ``footprint_basis='modality-default'`` so the number can be told from a
+# measured one.
+_MEDIA_FOOTPRINTS_GB = {
+    "video": 16.0,    # the Wan / LTX transformer class this host already runs
+    "3d": 5.0,        # TRELLIS / stable-fast-3d class
+    "vision": 8.0,    # a small VLM plus its projector
+    "audio": 4.0,     # the MusicGen / stable-audio class
+}
+
+# Civitai's own `baseModel` strings for the video families. Civitai has no
+# video TYPE — a video checkpoint is filed as `Checkpoint` like an SDXL merge —
+# so the base model is the only place the source states the modality, and
+# without this every video candidate arrives labelled `image`. Substring match,
+# because the strings carry version and variant ("Wan Video 2.2 I2V-A14B").
+# Verified against the live API 2026-09-15.
+_CIVITAI_VIDEO_BASE = (
+    "wan video", "hunyuan video", "ltx", "kling", "vidu", "mochi",
+    "cogvideo", "animatediff", "svd", "stable video",
+)
+
 # Civitai model type → (modality, task)
 _CIVITAI_TYPE_MAP = {
     "Checkpoint": ("image", "text-to-image"),
@@ -82,7 +168,14 @@ _CIVITAI_TYPE_MAP = {
     "Controlnet": ("image", "controlnet"),
 }
 
-# HF pipeline_tag → (modality, task)
+# HF pipeline_tag → (modality, task). Every tag name below was verified against
+# the live https://huggingface.co/api/models?pipeline_tag=<tag> endpoint on
+# 2026-09-15; each returned models.
+#
+# The vision / 3d / video rows are new in P4 and close interpretation gap (e):
+# until now every one of these tags fell through to the ("text", "chat")
+# default, so a 3D generator was ranked as a chat model and a vision-language
+# model was indistinguishable from an LLM.
 _HF_PIPELINE_MAP = {
     "text-generation": ("text", "chat"),
     "text2text-generation": ("text", "chat"),
@@ -91,8 +184,19 @@ _HF_PIPELINE_MAP = {
     "automatic-speech-recognition": ("audio", "stt"),
     "text-to-speech": ("audio", "tts"),
     "text-to-audio": ("audio", "music"),
-    "feature-extraction": ("text", "embedding"),
-    "sentence-similarity": ("text", "embedding"),
+    "audio-to-audio": ("audio", "audio-to-audio"),
+    "feature-extraction": ("embedding", "embedding"),
+    "sentence-similarity": ("embedding", "embedding"),
+    # vision-language: HF renamed this from image-to-text; both are live
+    "image-text-to-text": ("vision", "vlm"),
+    "image-to-text": ("vision", "captioning"),
+    "visual-question-answering": ("vision", "vqa"),
+    # video
+    "text-to-video": ("video", "text-to-video"),
+    "image-to-video": ("video", "image-to-video"),
+    # 3d
+    "image-to-3d": ("3d", "image-to-3d"),
+    "text-to-3d": ("3d", "text-to-3d"),
 }
 
 
@@ -257,11 +361,25 @@ def score_potential(entry: CatalogEntry, tier_vram_gb: float, recency: float = 0
     return round(0.7 * score_quality(entry) + 0.3 * recency, 4)
 
 
-# Names that mark a roleplay/uncensored finetune rather than a broadly
-# reviewed release — the noise the "greatly reviewed" feed must not surface.
+# Names that mark a THROWAWAY upload rather than a model anyone should be
+# offered: CI fixtures, tutorial output, sanity-check repos.
+#
+# WHAT LEFT THIS LIST IN P4, AND WHY. Until P4 it also held `uncensored`,
+# `nsfw`, `abliterated`, `unaligned` and the adult-genre words
+# (`taboo`, `roleplay`, `role-play`, `erp`, `waifu`, `horny`, `smut`, `lewd`,
+# `hentai`, `coomer`). Ruling 3 is tag, never filter — and the measurement
+# behind it is that 7 of this host's 25 live inference aliases are abliterated
+# or uncensored builds, so the gate was rejecting the running fleet. Those
+# words are now VARIANT TAGS (`lineage._VARIANT_TAGS`, the same table that
+# labels installed units) and the Discover feed hides them behind a toggle
+# instead of pretending they do not exist.
+#
+# The reputation gate below, not this list, is what keeps the feed clean: an
+# unknown author needs adoption whatever their model is called.
 _NOISE_PATTERNS = (
-    "uncensored", "taboo", "nsfw", "roleplay", "role-play", "erp", "waifu",
-    "horny", "smut", "lewd", "hentai", "abliterated", "unaligned", "coomer",
+    "tiny-random", "tiny-dummy", "tiny-model", "dummy-model", "test-model",
+    "my-first", "hf-internal-testing", "debug-model", "placeholder-model",
+    "sanity-check", "random-weights", "untrained",
 )
 
 # Orgs whose releases are trustworthy even at low download counts — a week-1
@@ -273,6 +391,15 @@ _REPUTABLE_ORGS = frozenset({
     "zai-org", "thudm", "huggingfacetb", "internlm", "01-ai", "stabilityai",
     "black-forest-labs", "unsloth", "bartowski", "thebloke", "mradermacher",
     "ggml-org", "lmstudio-community", "qwen2", "moonshotai",
+    # Added in P4 — the identity-variant publishers this host's own fleet is
+    # built from. Each is justified by a file in the live inference registry,
+    # not by reputation in the abstract: without them the abliterated
+    # categories admit nothing at week-1 download counts, which is the gate
+    # rejecting the running fleet all over again under a different rule.
+    #   huihui-ai  -> three aliases (Qwen3-8B, Qwen3.6-35B-A3B, Qwen3-VL-30B)
+    #   davidau    -> the `_D_AU` suffix on the 8x3B MoE alias
+    #   mlabonne   -> the gemma-3-27b-it-abliterated alias
+    "huihui-ai", "davidau", "mlabonne",
 })
 _MIN_DOWNLOADS = 1000  # reputation floor for unknown-org models
 
@@ -289,14 +416,56 @@ def _is_noise(entry: CatalogEntry) -> bool:
     return any(p in hay for p in _NOISE_PATTERNS)
 
 
-def _is_reputable(entry: CatalogEntry) -> bool:
+def _is_reputable(entry: CatalogEntry, min_downloads: Optional[int] = None) -> bool:
     """Admit reputable-org releases at any download count; otherwise require a
     minimum adoption floor. Keeps week-1 lab releases while dropping obscure
-    one-off finetunes from unknown authors."""
+    one-off finetunes from unknown authors.
+
+    ``min_downloads`` overrides the global floor for one category — a bucket
+    like ``3d`` has two orders of magnitude fewer downloads across the whole
+    modality than ``text``, so the same absolute floor means "reputable" in one
+    and "nothing exists" in the other.
+    """
     if _entry_org(entry) in _REPUTABLE_ORGS:
         return True
+    floor = _MIN_DOWNLOADS if min_downloads is None else int(min_downloads)
     dl = float((entry.quality_signals or {}).get("downloads", 0) or 0)
-    return dl >= _MIN_DOWNLOADS
+    return dl >= floor
+
+
+def variant_tags(entry: CatalogEntry) -> list[str]:
+    """Variant tags for a candidate, from the ONE tagger.
+
+    ``lineage.parse`` is what labels installed units, so a release and the unit
+    it relates to are described in the same words — that is what makes
+    ``variant-of`` reachable at all. Both halves of the catalog id are parsed
+    because a repo owner sometimes carries the word the model name omits
+    (``huihui-ai/Qwen3-8B`` is an abliterated line by publisher).
+
+    The source's own nsfw flag is folded in: Civitai states it as a field
+    rather than in the name, and a fact from the source outranks a guess.
+    """
+    from . import lineage
+
+    tags: set[str] = set()
+    ref = (entry.catalog_id or "").split(":", 1)[-1]
+    for name in (ref, entry.display_name or ""):
+        if name:
+            tags.update(lineage.parse(str(name)).variant_tags)
+    if entry.nsfw:
+        tags.add("nsfw")
+    return sorted(tags)
+
+
+def identity_variants(entry: CatalogEntry) -> list[str]:
+    """The subset of a candidate's tags the Discover feed hides by default.
+
+    Ruling 3: tag, never filter. Nothing here removes a row — it decides which
+    side of the ``variants=hide|show`` toggle the row lands on.
+    """
+    from .lineage import IDENTITY_VARIANT_TAGS
+
+    return [t for t in variant_tags(entry) if t in IDENTITY_VARIANT_TAGS]
 
 
 def rank(
@@ -308,6 +477,7 @@ def rank(
     commercial: bool = False,
     org_revenue_usd: Optional[float] = None,
     strict: bool = True,
+    min_downloads: Optional[int] = None,
 ) -> list[CatalogEntry]:
     """Hard-filter runnability + intent, then rank survivors.
 
@@ -327,8 +497,15 @@ def rank(
         if tasks and e.task not in tasks:
             continue
         # Quality gate — keep the feed to broadly-reviewed releases: drop
-        # NSFW/roleplay finetune noise and obscure low-adoption one-offs.
-        if strict and (e.nsfw or _is_noise(e) or not _is_reputable(e)):
+        # throwaway uploads and obscure low-adoption one-offs.
+        #
+        # `e.nsfw` USED TO BE A THIRD DROP CONDITION HERE and is deliberately
+        # gone: it is Civitai's own flag, and dropping on it made the
+        # image-nsfw and video-nsfw categories structurally unreachable — the
+        # only source that serves them marks every row with it. Ruling 3: the
+        # flag becomes a tag (see `variant_tags`), the feed hides it by
+        # default, and the toggle shows it.
+        if strict and (_is_noise(e) or not _is_reputable(e, min_downloads)):
             continue
         if commercial:
             if org_revenue_usd is None:
@@ -363,22 +540,49 @@ def from_hf_model(data: dict) -> CatalogEntry:
     hf_base = card.get("base_model") if isinstance(card.get("base_model"), str) else None
     image_family: Optional[str] = None
     formats: list[CatalogFormat] = []
+
+    # Measured first: HF's own safetensors index beats a name and beats a
+    # declared constant. It also supplies the param count for a model whose
+    # name has no `B`, which is most of the non-text modalities.
+    st_params, st_size_gb, st_precision = _safetensors_footprint(data)
+    if param_b is None:
+        param_b = st_params
+
     if modality == "image" and not is_gguf:
         # Diffusion checkpoint: footprint by architecture so it's runnable +
         # rankable (the search API gives no size and there's no param count).
         image_family, size_gb = _image_footprint(repo_id, " ".join(tags), hf_base)
         formats.append(CatalogFormat(
             format="safetensors", precision="fp16",
-            size_gb=size_gb, engine="comfyui"))
+            size_gb=st_size_gb or size_gb, engine="comfyui"))
+    elif modality in _MEDIA_FOOTPRINTS_GB and not is_gguf:
+        # vision / video / 3d / audio: the working set is the checkpoint, so
+        # size is the VRAM proxy — the same rule the image path already used.
+        # LLM param arithmetic (KV cache per token) does not describe a
+        # diffusion or 3D pipeline, so size_gb is passed and param_b is not.
+        size_gb = st_size_gb
+        if size_gb is None and param_b is not None:
+            # No index, but the name carries a size — bf16 is what a modern
+            # release ships as, and a derived number beats a declared one.
+            size_gb = round(param_b * _DEFAULT_DTYPE_BYTES * 1e9 / (1024 ** 3), 2)
+        formats.append(CatalogFormat(
+            format="safetensors", precision=st_precision or "bf16",
+            size_gb=size_gb or _MEDIA_FOOTPRINTS_GB[modality],
+            engine="comfyui"))
     elif param_b is not None:
         formats.append(
             CatalogFormat(
                 format="gguf" if is_gguf else "safetensors",
-                precision=None if is_gguf else "bf16",
+                precision=None if is_gguf else (st_precision or "bf16"),
                 param_b=param_b,
                 engine="llama-server" if is_gguf else "vllm",
             )
         )
+    elif is_gguf and modality in _MEDIA_FOOTPRINTS_GB:
+        # A GGUF media repo with no size anywhere in the name. Declared.
+        formats.append(CatalogFormat(
+            format="gguf", size_gb=_MEDIA_FOOTPRINTS_GB[modality],
+            engine="comfyui"))
     entry = CatalogEntry(
         catalog_id=f"huggingface:{repo_id}",
         source="huggingface",
@@ -398,12 +602,22 @@ def from_hf_model(data: dict) -> CatalogEntry:
         quality_signals={
             "downloads": data.get("downloads", 0),
             "likes": data.get("likes", 0),
-            "trending_score": data.get("trending_score", 0),
+            # The API field is camelCase. Reading only `trending_score` meant
+            # this signal was silently 0 for every HF candidate ever ranked,
+            # so 20% of score_quality never fired — measured against the live
+            # endpoint 2026-09-15, where `full=true` returns `trendingScore`
+            # and no `trending_score`. The snake_case read is kept so a canned
+            # payload written against the old shape still works.
+            "trending_score": data.get("trendingScore",
+                                       data.get("trending_score", 0)) or 0,
             "created_at": data.get("createdAt"),
         },
         license={"id": card.get("license"), "commercial_use": _hf_commercial(card.get("license")),
                  **_tier_fields({"id": card.get("license")})},
         gated=bool(data.get("gated")),
+        # HuggingFace states this as a tag rather than a field; Civitai as a
+        # field. Both end up on the same attribute so one gate reads one thing.
+        nsfw="not-for-all-audiences" in tags,
         credential_required="hf" if data.get("gated") else None,
     )
     entry.purpose_summary = derive_purpose_summary(entry)
@@ -429,6 +643,10 @@ def from_civitai_model(data: dict, version: Optional[dict] = None) -> CatalogEnt
     mid = data.get("id")
     version = version or (data.get("modelVersions") or [{}])[0]
     modality, task = _CIVITAI_TYPE_MAP.get(data.get("type", ""), ("image", "text-to-image"))
+    base_model = version.get("baseModel") or ""
+    if any(v in base_model.lower() for v in _CIVITAI_VIDEO_BASE):
+        modality = "video"
+        task = "image-adapter" if task == "image-adapter" else "text-to-video"
     stats = data.get("stats") or {}
     commercial = data.get("allowCommercialUse") not in (None, "None", [], ["None"])
     formats: list[CatalogFormat] = []

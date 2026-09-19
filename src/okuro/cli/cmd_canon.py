@@ -197,12 +197,6 @@ def deploy(
             bits.append(f"{len(r['hooks'])} hook(s)")
         (ok if bits else info)(f"{name}: {', '.join(bits) or 'nothing to do'}")
 
-    tp = results.get("_tool_protocol", {})
-    if tp.get("path"):
-        ok(f"TOOL-PROTOCOL.md: {tp['path']}")
-    elif tp.get("error"):
-        fail(f"TOOL-PROTOCOL.md: {tp['error']}")
-
 
 @canon.command("unregister")
 @click.option(

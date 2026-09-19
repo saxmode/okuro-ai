@@ -88,7 +88,7 @@ function GateDetails({
 }) {
   return (
     <details className="mt-1 rounded border border-border bg-surface/60 p-2">
-      <summary className="cursor-pointer select-none text-3xs uppercase tracking-wider text-tertiary">
+      <summary className="cursor-pointer select-none text-3xs case-label tracking-wider text-tertiary">
         Show technical details
       </summary>
       {text && (
@@ -147,7 +147,7 @@ function RefreshGateCopy({ taskId }: { taskId: string }) {
         type="button"
         onClick={run}
         disabled={state === "busy"}
-        className="rounded border border-border px-1.5 py-0.5 text-3xs uppercase tracking-wider text-tertiary transition-colors hover:text-fg-muted disabled:opacity-50"
+        className="rounded border border-border px-1.5 py-0.5 text-3xs case-label tracking-wider text-tertiary transition-colors hover:text-fg-muted disabled:opacity-50"
       >
         {state === "busy" ? "Re-checking…" : "Re-check this wording"}
       </button>
@@ -312,7 +312,7 @@ export function BlockerCard({
   if (blocker.kind === "decision_gate") {
     return (
       <div data-testid="blocker-card" className="space-y-3">
-        <div className="text-2xs uppercase tracking-wider text-warning">
+        <div className="text-2xs case-label tracking-wider text-warning">
           {header}
         </div>
         <GatePanel taskId={taskId} />
@@ -448,7 +448,7 @@ function CapabilityGapInner({
   return (
     <div className="space-y-3 rounded border border-warning/50 bg-warning-subtle/40 p-4">
       <div className="flex items-baseline justify-between">
-        <div className="text-2xs uppercase tracking-wider text-warning">
+        <div className="text-2xs case-label tracking-wider text-warning">
           {header}
         </div>
         <WaitingFor blocker={blocker} />
@@ -459,7 +459,7 @@ function CapabilityGapInner({
       <GateBody payload={blocker.payload} fallback={summary} taskId={taskId} />
       {requestedRoles.length > 0 && (
         <div className="text-3xs text-tertiary">
-          <div className="uppercase tracking-wider">Missing roles</div>
+          <div className="case-label tracking-wider">Missing roles</div>
           <ul className="mt-1 flex flex-wrap gap-1">
             {requestedRoles.map((r) => (
               <li
@@ -475,7 +475,7 @@ function CapabilityGapInner({
       )}
       {creatorRoles.length > 0 && (
         <div className="text-3xs text-tertiary">
-          <span className="uppercase tracking-wider">Plan:</span>{" "}
+          <span className="case-label tracking-wider">Plan:</span>{" "}
           <span
             className="text-fg-muted"
             title={creatorRoles.join(" → ")}
@@ -584,7 +584,7 @@ function PanelConfirmInner({
   return (
     <div className="space-y-3 rounded border border-warning/50 bg-warning-subtle/40 p-4">
       <div className="flex items-baseline justify-between">
-        <div className="text-2xs uppercase tracking-wider text-warning">
+        <div className="text-2xs case-label tracking-wider text-warning">
           {header}
         </div>
         <WaitingFor blocker={blocker} />
@@ -609,7 +609,7 @@ function PanelConfirmInner({
       )}
       {mentioned_roles.length > 0 && (
         <div className="space-y-1.5">
-          <div className="text-3xs uppercase tracking-wider text-tertiary">
+          <div className="text-3xs case-label tracking-wider text-tertiary">
             Roles mentioned in task body — click to add
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -650,7 +650,7 @@ function PanelConfirmInner({
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between">
                   <span
-                    className="text-2xs font-medium uppercase tracking-wider text-fg"
+                    className="text-2xs font-medium case-label tracking-wider text-fg"
                     title={r.role_id}
                   >
                     {humanizeSlug(r.role_id)}
@@ -675,7 +675,7 @@ function PanelConfirmInner({
         ))}
       </ul>
       <div className="space-y-1">
-        <label className="text-3xs uppercase tracking-wider text-tertiary">
+        <label className="text-3xs case-label tracking-wider text-tertiary">
           Add more roles (comma-separated role ids)
         </label>
         <input
@@ -748,7 +748,7 @@ function GenericBlocker({
     <div className="space-y-3 rounded border border-warning/50 bg-warning-subtle/40 p-4">
       <div className="flex items-baseline justify-between">
         <div className="flex items-baseline gap-2">
-          <div className="text-2xs uppercase tracking-wider text-warning">
+          <div className="text-2xs case-label tracking-wider text-warning">
             {header}
           </div>
           {showKindChip && (
@@ -838,7 +838,7 @@ function BlockedReviewInner({
   return (
     <div className="space-y-3 rounded border border-warning/50 bg-warning-subtle/40 p-4">
       <div className="flex items-baseline justify-between">
-        <div className="text-2xs uppercase tracking-wider text-warning">
+        <div className="text-2xs case-label tracking-wider text-warning">
           {header}
         </div>
         <WaitingFor blocker={blocker} />
@@ -850,7 +850,7 @@ function BlockedReviewInner({
         extraDetails={
           findings.length > 0 ? (
             <div className="space-y-1.5">
-              <div className="text-3xs uppercase tracking-wider text-tertiary">
+              <div className="text-3xs case-label tracking-wider text-tertiary">
                 What the quality check flagged
               </div>
               <ul className="space-y-1.5">
@@ -860,7 +860,7 @@ function BlockedReviewInner({
                     className="rounded border border-border bg-surface p-2 text-2xs text-fg-muted"
                   >
                     {f.severity === "load_bearing" && (
-                      <span className="mr-1 rounded bg-error/15 px-1 text-3xs uppercase text-error">
+                      <span className="mr-1 rounded bg-error/15 px-1 text-3xs case-label text-error">
                         must fix
                       </span>
                     )}
@@ -884,7 +884,7 @@ function BlockedReviewInner({
       />
       {cappedSubtasks.length > 0 && (
         <div className="text-3xs text-tertiary">
-          <span className="uppercase tracking-wider">Affected part:</span>{" "}
+          <span className="case-label tracking-wider">Affected part:</span>{" "}
           <span className="font-mono text-fg-muted">
             {cappedSubtasks.join(", ")}
           </span>
@@ -892,7 +892,7 @@ function BlockedReviewInner({
       )}
       {showDecide && (
         <div className="space-y-1.5 rounded border border-accent/40 bg-accent-subtle/30 p-2">
-          <div className="text-3xs uppercase tracking-wider text-accent">
+          <div className="text-3xs case-label tracking-wider text-accent">
             Your decision
           </div>
           <textarea
@@ -1005,7 +1005,7 @@ function TimeoutCapInner({
   return (
     <div className="space-y-3 rounded border border-warning/50 bg-warning-subtle/40 p-4">
       <div className="flex items-baseline justify-between">
-        <div className="text-2xs uppercase tracking-wider text-warning">
+        <div className="text-2xs case-label tracking-wider text-warning">
           {header}
         </div>
         <WaitingFor blocker={blocker} />
@@ -1030,25 +1030,25 @@ function TimeoutCapInner({
       <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-3xs text-tertiary">
         {subtaskId && (
           <div>
-            <span className="uppercase tracking-wider">{PART}</span>
+            <span className="case-label tracking-wider">{PART}</span>
             <span className="ml-2 font-mono text-fg-muted">{subtaskId}</span>
           </div>
         )}
         {role && (
           <div>
-            <span className="uppercase tracking-wider">role</span>
+            <span className="case-label tracking-wider">role</span>
             <span className="ml-2 font-mono text-fg-muted">{role}</span>
           </div>
         )}
         <div>
-          <span className="uppercase tracking-wider">retries</span>
+          <span className="case-label tracking-wider">retries</span>
           <span className="ml-2 font-mono text-fg-muted">
             {retries}/{maxRetries}
           </span>
         </div>
         {lastTimeout > 0 && (
           <div>
-            <span className="uppercase tracking-wider">last timeout</span>
+            <span className="case-label tracking-wider">last timeout</span>
             <span className="ml-2 font-mono text-fg-muted">{lastTimeout}s</span>
           </div>
         )}

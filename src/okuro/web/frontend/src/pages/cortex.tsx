@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Search,
@@ -17,11 +17,21 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { PageHeader } from "@/components/shell/page-header";
+import { Segmented } from "@/components/ui/segmented";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { sectionSlugs } from "@/shell/views/sections";
+import type { LeafViewProps } from "@/shell/views/registry";
+import { useSectionTitle } from "@/shell/components/PageTitle";
 
 /**
  * /cortex — codebase search + index visibility.
@@ -173,8 +183,44 @@ const cortexApi = {
 
 // ── Page ─────────────────────────────────────────────────────────────
 
-export function CortexPage() {
-  const [mode, setMode] = useState<"semantic" | "code" | "route">("semantic");
+/** The three search modes plus the roots panel, in the section list's order. */
+type CortexSection = "semantic" | "code" | "route" | "roots";
+const SECTIONS: readonly CortexSection[] = ["semantic", "code", "route", "roots"];
+const CORTEX_SLUGS = sectionSlugs("know", "cortex");
+const SECTION_OF = (s: CortexSection): number => Math.max(0, CORTEX_SLUGS.indexOf(s));
+const SECTION_AT = (index: number): CortexSection => {
+  const slug = CORTEX_SLUGS[index];
+  return (SECTIONS.find((x) => x === slug) ?? "semantic") as CortexSection;
+};
+
+export function CortexPage({ view, onSelectView }: Partial<LeafViewProps> = {}) {
+  /**
+   * THE MODE IS A SECTION, so it lives in `?view=` — Q7/Q-C1, ruled.
+   *
+   * It was `useState`, so a code search could not be linked and a reload lost
+   * the mode; the shell meanwhile declared two sections that named nothing.
+   * ROOTS joins them: the registered-roots panel was a disclosure with no
+   * address, and it is the one part of this page somebody links to.
+   *
+   * `?tab=` keeps working through `routes.ts:605` without this file's help.
+   */
+  const [localSection, setLocalSection] = useState(0);
+  const current = view ?? localSection;
+  const section = SECTION_AT(current);
+  const mode: "semantic" | "code" | "route" =
+    section === "roots" ? "semantic" : section;
+  /* `Tabs` fires `onValueChange` twice per click, both in one tick — the ref
+     holds what was last ASKED for (traced on BRAIN with a patched pushState). */
+  const asked = useRef(current);
+  if (asked.current !== current) asked.current = current;
+  const selectSection = (next: CortexSection) => {
+    const index = SECTION_OF(next);
+    if (index === asked.current) return;
+    asked.current = index;
+    if (onSelectView) onSelectView(index);
+    else setLocalSection(index);
+  };
+  const setMode = (v: string) => selectSection(v as CortexSection);
   const [query, setQuery] = useState("");
   const [committedQuery, setCommittedQuery] = useState("");
   const [pathFilter, setPathFilter] = useState("");
@@ -284,12 +330,45 @@ export function CortexPage() {
   const isReindexing =
     reindexStatus?.status === "running" || reindexMutation.isPending;
 
+  /* THE MODE SWITCH GOES TO THE PLATE. Radix `Tabs` could not make the trip
+     — a published node is rendered in `TopicBar`'s React tree and cannot read
+     the provider this leaf declares — and `TabsContent` unmounted the
+     inactive mode, throwing away its results on every switch. `ui/segmented`
+     plus `hidden` fixes both, the same change BRAIN and KNOWLEDGE took.
+
+     THE SEARCH FORM DOES NOT COME WITH IT, and that is a measurement rather
+     than a preference: it is a full-width query box with a submit button, a
+     clear button and a live result count, against a band that is 72px tall
+     and clips. Flagged for A-2. */
+  const header = useMemo(
+    () => ({
+      actions: (
+        <Segmented
+          ariaLabel="Cortex search mode"
+          value={mode}
+          onChange={(v) => setMode(v as string)}
+          options={[
+            { label: "Semantic", value: "semantic", icon: <Search /> },
+            { label: "Code", value: "code", icon: <Code2 /> },
+            { label: "Route", value: "route", icon: <ArrowRight /> },
+          ]}
+        />
+      ),
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [mode],
+  );
+  useSectionTitle(header);
+
   return (
     <div className="page-shell space-y-8">
-      <PageHeader
-        title="Cortex"
-        subtitle="Codebase search — by meaning, by exact text, or top files per concept"
-      />
+      {/* R1 (86b8f1f0) — the shell renders `<h1 class="c-title">Cortex</h1>`
+          above this pane, so the page's own h1 is gone and the subtitle stays
+          as the lead. `text-fg-muted`, not `text-tertiary`: that tier does not
+          flip with the appearance (kit todo c581c9b2). */}
+      <p className="type-small text-fg-muted">
+        Codebase search — by meaning, by exact text, or top files per concept
+      </p>
 
       {/* Stats bar */}
       <StatsBar
@@ -310,25 +389,17 @@ export function CortexPage() {
       )}
 
       {/* Registered project roots */}
-      <RegisteredRootsPanel onReindexStarted={setReindexJobId} />
+      <RegisteredRootsPanel
+        onReindexStarted={setReindexJobId}
+        open={section === "roots"}
+        onOpenChange={(next) => selectSection(next ? "roots" : "semantic")}
+      />
 
-      {/* Mode tabs + search */}
-      <Tabs value={mode} onValueChange={(v) => setMode(v as typeof mode)}>
-        <TabsList>
-          <TabsTrigger value="semantic">
-            <Search className="h-3.5 w-3.5 mr-1.5" />
-            Semantic
-          </TabsTrigger>
-          <TabsTrigger value="code">
-            <Code2 className="h-3.5 w-3.5 mr-1.5" />
-            Code
-          </TabsTrigger>
-          <TabsTrigger value="route">
-            <ArrowRight className="h-3.5 w-3.5 mr-1.5" />
-            Route
-          </TabsTrigger>
-        </TabsList>
-
+      {/* THE MODE SWITCH IS ON THE PLATE — see the memo above. The SEARCH
+          FORM stays here: it is a full-width query box with a submit button
+          and a live result count, not a 24px chrome control, and the band
+          clips at 72. Flagged for A-2 as a design call. */}
+      <div>
         <form onSubmit={submit} className="mt-4 space-y-2">
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-tertiary" />
@@ -439,23 +510,23 @@ export function CortexPage() {
         <div className="mt-4 grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-4">
           {/* Results column */}
           <div>
-            <TabsContent value="semantic" className="mt-0">
+            <div hidden={mode !== "semantic"} className="mt-0">
               <SemanticResults
                 query={semanticQuery}
                 committed={committedQuery}
                 onSelect={setSelectedHit}
                 selected={selectedHit}
               />
-            </TabsContent>
-            <TabsContent value="code" className="mt-0">
+            </div>
+            <div hidden={mode !== "code"} className="mt-0">
               <CodeResults
                 query={codeQuery}
                 committed={committedQuery}
                 onSelect={setSelectedHit}
                 selected={selectedHit}
               />
-            </TabsContent>
-            <TabsContent value="route" className="mt-0">
+            </div>
+            <div hidden={mode !== "route"} className="mt-0">
               <SemanticResults
                 query={routeQuery}
                 committed={committedQuery}
@@ -463,7 +534,7 @@ export function CortexPage() {
                 selected={selectedHit}
                 label="Top-5 files"
               />
-            </TabsContent>
+            </div>
           </div>
 
           {/* Detail drawer */}
@@ -471,7 +542,7 @@ export function CortexPage() {
             <DetailPane hit={selectedHit} />
           </div>
         </div>
-      </Tabs>
+      </div>
 
       {/* Mobile detail (below results) */}
       {selectedHit && (
@@ -496,6 +567,7 @@ function StatsBar({
   onReindex: () => void;
   reindexing: boolean;
 }) {
+  const [confirmReindex, setConfirmReindex] = useState(false);
   return (
     <div className="rounded border border-border bg-surface p-3 flex items-center flex-wrap gap-6">
       <StatItem label="Files" value={stats?.files_indexed ?? "—"} loading={loading} />
@@ -511,10 +583,17 @@ function StatsBar({
         <div className="text-2xs uppercase tracking-wider text-tertiary">Root</div>
         <div className="text-xs text-fg truncate font-mono">{stats?.root ?? "—"}</div>
       </div>
+      {/* R5 (372ccdb2) — A MODAL, AND THE COST IS READ LIVE.
+          One click re-embedded the whole index on the GPU: 24,824 files /
+          222,371 documents / 46 roots on this box, measured from the same
+          `GET /api/cortex/stats` this bar renders. p3 filed it as D4. The
+          numbers come from `stats`, never from a literal, so the sentence
+          cannot go stale — which is why this is a modal and not an arm: an arm
+          asks again, a modal can say what it costs. */}
       <Button
         size="sm"
         variant="outline"
-        onClick={onReindex}
+        onClick={() => setConfirmReindex(true)}
         disabled={reindexing}
         className="ml-auto"
       >
@@ -525,6 +604,31 @@ function StatsBar({
         )}
         Reindex now
       </Button>
+      <Dialog open={confirmReindex} onOpenChange={setConfirmReindex}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Re-embed the whole index?</DialogTitle>
+            <DialogDescription>
+              {stats
+                ? `${stats.files_indexed.toLocaleString()} files and ${stats.total_documents.toLocaleString()} documents across every registered root are re-embedded on the GPU. Nothing is deleted; searches keep working on the old vectors until it finishes.`
+                : "Every file in every registered root is re-embedded on the GPU. Nothing is deleted; searches keep working on the old vectors until it finishes."}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmReindex(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                setConfirmReindex(false);
+                onReindex();
+              }}
+            >
+              Reindex now
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -552,10 +656,16 @@ function StatItem({
 
 function RegisteredRootsPanel({
   onReindexStarted,
+  open,
+  onOpenChange,
 }: {
   onReindexStarted: (jobId: string) => void;
+  /** ROOTS is a section now, so the disclosure's state is the address. */
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const setOpen = (next: boolean | ((v: boolean) => boolean)) =>
+    onOpenChange(typeof next === "function" ? next(open) : next);
   const [path, setPath] = useState("");
   const [slug, setSlug] = useState("");
   const [name, setName] = useState("");
@@ -607,7 +717,11 @@ function RegisteredRootsPanel({
   const roots = projectsQuery.data?.roots ?? [];
 
   return (
-    <div className="rounded border border-border bg-surface/50">
+    /* Q-C3 option A — THE CONTENT CONTAINER HAS NO SURFACE (the flat-surface
+       ruling, shell.css:491-497), so `bg-surface/50` — a half-opaque elevated
+       plane — was a live contradiction of it in the leaf that otherwise fits
+       best. The border alone does the grouping. */
+    <div className="rounded border border-border">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -761,7 +875,10 @@ function ReindexProgressBar({ status }: { status: ReindexStatus }) {
       <div className="h-1.5 rounded-full bg-border overflow-hidden">
         <div
           className={cn(
-            "h-full bg-accent transition-all duration-500",
+            // D1 — THE KIT OWNS MOTION. `duration-500` was a literal beside a kit
+            // that emits 650ms (`--motion-medium` / `--sh-speed-medium`); 500
+            // is not a value anybody chose.
+            "h-full bg-accent transition-all [transition-duration:var(--motion-medium,650ms)]",
             pct === null && "animate-pulse w-1/3",
           )}
           style={pct !== null ? { width: `${pct}%` } : undefined}

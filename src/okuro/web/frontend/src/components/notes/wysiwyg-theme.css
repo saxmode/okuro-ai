@@ -25,6 +25,34 @@
   --crepe-color-selected: var(--color-accent-subtle);
   --crepe-color-inline-code: var(--color-fg-primary);
   --crepe-color-inline-area: var(--color-surface-elevated);
+
+  /* N8 — THE SEVEN NAMES THAT WERE STILL CREPE'S OWN.
+     Measured across an appearance flip on 2026-09-14: of Crepe's 28 declared
+     names, 16 flipped, 12 were invariant, and five of those twelve are
+     CORRECTLY invariant (`background: transparent`, the accent, and the three
+     font names). The remaining seven were literals that never flipped — and
+     the two shadows are the sharp one: WHITE in both appearances, so every
+     Crepe popup lost its elevation cue on a white ground. */
+  --crepe-shadow-1: var(--shadow-sm);
+  --crepe-shadow-2: var(--shadow-md);
+  --crepe-color-error: var(--color-status-error);
+  --crepe-color-diff-added: var(--color-status-success);
+  --crepe-color-diff-removed: var(--color-status-error);
+  --crepe-color-diff-added-bg: color-mix(
+    in srgb,
+    var(--color-status-success),
+    transparent 88%
+  );
+  --crepe-color-diff-removed-bg: color-mix(
+    in srgb,
+    var(--color-status-error),
+    transparent 88%
+  );
+  /* NOT bridged, and stated rather than left silent: the two
+     `--crepe-color-diff-*-text` names are literal-valued but DO flip, through
+     Crepe's own pair of theme sheets (they mix toward #ffffff in dark and
+     #131313 in light). They are not invariance defects, and re-deriving them
+     here would replace a working flip with a hand-rolled one. */
 }
 
 /* Match the read-only viewer's padding (p-4) instead of Crepe's 60px 120px;

@@ -9,6 +9,12 @@ import React from "react";
 import { useNavigate } from "react-router";
 
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { flowDesignerApi, type FlowDesignerSummary, type FlowFolder } from "@/lib/api";
 
 import { FlowThumbnail } from "./flow-thumbnail";
@@ -98,17 +104,38 @@ export function FlowGallery() {
     const up = await flowDesignerApi.updateFolder(f.id, { name });
     setFolders((fs) => fs.map((x) => (x.id === f.id ? up : x)));
   };
-  const deleteFolder = async (f: FlowFolder) => {
-    if (!window.confirm(`Delete folder "${f.name}"? Its flows and subfolders move to the parent.`)) return;
-    await flowDesignerApi.removeFolder(f.id);
-    if (view === f.id) setView("all");
-    refresh();
+  /**
+   * R5 (372ccdb2), PERMANENT BRANCH — ONE modal for both deletions, and these
+   * two were the last `window.confirm` calls in WORK.
+   *
+   * The editor's delete got its modal in this pass and these did not, which is
+   * exactly the instance-scope miss DP11 names: the gallery deletes the SAME
+   * documents through the SAME store. `graphdoc/store.py:274::delete_doc` runs
+   * `DELETE FROM docs` AND `DELETE FROM history` in one transaction ("History
+   * dies with its document"), so a flow cannot come back. A folder cannot
+   * either — but its flows survive, and the sentence has to say which is
+   * which, because that is the whole question the user is being asked.
+   */
+  const [pending, setPending] = React.useState<
+    { kind: "folder"; id: string; name: string } | { kind: "flow"; id: string; name: string } | null
+  >(null);
+
+  const confirmDelete = async () => {
+    const t = pending;
+    setPending(null);
+    if (!t) return;
+    if (t.kind === "folder") {
+      await flowDesignerApi.removeFolder(t.id);
+      if (view === t.id) setView("all");
+      refresh();
+    } else {
+      await flowDesignerApi.remove(t.id);
+      setFlows((fs) => fs.filter((f) => f.id !== t.id));
+    }
   };
-  const deleteFlow = async (id: string, name: string) => {
-    if (!window.confirm(`Delete flow "${name}"? This cannot be undone.`)) return;
-    await flowDesignerApi.remove(id);
-    setFlows((fs) => fs.filter((f) => f.id !== id));
-  };
+
+  const deleteFolder = (f: FlowFolder) => setPending({ kind: "folder", id: f.id, name: f.name });
+  const deleteFlow = (id: string, name: string) => setPending({ kind: "flow", id, name });
 
   const renderFolders = (parent: string | null, depth: number): React.ReactNode =>
     childFolders(parent).map((f) => (
@@ -192,7 +219,7 @@ export function FlowGallery() {
             {sort === "recent" ? "Recent" : "Name"}
           </button>
           <div className="fd-gallery-spacer" />
-          <Button size="sm" onClick={() => navigate("/flow?new=1")}>
+          <Button size="sm" onClick={() => navigate("/work/flow?view=new")}>
             <Plus size={15} /> New flow
           </Button>
         </div>
@@ -215,7 +242,7 @@ export function FlowGallery() {
                   setDragId(null);
                   setDropTarget(null);
                 }}
-                onClick={() => navigate(`/flow?id=${encodeURIComponent(f.id)}`)}
+                onClick={() => navigate(`/work/flow/${encodeURIComponent(f.id)}`)}
                 title={f.description || `Open ${f.name}`}
               >
                 <FlowThumbnail id={f.id} accent={ACCENT} />
@@ -257,6 +284,42 @@ export function FlowGallery() {
           </div>
         )}
       </main>
+
+      {/* `ui/dialog` steers `open` through `usePaneModalOpen`, so this cannot
+          survive a topic change and leave the app unclickable. */}
+      <Dialog open={!!pending} onOpenChange={(o) => !o && setPending(null)}>
+        <DialogContent className="max-w-md">
+          {pending && (
+            <>
+              <DialogTitle>Delete “{pending.name}”?</DialogTitle>
+              <DialogDescription>
+                {pending.kind === "flow" ? (
+                  <>
+                    This removes the flow AND its version history in one
+                    transaction — the store deletes both together on purpose,
+                    so a later flow of the same name cannot inherit these
+                    snapshots. There is nothing to restore afterwards.
+                  </>
+                ) : (
+                  <>
+                    This removes the folder. Its flows and subfolders are{" "}
+                    <b>not</b> deleted — they move to the parent — but the
+                    folder itself does not come back.
+                  </>
+                )}
+              </DialogDescription>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" size="sm" onClick={() => setPending(null)}>
+                  Keep it
+                </Button>
+                <Button variant="destructive" size="sm" onClick={confirmDelete}>
+                  Delete permanently
+                </Button>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

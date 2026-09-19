@@ -29,9 +29,14 @@ from typing import Optional, Protocol
 _SOURCE_KEYS: dict[str, dict] = {
     "hf": {"canonical": "HF_TOKEN", "aliases": ["HUGGINGFACE_HUB_TOKEN"]},
     "huggingface": {"canonical": "HF_TOKEN", "aliases": ["HUGGINGFACE_HUB_TOKEN"]},
+    # `civitai-red-access` is the name the owner ruled canonical on 2026-09-15
+    # (rulings addendum, ruling 12): ONE token serves civitai.com and the
+    # civitai.red nsfw mirror. It was not in this table, so the nsfw
+    # categories P4 adds would have gone out unauthenticated while the right
+    # credential sat in the keyring under a name nothing looked up.
     "civitai": {
-        "canonical": "CIVITAI_API_KEY",
-        "aliases": ["CIVITAI_API_TOKEN", "CIVIT-RED-ACCESS"],
+        "canonical": "civitai-red-access",
+        "aliases": ["CIVITAI_API_KEY", "CIVITAI_API_TOKEN", "CIVIT-RED-ACCESS"],
     },
 }
 

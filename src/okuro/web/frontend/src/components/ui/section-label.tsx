@@ -37,7 +37,11 @@ export function SectionLabel({
     <Tag
       className={cn(
         isMicro
-          ? "text-2xs font-medium uppercase tracking-wider text-fg-subtle"
+          // `case-label` (globals.css) instead of the literal `uppercase`:
+          // the kit decides case (0d37d05e), and the fallback is `uppercase`
+          // so nothing moves under a kit that publishes no transform. The
+          // `default` variant already resolves its case through `type-label`.
+          ? "case-label text-2xs font-medium tracking-wider text-fg-subtle"
           : "type-label text-fg-subtle",
         className,
       )}

@@ -103,7 +103,14 @@ export function GalleryView({ nodes, onSelect, selectedId }: GalleryViewProps) {
         total={nodes.length}
       />
 
-      <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
+      {/* R3 (8546865f) — THE COLUMN COUNT KEYS TO THE PANE, NOT TO THE WINDOW.
+          `md:` is 384px and `xl:` is 576px under the engine's 8px root, so both
+          were TRUE IN EVERY STATE THE SHELL CAN PRODUCE: the gallery rendered
+          three columns in a 728px pane and each card's text box measured 111px,
+          which is why 84 boxes were clipping their own content at 1366.
+          `@2xl`/`@5xl` are the same scale read through `.pane` (672px / 1024px),
+          so the cards are ~350px at a 728px pane and ~410px at 1262px. */}
+      <div className="grid grid-cols-1 gap-2 @2xl:grid-cols-2 @5xl:grid-cols-3">
         {filtered.slice(0, count).map((n) => (
           <GalleryCard
             key={n.id}
@@ -113,7 +120,7 @@ export function GalleryView({ nodes, onSelect, selectedId }: GalleryViewProps) {
           />
         ))}
         {filtered.length === 0 && (
-          <div className="col-span-full py-12 text-center text-2xs uppercase tracking-wider text-tertiary">
+          <div className="col-span-full py-12 text-center text-2xs case-label tracking-wider text-tertiary">
             no matches
           </div>
         )}
@@ -121,7 +128,7 @@ export function GalleryView({ nodes, onSelect, selectedId }: GalleryViewProps) {
       {count < filtered.length && (
         <div
           ref={sentinelRef}
-          className="py-6 text-center text-2xs uppercase tracking-wider text-tertiary"
+          className="py-6 text-center text-2xs case-label tracking-wider text-tertiary"
         >
           {count} / {filtered.length} — scroll for more
         </div>
@@ -173,7 +180,7 @@ function Controls({
         )}
       </div>
 
-      <div className="flex items-center gap-1 text-2xs uppercase tracking-wider text-tertiary">
+      <div className="flex items-center gap-1 text-2xs case-label tracking-wider text-tertiary">
         <span>sort</span>
         <select
           value={sortKey}
@@ -199,7 +206,7 @@ function Controls({
         </button>
       </div>
 
-      <div className="ml-auto text-2xs uppercase tracking-wider text-tertiary">
+      <div className="ml-auto text-2xs case-label tracking-wider text-tertiary">
         <span className="font-mono text-fg-muted">{count}</span> / {total}
       </div>
     </div>
@@ -239,7 +246,7 @@ function GalleryCard({
       )}
       style={{ opacity }}
     >
-      <div className="flex items-center justify-between gap-2 text-2xs uppercase tracking-wider text-tertiary">
+      <div className="flex items-center justify-between gap-2 text-2xs case-label tracking-wider text-tertiary">
         <span>{TYPE_LABEL[typ]}</span>
         {node.project && <span className="font-mono truncate max-w-[20rem]">{node.project}</span>}
       </div>
@@ -255,7 +262,7 @@ function GalleryCard({
           {chips.map((c) => (
             <span
               key={c}
-              className="rounded-sm border border-border-subtle px-1 py-0 text-[10px] font-mono uppercase tracking-wider text-tertiary"
+              className="rounded-sm border border-border-subtle px-1 py-0 text-2xs font-mono case-label tracking-wider text-tertiary"
             >
               {c}
             </span>

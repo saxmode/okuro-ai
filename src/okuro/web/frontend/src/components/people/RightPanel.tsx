@@ -34,7 +34,7 @@ function Chip({ children }: { children: React.ReactNode }) {
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mb-1 text-[10px] font-medium uppercase tracking-wider text-fg-subtle">
+    <div className="mb-1 text-[10px] font-medium case-label tracking-wider text-fg-subtle">
       {children}
     </div>
   );
@@ -116,7 +116,7 @@ function PersonDetail({ person }: { person: GraphNode }) {
             Loading lens…
           </div>
         ) : lensQuery.isError ? (
-          <div className="text-xs text-destructive">
+          <div className="text-xs text-error">
             {lensQuery.error instanceof Error
               ? lensQuery.error.message
               : "Failed to load lens"}
@@ -265,7 +265,7 @@ export function RightPanel({
   onStatsInvalidate?: () => void;
 }) {
   const header = (icon: React.ReactNode, title: string) => (
-    <div className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-fg-muted">
+    <div className="mb-3 flex items-center gap-2 text-xs font-medium case-label tracking-wider text-fg-muted">
       {icon}
       {title}
     </div>
