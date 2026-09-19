@@ -127,7 +127,7 @@ export function FailureBanner({
       />
       <div className="min-w-0 flex-1 space-y-2">
         <div className="flex items-baseline gap-2">
-          <span className={`text-2xs font-bold uppercase tracking-wider ${tone.label}`}>
+          <span className={`text-2xs font-bold case-label tracking-wider ${tone.label}`}>
             {label || (isHalted ? "Halted" : "Failed")}
           </span>
           <span className="text-2xs text-fg-muted">{explanation}</span>

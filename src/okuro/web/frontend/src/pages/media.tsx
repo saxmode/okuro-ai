@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Mic, RefreshCw, Repeat, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/toast";
-import { PageHeader } from "@/components/shell/page-header";
 import { peopleApi } from "@/lib/people-api";
 import {
   mediaApi,
@@ -27,6 +26,8 @@ import {
   type MediaJob,
 } from "@/lib/media-api";
 import { parseApiDate } from "@/lib/format";
+import { usePaneInterval } from "@/lib/pane-active";
+import { useSectionTitle } from "@/shell/components/PageTitle";
 
 /**
  * /media — request a podcast on a topic, for a target person, optionally
@@ -57,8 +58,27 @@ export function MediaPage() {
   const [recurring, setRecurring] = useState(false);
   const [time, setTime] = useState("06:00");
 
-  // Recent-media list filters by the delivery channel the mode maps to.
-  const channel = mode === "podcast" ? "podcast" : "tts";
+  /**
+   * THE EPISODE LIST IS HISTORY, NOT A VIEW OF THE MODE SELECTOR, and the
+   * client was the only half that still thought otherwise.
+   *
+   * This file used to derive `const channel = mode === "podcast" ? … : "tts"`
+   * and pass it to `mediaApi.list`, and the p3 spec read that and concluded
+   * "changing a FORM field silently replaces the LIST below it", raising a
+   * question about giving the channel its own `?view=`. THE SERVER SAYS
+   * OTHERWISE, in as many words (`orchestrator/api/media.py:302-308`):
+   *
+   *   "it returns ALL audio deliveries (podcast + summary/tts) newest-first,
+   *    so switching the mode selector never hides recordings that already
+   *    exist. `channel` is accepted for back-compat but no longer filters."
+   *
+   * Measured before removing it: switching to Podcast sent
+   * `?limit=25&channel=podcast` and the rendered list was byte-identical —
+   * the same 23 episode ids, and the badges still read PODCAST and TTS side
+   * by side. So the parameter did nothing except key the react-query cache on
+   * it, which threw a warm cache away and refetched the same rows on every
+   * mode toggle. One dataset, one cache entry.
+   */
 
   const peopleQuery = useQuery({
     queryKey: ["people", "media"],
@@ -66,15 +86,21 @@ export function MediaPage() {
   });
 
   const listQuery = useQuery({
-    queryKey: ["media", channel],
-    queryFn: () => mediaApi.list(25, channel),
-    refetchInterval: 15_000,
+    queryKey: ["media"],
+    queryFn: () => mediaApi.list(25),
+    // T9 / Q-D3 ruled A — AN INACTIVE PANE IS QUIET. All five topic bars keep
+    // one pane mounted at all times, so once PODCAST is the remembered DELIVER
+    // leaf these two polls ran for the whole session from every other topic:
+    // 20 job requests a minute from an invisible pane. `usePaneInterval`
+    // defaults to TRUE outside the shell, which is the load-bearing part —
+    // the six chrome-free routes must keep polling.
+    refetchInterval: usePaneInterval(15_000),
   });
 
   const jobsQuery = useQuery({
     queryKey: ["media-jobs"],
     queryFn: () => mediaApi.jobs(20),
-    refetchInterval: 3000,
+    refetchInterval: usePaneInterval(3000),
   });
 
   const createMutation = useMutation({
@@ -108,8 +134,16 @@ export function MediaPage() {
     (j) =>
       j.status === "generating" ||
       j.status === "failed" ||
+      // D3 — ONE DATE DECODER. This read `new Date(\`${j.updated_at}Z\`)`,
+      // hand-appending the UTC marker the API omits, while the file already
+      // imports `parseApiDate` for the same field family. Two decoders for one
+      // server format is the shape of the "125 GB read 124.9 KB" class
+      // (245d4942): the day the API starts sending an offset, `"…+02:00Z"` is
+      // an Invalid Date, `NaN < 8000` is false, and the 8-second just-finished
+      // window silently stops firing — so a finished episode appears only on
+      // the next 15s poll or a manual Refresh. Silent, and not a crash.
       (j.status === "done" &&
-        Date.now() - new Date(`${j.updated_at}Z`).getTime() < 8000),
+        Date.now() - (parseApiDate(j.updated_at)?.getTime() ?? 0) < 8000),
   );
   const canSubmit = topic.trim().length > 0 && !createMutation.isPending;
 
@@ -123,25 +157,57 @@ export function MediaPage() {
     prevGenerating.current = generating;
   }, [jobs, queryClient]);
 
+  /* REFRESH IS THE LEAF'S ONE CHROME ACTION, so it goes to the plate. */
+  const header = useMemo(
+    () => ({
+      actions: (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => listQuery.refetch()}
+          disabled={listQuery.isFetching}
+        >
+          {/* THE WORD STAYS. The page rendered "Refresh" beside this glyph and
+              publishing it dropped the label, leaving an unnamed circular
+              arrow on the plate — SERVICES and STUDIO both kept theirs. */}
+          <RefreshCw className={listQuery.isFetching ? "mr-1.5 animate-spin" : "mr-1.5"} />
+          Refresh
+        </Button>
+      ),
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [listQuery.isFetching, listQuery.refetch],
+  );
+  useSectionTitle(header);
+
   return (
     <div className="page-shell space-y-10">
-      <PageHeader
-        title="Media"
-        subtitle="Generate a podcast on any topic for someone — optionally as a recurring brief."
-        right={
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => listQuery.refetch()}
-            disabled={listQuery.isFetching}
-          >
-            <RefreshCw
-              className={listQuery.isFetching ? "h-4 w-4 animate-spin" : "h-4 w-4"}
-            />
-            Refresh
-          </Button>
-        }
-      />
+      {/* R1 (86b8f1f0) — THE LEAF TITLE IS THE SHELL'S, AND THAT SETTLES Q-D7
+          WITHOUT RENAMING ANYTHING. The p3 summary's Q-D7 asked whether to
+          rename this page's `<h1>Media</h1>` to "Podcast", because the rail
+          says PODCAST here while the leaf actually called MEDIA has no heading
+          at all — so the word "Media" appeared on screen only on the leaf that
+          is not called Media. Under R1 the page has no title to rename:
+          `TopicBar` renders `<h1 class="c-title">Podcast</h1>` above this pane
+          (measured), and the collision is gone at its cause rather than by
+          choosing between two words.
+
+          THE SENTENCE AND Refresh SURVIVE AS THE FIRST CONTENT BLOCK, the shape
+          SERVICES and MODELS landed: `PageHeader`'s `right` slot held a real
+          control, so the row keeps it at its trailing edge. `min-w-0 flex-1`
+          on the paragraph and `items-start` on the row so the SENTENCE wraps
+          rather than the button dropping to its own line — the defect the
+          SERVICES pass measured at 1366 (pTop 199.2 vs btnTop 232.4).
+
+          `text-fg-muted` rather than `PageHeader`'s `text-tertiary`: that token
+          is the standing AA failure (kit todo c581c9b2). */}
+      {/* REFRESH IS ON THE PLATE NOW — see the memo above — so the row that
+          kept it beside the sentence, and the wrap guard that row needed, are
+          gone with it. */}
+      <p className="type-small text-fg-muted">
+        Generate a podcast on any topic for someone — optionally as a
+        recurring brief.
+      </p>
 
       {/* Request form */}
       <section className="space-y-5 rounded-lg border border-border bg-surface-elevated p-6">
@@ -188,7 +254,7 @@ export function MediaPage() {
                     <span className="flex items-center gap-2">
                       {m.label}
                       {m.beta && (
-                        <Badge variant="outline" className="text-[10px] uppercase">
+                        <Badge variant="outline" className="text-[10px] case-label">
                           Beta
                         </Badge>
                       )}
@@ -298,7 +364,7 @@ function MediaRow({ item }: { item: MediaItem }) {
   return (
     <li className="space-y-3 rounded-lg border border-border bg-surface-elevated p-4">
       <div className="flex flex-wrap items-center gap-2">
-        <Badge variant="outline" className="uppercase tracking-wider">
+        <Badge variant="outline" className="case-label tracking-wider">
           {item.channel || "podcast"}
         </Badge>
         <span className="text-sm font-medium text-fg">
@@ -331,7 +397,7 @@ function JobRow({ job }: { job: MediaJob }) {
   return (
     <li className="space-y-2 rounded-lg border border-border bg-surface-elevated p-4">
       <div className="flex flex-wrap items-center gap-2">
-        <Badge variant="outline" className="uppercase tracking-wider">
+        <Badge variant="outline" className="case-label tracking-wider">
           {job.channel || "podcast"}
         </Badge>
         <span className="min-w-0 flex-1 truncate text-sm font-medium text-fg">

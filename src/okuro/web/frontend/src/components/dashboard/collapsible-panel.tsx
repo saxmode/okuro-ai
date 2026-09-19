@@ -27,7 +27,7 @@ export function CollapsiblePanel({
         ) : (
           <ChevronRight className="h-3 w-3 text-tertiary" />
         )}
-        <span className="text-xs font-medium uppercase tracking-wider text-tertiary">
+        <span className="text-xs font-medium case-label tracking-wider text-tertiary">
           {title}
         </span>
         {count !== undefined && (

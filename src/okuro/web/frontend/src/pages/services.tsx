@@ -1,4 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+import { useNavigate } from "react-router";
+import { usePaneInterval } from "@/lib/pane-active";
+import type { LeafViewProps } from "@/shell/views/registry";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   RefreshCw,
@@ -15,7 +18,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { toast } from "@/components/ui/toast";
-import { PageHeader } from "@/components/shell/page-header";
 import {
   Dialog,
   DialogContent,
@@ -25,6 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { useSectionTitle } from "@/shell/components/PageTitle";
 
 /**
  * /services — control okuro background services.
@@ -132,14 +135,54 @@ function statePill(state: string, active: boolean): PillVariant {
 
 // ── Page ─────────────────────────────────────────────────────────────
 
-export function ServicesPage() {
+/**
+ * THE DETAIL IS AN ADDRESS NOW — Q-L8 item (f).
+ *
+ *   /system/services          the card grid
+ *   /system/services/{name}   the same grid with that service's detail open
+ *
+ * The detail holds `exec_start`, the working directory, the environment and
+ * the last 200 journal lines — the densest view in the leaf and the one thing
+ * a person would paste to someone else — and it lived in `useState`, so it
+ * could not be linked, survived no refresh, and was reachable from nothing but
+ * a click.
+ *
+ * NO MOUNT, UNLIKE KNOW/REPOS. There is no second PAGE here: the detail is a
+ * dialog over the same grid, so `id` is read straight off `LeafViewProps`
+ * (which the router has always resolved and this page always discarded) and
+ * the dialog's open state follows the address instead of the other way round.
+ * `mounts/know-repos.tsx` exists because REPOS really has two page modules.
+ *
+ * NO `LEGACY_PREFIXES` ENTRY EITHER, and that is a measurement rather than an
+ * omission: `/services/{name}` was never a live URL, because the detail was
+ * never addressable. There is no bookmark to keep working.
+ */
+export function ServicesPage({ id }: Partial<LeafViewProps> = {}) {
   const queryClient = useQueryClient();
-  const [selected, setSelected] = useState<string | null>(null);
+  const navigate = useNavigate();
+  /**
+   * `navigate` IS ABSENT IN NOTHING, but `id` is absent outside the shell
+   * (`?embed=1`, a unit test), so the local fallback keeps the detail openable
+   * there — the same reason `pane-active` defaults to `true`.
+   */
+  const [localSelected, setLocalSelected] = useState<string | null>(null);
+  const selected = id ?? localSelected;
+  const open = (name: string) => {
+    setLocalSelected(name);
+    navigate(`/system/services/${encodeURIComponent(name)}`);
+  };
+  const close = () => {
+    setLocalSelected(null);
+    navigate("/system/services");
+  };
 
   const listQuery = useQuery({
     queryKey: ["services", "list"],
     queryFn: servicesApi.list,
-    refetchInterval: 5_000,
+    // L4 / T9 — Law 3 keeps all five topic panes mounted, so an unguarded 5s
+    // interval is the heaviest single poll in SYSTEM while nobody is looking
+    // at it. Measured before this line.
+    refetchInterval: usePaneInterval(5_000),
   });
 
   const invalidate = () => {
@@ -164,27 +207,51 @@ export function ServicesPage() {
   const services = data?.services ?? [];
   const notInstalled = services.filter((s) => !s.installed);
 
+  /* REFRESH IS THE LEAF'S ONE CHROME ACTION and it belongs on the plate. */
+  const header = useMemo(
+    () => ({
+      actions: (
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => listQuery.refetch()}
+          disabled={listQuery.isRefetching}
+        >
+          {listQuery.isRefetching ? (
+            <Loader2 className="mr-1.5 animate-spin" />
+          ) : (
+            <RefreshCw className="mr-1.5" />
+          )}
+          Refresh
+        </Button>
+      ),
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [listQuery.isRefetching, listQuery.refetch],
+  );
+  useSectionTitle(header);
+
   return (
     <div className="page-shell space-y-8">
-      <PageHeader
-        title="Services"
-        subtitle="okuro background services — start, stop, restart, and run on boot."
-        right={
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => listQuery.refetch()}
-            disabled={listQuery.isRefetching}
-          >
-            {listQuery.isRefetching ? (
-              <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-            ) : (
-              <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-            )}
-            Refresh
-          </Button>
-        }
-      />
+      {/* R1 (86b8f1f0) — THE LEAF TITLE IS THE SHELL'S. `TopicBar` renders
+          `<h1 class="c-title">Services</h1>` above this pane, so the page's
+          own PageHeader h1 is gone.
+
+          WHAT MOVED AND WHY IT COULD NOT JUST BE DELETED. `PageHeader` carried
+          a REAL control in its `right` slot — Refresh, the leaf's only chrome
+          action — so the header becomes the first CONTENT block: the sentence
+          that says what these services are keeps its job as the block's lead,
+          and Refresh sits at the trailing edge of the same row, where the
+          header put it. The same shape MODELS' pass landed.
+
+          `text-fg-muted` rather than `PageHeader`'s `text-tertiary`: that token
+          is the standing AA failure (kit todo c581c9b2). */}
+      {/* REFRESH IS ON THE PLATE NOW, so the row that fought to keep it from
+          wrapping is gone with it: there is no button beside the sentence to
+          push onto a second line. The sentence stays as the block's lead. */}
+      <p className="type-small text-fg-muted">
+        okuro background services — start, stop, restart, and run on boot.
+      </p>
 
       {/* Install banner — shown when any registry service has no unit file yet */}
       {notInstalled.length > 0 && (
@@ -213,12 +280,39 @@ export function ServicesPage() {
           description="The built-in registry is empty — this should never happen."
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        /* R3 (8546865f) — THE COLUMN COUNT ASKS THE PANE, NOT THE WINDOW.
+           `md:` is 384px and `lg:` is 512px under the engine's 8px root, and
+           `matchMedia` answers for the WINDOW, so both were TRUE in every state
+           the shell can produce: three columns whether the pane was 751.63px or
+           1537.63px. MEASURED at window 1366 before this line:
+
+             pane                     751.63
+             grid-template-columns    241.344px x3  (+ 2 x 13.8 gap = 751.6, fits)
+             pane scrollWidth         787   vs clientWidth 752  -> 35px CLIPPED
+             per card                 scrollWidth 275 vs clientWidth 239
+             what overflowed          the Restart button, 35px past the card edge
+
+           SO THE p3 SPEC'S CAUSE IS ONE LEVEL OFF AND ITS NUMBER IS STALE. It
+           recorded "766 in 754, 12px" and blamed the track arithmetic. The
+           tracks FIT; what does not fit is the card's own action row — Start
+           and Stop are `flex-1` with an icon and a label each, plus the
+           `shrink-0` Restart button, and their combined min-content width is
+           275px in a 241px track. A `minmax(0, 1fr)` track lets a child
+           overflow, so nothing clipped at the grid: `.c-panes overflow-x: clip`
+           cut it 35px later.
+
+           THE RUNGS ARE ARITHMETIC, not taste. A card needs 275px measured, so
+           two columns need 275 x 2 + 13.8 = 564 and three need
+           275 x 3 + 27.6 = 853. `@2xl` is 672px and `@4xl` is 896px under the
+           8px root (globals.css:403-415, the Tailwind scale x2), so both rungs
+           clear their requirement with room, and they flip against the named
+           `pane` container (shell.css:963). */
+        <div className="grid grid-cols-1 @2xl:grid-cols-2 @4xl:grid-cols-3 gap-3">
           {services.map((row) => (
             <ServiceCard
               key={row.name}
               row={row}
-              onOpenDetail={() => setSelected(row.name)}
+              onOpenDetail={() => open(row.name)}
               onActed={invalidate}
             />
           ))}
@@ -226,11 +320,7 @@ export function ServicesPage() {
       )}
 
       {selected && (
-        <DetailDialog
-          name={selected}
-          open={selected !== null}
-          onClose={() => setSelected(null)}
-        />
+        <DetailDialog name={selected} open onClose={close} />
       )}
     </div>
   );
@@ -250,7 +340,15 @@ function InstallBanner({
   pendingName: string | null;
 }) {
   return (
-    <div className="rounded border border-accent/50 bg-accent/5 p-3 space-y-2">
+    /* D1 — kit names, and each one measured as a swatch over the real page
+       ground (isolated chromium, kit `standard`, both appearances, PNG pixels
+       compared). `bg-accent/5` and `bg-surface-subtle` are the SAME pixel in
+       dark (26,26,26) and 6 values apart in light. `border-accent/50` has no
+       engine name at 50 %: `border-accent` is 156,156,156 against the
+       modifier's 87,87,87, `border-border` is 66,66,66 — so the banner keeps
+       its emphasis from the fill and the accent icon and takes the border
+       token, which is what every other bordered block on this page uses. */
+    <div className="rounded border border-border bg-surface-subtle p-3 space-y-2">
       <div className="flex items-start gap-2">
         <Download className="h-4 w-4 text-accent mt-0.5 shrink-0" />
         <div className="text-xs text-fg">
@@ -298,43 +396,94 @@ function ServiceCard({
   onOpenDetail: () => void;
   onActed: () => void;
 }) {
-  const [busy, setBusy] = useState<"start" | "stop" | "restart" | null>(null);
-  const [enableBusy, setEnableBusy] = useState(false);
   const pill = statePill(row.state, row.active);
 
-  const act = async (
-    which: "start" | "stop" | "restart",
-    fn: () => Promise<ServiceRow>,
-  ) => {
-    setBusy(which);
-    try {
-      await fn();
+  /**
+   * R5 (372ccdb2), REVERSIBLE BRANCH — A TWO-STEP ARM, PER ACTION.
+   *
+   * Six clicks on this card change system state and none of them asked. Three
+   * of the six INTERRUPT a running service, and the three services on screen
+   * are okuro's own orchestrator, embed and daemon — so one click could stop
+   * the application the user is looking at. R5 sends a recoverable act to the
+   * arm rather than to a modal: Start and Enable bring a service BACK, so
+   * slowing them down would make the fix slower than the break.
+   *
+   *   Stop     armed — interrupts a running service
+   *   Restart  armed — interrupts a running service
+   *   Disable  armed — changes what runs at boot
+   *   Start    not armed — this is the recovery action
+   *   Enable   not armed — this is the recovery action
+   *   Install  not armed — writes a unit file; nothing is interrupted
+   *
+   * ARMED PER ACTION, WHICH THE TASKS PATTERN GETS WRONG (`tasks.tsx:188`
+   * tests a single `confirming` flag, so arming one action fires the other on
+   * its first click). Keyed here, so arming Restart while Stop is armed
+   * re-arms rather than firing.
+   */
+  type Armable = "stop" | "restart" | "disable";
+  const [armed, setArmed] = useState<Armable | null>(null);
+
+  /**
+   * SIX BARE `await` CALLS BECAME SIX MUTATIONS — Q5, ruled C ("convert only
+   * if the confirms land, since both changes touch the same call sites").
+   * They did, so this is paid for once. What it buys, beyond one pending
+   * mechanism: the errors now reach the same place as the rest of the app
+   * instead of a local `catch`, and `isPending` is react-query's rather than a
+   * hand-rolled `busy` string that had to be reset in a `finally`.
+   */
+  const lifecycle = useMutation({
+    mutationFn: ({ which }: { which: "start" | "stop" | "restart" }) =>
+      which === "start"
+        ? servicesApi.start(row.name)
+        : which === "stop"
+          ? servicesApi.stop(row.name)
+          : servicesApi.restart(row.name),
+    onSuccess: (_r, { which }) => {
       toast.success(`${which} ${row.name}`);
+      setArmed(null);
       onActed();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : `${which} failed`);
-    } finally {
-      setBusy(null);
+    },
+    onError: (err, { which }) =>
+      toast.error(err instanceof Error ? err.message : `${which} failed`),
+  });
+
+  const bootToggle = useMutation({
+    mutationFn: ({ enable }: { enable: boolean }) =>
+      enable ? servicesApi.enable(row.name) : servicesApi.disable(row.name),
+    onSuccess: (_r, { enable }) => {
+      toast.success(
+        enable ? `Enabled ${row.name} on boot` : `Disabled ${row.name} on boot`,
+      );
+      setArmed(null);
+      onActed();
+    },
+    onError: (err, { enable }) =>
+      toast.error(
+        err instanceof Error ? err.message : `${enable ? "enable" : "disable"} failed`,
+      ),
+  });
+
+  const busy = lifecycle.isPending ? lifecycle.variables.which : null;
+  const enableBusy = bootToggle.isPending;
+
+  /** Arm on the first click, act on the second. Start needs no arm. */
+  const request = (which: "start" | "stop" | "restart") => {
+    if (which !== "start" && armed !== which) {
+      setArmed(which);
+      return;
     }
+    setArmed(null);
+    lifecycle.mutate({ which });
   };
 
-  const toggleEnable = async () => {
-    const target = row.enabled ? "disable" : "enable";
-    setEnableBusy(true);
-    try {
-      if (row.enabled) {
-        await servicesApi.disable(row.name);
-        toast.success(`Disabled ${row.name} on boot`);
-      } else {
-        await servicesApi.enable(row.name);
-        toast.success(`Enabled ${row.name} on boot`);
-      }
-      onActed();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : `${target} failed`);
-    } finally {
-      setEnableBusy(false);
+  const requestBoot = () => {
+    const enable = !row.enabled;
+    if (!enable && armed !== "disable") {
+      setArmed("disable");
+      return;
     }
+    setArmed(null);
+    bootToggle.mutate({ enable });
   };
 
   const canStart = row.installed && !row.active && busy === null;
@@ -371,7 +520,11 @@ function ServiceCard({
 
       {/* Install warning */}
       {!row.installed && (
-        <div className="text-2xs text-warning rounded bg-warning/10 px-2 py-1">
+        /* `bg-warning-subtle` is the kit's name for this fill. Measured
+           delta, dark 37,21,32 -> 55,23,46: the tint gets stronger, because
+           the engine mixes its status tints at 25 % where the literal took
+           10 %. */
+        <div className="text-2xs text-warning rounded bg-warning-subtle px-2 py-1">
           Not installed — use the install banner above.
         </div>
       )}
@@ -381,7 +534,7 @@ function ServiceCard({
         <Button
           size="sm"
           variant="outline"
-          onClick={() => act("start", () => servicesApi.start(row.name))}
+          onClick={() => request("start")}
           disabled={!canStart}
           className="flex-1"
         >
@@ -395,31 +548,41 @@ function ServiceCard({
         <Button
           size="sm"
           variant="outline"
-          onClick={() => act("stop", () => servicesApi.stop(row.name))}
+          onClick={() => request("stop")}
           disabled={!canStop}
-          className="flex-1"
+          className={cn("flex-1", armed === "stop" && "border-error text-error")}
+          aria-label={armed === "stop" ? `Confirm stop ${row.name}` : `Stop ${row.name}`}
         >
           {busy === "stop" ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
           ) : (
             <Square className="h-3.5 w-3.5" />
           )}
-          <span className="ml-1.5">Stop</span>
+          <span className="ml-1.5">{armed === "stop" ? "Confirm" : "Stop"}</span>
         </Button>
         <Button
           size="sm"
           variant="outline"
-          onClick={() => act("restart", () => servicesApi.restart(row.name))}
+          onClick={() => request("restart")}
           disabled={!canRestart}
-          title="Restart"
-          aria-label="Restart"
-          className="shrink-0 px-2"
+          title={armed === "restart" ? "Click again to restart" : "Restart"}
+          aria-label={
+            armed === "restart" ? `Confirm restart ${row.name}` : `Restart ${row.name}`
+          }
+          className={cn(
+            "shrink-0 px-2",
+            armed === "restart" && "border-error text-error",
+          )}
         >
           {busy === "restart" ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
           ) : (
             <RotateCw className="h-3.5 w-3.5" />
           )}
+          {/* The armed state needs a WORD, not only a tint: this is the one
+              icon-only control in the row, and a colour change alone is not a
+              signal a colourblind reader can act on. */}
+          {armed === "restart" && <span className="ml-1.5">Confirm</span>}
         </Button>
       </div>
 
@@ -444,13 +607,19 @@ function ServiceCard({
           </span>
         </div>
         <button
-          onClick={toggleEnable}
+          onClick={requestBoot}
           disabled={!row.installed || enableBusy || row.enabled === null}
           className={cn(
-            "inline-flex items-center gap-1 text-2xs uppercase tracking-wider transition-colors",
+            /* `case-label`, not a literal — 0d37d05e. */
+            "case-label inline-flex items-center gap-1 text-2xs tracking-wider transition-colors",
             row.installed && !enableBusy
-              ? "text-tertiary hover:text-fg-muted"
-              : "text-tertiary/50 cursor-not-allowed",
+              ? armed === "disable"
+                ? "text-error"
+                : "text-tertiary hover:text-fg-muted"
+              /* `text-fg-disabled` is the engine's name for a disabled ink
+                 tier — ruled 6ba4d789, which retired opacity-as-a-tier. Dark
+                 113,113,113 and light 161,161,161, both from the kit. */
+              : "text-fg-disabled cursor-not-allowed",
           )}
         >
           {enableBusy ? (
@@ -460,7 +629,7 @@ function ServiceCard({
           ) : (
             <Power className="h-3 w-3" />
           )}
-          {row.enabled ? "Disable" : "Enable"}
+          {armed === "disable" ? "Confirm" : row.enabled ? "Disable" : "Enable"}
         </button>
       </div>
     </div>
@@ -470,7 +639,7 @@ function ServiceCard({
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="uppercase tracking-wider text-tertiary">{label}</div>
+      <div className="case-label tracking-wider text-tertiary">{label}</div>
       <div className="text-fg font-medium tabular-nums">{value}</div>
     </div>
   );
@@ -483,18 +652,43 @@ function StatePill({
   variant: PillVariant;
   label: string;
 }) {
+  /* NINE ALPHA MODIFIERS GONE, AND EVERY REPLACEMENT WAS MEASURED, NOT
+     GUESSED. Each pair was painted over the real page ground and the PNG
+     pixels compared, in both appearances:
+
+       before             after                dark              light
+       bg-success/15  ->  bg-success-subtle    19,48,22 -> 19,58,23
+       bg-error/15    ->  bg-error-subtle      53,23,34 -> 65,25,39
+       bg-warning/15  ->  bg-warning-subtle    45,22,39 -> 55,23,46
+       the three 30 % borders -> border-border   see below
+
+     THE FILLS GET SLIGHTLY STRONGER because the engine mixes its status tints
+     at 25 % where these literals took 15 %. THE BORDERS LOSE THEIR HUE, and
+     that is the trade this file's own doctrine already accepts: there is no
+     engine name at 30 % of a status colour (success at 30 % composites to
+     18,77,24 against `border-border`'s 66,66,66), and `ui/status-badge`'s
+     rule is that
+     a tone is carried by the label and the fill, NEVER by colour alone. The
+     fill and the text still carry it; only the 1px rule is now neutral.
+
+     THE REAL FIX IS ONE LEVEL UP AND IT IS A QUESTION, NOT A COMMIT: this
+     component duplicates `ui/status-badge` (10 importers), which resolves
+     tones from `--color-status-*` without any arithmetic — and this page
+     imports BOTH. Deleting `StatePill` would remove the arithmetic at its
+     source, and it would also change how a state reads on two surfaces, which
+     is the owner's call. */
   const cls =
     variant === "success"
-      ? "bg-success/15 text-success border-success/30"
+      ? "bg-success-subtle text-success border-border"
       : variant === "error"
-        ? "bg-error/15 text-error border-error/30"
+        ? "bg-error-subtle text-error border-border"
         : variant === "warning"
-          ? "bg-warning/15 text-warning border-warning/30"
+          ? "bg-warning-subtle text-warning border-border"
           : "bg-surface border-border text-tertiary";
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded border px-1.5 py-0.5 text-2xs font-medium uppercase tracking-wider shrink-0",
+        "case-label inline-flex items-center rounded border px-1.5 py-0.5 text-2xs font-medium tracking-wider shrink-0",
         cls,
       )}
     >
@@ -518,7 +712,13 @@ function DetailDialog({
     queryKey: ["services", "detail", name],
     queryFn: () => servicesApi.get(name),
     enabled: open,
-    refetchInterval: open ? 3_000 : false,
+    // A CONDITIONAL INTERVAL IS STILL UNGATED — the trap memory 48c3c5c6
+    // recorded on MODELS. `open ? 3000 : false` can be TRUE off-screen: Law 3
+    // keeps the pane mounted through a topic change, and a dialog that was
+    // open when the user left stayed open and kept polling every 3s.
+    // (`usePaneModalOpen` in `ui/dialog` now closes it, but the query lives
+    // here and the guard belongs on the query.)
+    refetchInterval: usePaneInterval(open ? 3_000 : false),
   });
 
   // Refetch immediately when re-opened.
@@ -539,18 +739,38 @@ function DetailDialog({
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <DialogTitle className="font-mono text-base">{name}</DialogTitle>
-              {row && (
-                <DialogDescription className="mt-1 flex items-center gap-2">
-                  <StatePill
-                    variant={statePill(row.state, row.active)}
-                    label={row.state}
-                  />
+              {/*
+                THE DESCRIPTION IS UNCONDITIONAL, and the conditional version
+                is what put a warning in all 24 contract states:
+
+                  Missing `Description` or `aria-describedby={undefined}` for
+                  {DialogContent}
+
+                `row` comes from the detail query, so on the mount frame it is
+                undefined — and the mount frame is exactly when Radix looks for
+                the description id. The dialog therefore opened every single
+                time without one, which is a real screen-reader gap and not
+                only a console line. Rendering the element always and switching
+                its CONTENT keeps the id present from the first frame.
+              */}
+              <DialogDescription className="mt-1 flex items-center gap-2">
+                {row ? (
+                  <>
+                    <StatePill
+                      variant={statePill(row.state, row.active)}
+                      label={row.state}
+                    />
+                    <span className="text-2xs text-tertiary">
+                      {row.backend} · uptime {formatUptime(row.uptime_seconds)}
+                      {row.pid !== null && ` · pid ${row.pid}`}
+                    </span>
+                  </>
+                ) : (
                   <span className="text-2xs text-tertiary">
-                    {row.backend} · uptime {formatUptime(row.uptime_seconds)}
-                    {row.pid !== null && ` · pid ${row.pid}`}
+                    Reading the unit's state…
                   </span>
-                </DialogDescription>
-              )}
+                )}
+              </DialogDescription>
             </div>
             <button
               onClick={onClose}
@@ -574,7 +794,7 @@ function DetailDialog({
           <div className="space-y-4">
             {/* Spec block */}
             <div className="space-y-2">
-              <div className="text-2xs uppercase tracking-wider text-tertiary">
+              <div className="case-label text-2xs tracking-wider text-tertiary">
                 Spec
               </div>
               <div className="rounded border border-border bg-surface p-2 space-y-1">
@@ -627,9 +847,10 @@ function DetailDialog({
             {/* Logs */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <div className="text-2xs uppercase tracking-wider text-tertiary">
+                <div className="case-label text-2xs tracking-wider text-tertiary">
                   Last {detail.logs.length} log lines
-                  <span className="ml-1.5 text-tertiary/60">(auto-refresh 3s)</span>
+                  {/* Same ruling: the quietest tier has a name. */}
+                  <span className="ml-1.5 text-fg-disabled">(auto-refresh 3s)</span>
                 </div>
                 <Badge variant="outline" className="text-2xs">
                   journalctl --user

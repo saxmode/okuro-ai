@@ -146,9 +146,24 @@ def _resolve_inline_mcp_endpoint() -> tuple[str, int] | tuple[None, None]:
 
         parsed = urlparse(url_env)
         host = parsed.hostname or "127.0.0.1"
-        port = parsed.port or (443 if parsed.scheme == "https" else 13333)
+        port = parsed.port or (443 if parsed.scheme == "https" else _api_port())
         return host, port
-    return "127.0.0.1", int(os.environ.get("OKURO_API_PORT", "13333"))
+    env = os.environ.get("OKURO_API_PORT")
+    if env and env.strip():
+        return "127.0.0.1", int(env.strip())
+    return "127.0.0.1", _api_port()
+
+
+def _api_port() -> int:
+    """This install's orchestrator port.
+
+    Was the literal 13333 in two places. A subagent handed the wrong port
+    here does not fail loudly — it connects to whatever is there, which on
+    a two-install host is the other install's API.
+    """
+    from okuro.system.port_registry import orchestrator_port
+
+    return orchestrator_port()
 
 
 def _mint_session_token() -> tuple[str, str]:

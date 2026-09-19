@@ -14,7 +14,7 @@ installed tree — `~/.okuro/stacks/<profile>/stack.manifest.json` — because
 only the tree knows what was actually installed into it.
 
 Why a tool and not a role field: roles cannot statically reference a stack
-(no YAML key, no column, and `roles.seed` drops unmodeled keys). Even if
+(there is no column for it on the roles table). Even if
 they could, binding a stack into a role would mean a new role per stack per
 domain. One tool that any role calls at runtime scales instead — the same
 call serves frontend-engineer, ui-designer and design-system-guardian, and

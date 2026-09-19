@@ -8,17 +8,18 @@ import {
   BookOpen,
   FolderOpen,
   Globe,
-  CircleAlert,
   CircleCheck,
   Search,
   FileText,
   Layers,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import {
+  ChangeSummary,
+  SourceStatusBadge,
+} from "@/components/sources/source-status";
 import { EmptyState } from "@/components/ui/empty-state";
 import { toast } from "@/components/ui/toast";
-import { PageHeader } from "@/components/shell/page-header";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +30,7 @@ import {
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { formatAge } from "@/lib/format";
+import { useSectionTitle } from "@/shell/components/PageTitle";
 
 /**
  * /corpora — make non-git document sources searchable.
@@ -137,11 +139,15 @@ const SOURCE_ICON: Record<SourceType, typeof Globe> = {
   local_folder: FolderOpen,
 };
 
-// ── Change summary ───────────────────────────────────────────────────
+// ── Change summary + status badge: SHARED WITH REPOS ─────────────────
+// The badge was byte-identical to `repos.tsx`'s. Q10 ruled option A (share the
+// primitives, keep two leaves), so both live in
+// `components/sources/source-status.tsx` and this file maps its own data in.
 
 /** What the last sync moved. Silence on "nothing changed" would read as a
- *  failed sync, so an all-unchanged run says so explicitly. */
-function ChangeSummary({ change }: { change: CorpusChange | null }) {
+ *  failed sync, so an all-unchanged run says so explicitly — the rule now
+ *  lives in the shared component, where both leaves inherit it. */
+function CorpusChangeSummary({ change }: { change: CorpusChange | null }) {
   if (!change) return null;
   const parts: React.ReactNode[] = [];
   if (change.added > 0)
@@ -162,43 +168,17 @@ function ChangeSummary({ change }: { change: CorpusChange | null }) {
         −{change.removed}
       </span>,
     );
-  if (parts.length === 0)
-    return (
-      <span className="text-muted-foreground/70">
-        up to date · {change.unchanged} unchanged
-      </span>
+  if (change.failed > 0)
+    parts.push(
+      <span key="x" className="text-warning" title={change.errors?.join("\n")}>
+        {change.failed} failed
+      </span>,
     );
   return (
-    <span className="inline-flex items-center gap-1.5">
-      {parts}
-      {change.failed > 0 && (
-        <span className="text-warning" title={change.errors?.join("\n")}>
-          {change.failed} failed
-        </span>
-      )}
-    </span>
-  );
-}
-
-// ── Status badge ─────────────────────────────────────────────────────
-
-function StatusBadge({ status }: { status: Corpus["status"] }) {
-  if (status === "ready")
-    return (
-      <Badge className="gap-1 bg-success/15 text-success">
-        <CircleCheck className="size-3" /> ready
-      </Badge>
-    );
-  if (status === "error")
-    return (
-      <Badge className="gap-1 bg-error/15 text-error">
-        <CircleAlert className="size-3" /> error
-      </Badge>
-    );
-  return (
-    <Badge className="gap-1 bg-warning/15 text-warning">
-      <Loader2 className="size-3 animate-spin" /> {status}
-    </Badge>
+    <ChangeSummary
+      parts={parts}
+      idleLabel={`up to date · ${change.unchanged} unchanged`}
+    />
   );
 }
 
@@ -282,37 +262,48 @@ export function CorporaPage() {
     return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   }, [corpora]);
 
+  /* THE TWO CHROME ACTIONS GO TO THE PLATE — the sketch's ADD slot and the
+     leaf's one bulk action. */
+  const header = useMemo(
+    () => ({
+      actions: (
+        <>
+          <Button
+            variant="outline"
+            className="gap-2"
+            disabled={corpora.length === 0 || anyBusy || syncAllMut.isPending}
+            onClick={() => syncAllMut.mutate(false)}
+            title="Sync every corpus — only changed items are re-fetched"
+          >
+            <RefreshCw className={cn((anyBusy || syncAllMut.isPending) && "animate-spin")} />
+            Sync all
+          </Button>
+          <Button onClick={() => setAddOpen(true)} className="gap-2">
+            <Plus /> Add corpus
+          </Button>
+        </>
+      ),
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [corpora.length, anyBusy, syncAllMut.isPending],
+  );
+  useSectionTitle(header);
+
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-6">
-      <PageHeader
-        title="Corpora"
-        subtitle="Make wikis, docs, and folders searchable by agents."
-        right={
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              className="gap-2"
-              disabled={corpora.length === 0 || anyBusy || syncAllMut.isPending}
-              onClick={() => syncAllMut.mutate(false)}
-              title="Sync every corpus — only changed items are re-fetched"
-            >
-              <RefreshCw
-                className={cn(
-                  "size-4",
-                  (anyBusy || syncAllMut.isPending) && "animate-spin",
-                )}
-              />
-              Sync all
-            </Button>
-            <Button onClick={() => setAddOpen(true)} className="gap-2">
-              <Plus className="size-4" /> Add corpus
-            </Button>
-          </div>
-        }
-      />
+    /* R1 + R2 — the same two deletions as REPOS, its twin, and the same
+       measurements: `p-6` was 27.6px inside the shell's ring and `max-w-5xl`
+       (1024px) bound above a ~1050px pane. The two controls (Sync all, Add
+       corpus) are on the PLATE as of A-1 step 3b — they were relocated into
+       the first content block first, which was still under the plate. */
+    <div className="flex w-full flex-col gap-6">
+      {/* SYNC-ALL AND ADD ARE ON THE PLATE NOW — see the memo above. The
+          sentence stays as the block's lead. */}
+      <p className="type-small text-fg-muted">
+        Make wikis, docs, and folders searchable by agents.
+      </p>
 
       {isLoading ? (
-        <div className="flex justify-center py-16 text-muted-foreground">
+        <div className="flex justify-center py-16 text-fg-muted">
           <Loader2 className="size-5 animate-spin" />
         </div>
       ) : corpora.length === 0 ? (
@@ -330,7 +321,7 @@ export function CorporaPage() {
         <div className="flex flex-col gap-8">
           {grouped.map(([ws, rows]) => (
             <section key={ws} className="flex flex-col gap-3">
-              <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <h2 className="text-xs font-medium case-label tracking-wider text-fg-muted">
                 {ws}
               </h2>
               <div className="flex flex-col divide-y divide-border rounded-lg border border-border">
@@ -343,19 +334,19 @@ export function CorporaPage() {
                     >
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <Icon className="size-4 shrink-0 text-muted-foreground" />
+                          <Icon className="size-4 shrink-0 text-fg-muted" />
                           <span className="truncate font-medium">{c.name}</span>
-                          <StatusBadge status={c.status} />
+                          <SourceStatusBadge status={c.status} />
                           {!c.materialized && (
                             <span
-                              className="text-xs uppercase text-muted-foreground"
+                              className="case-label text-xs text-fg-muted"
                               title="Indexed in place — okuro did not copy your files"
                             >
                               in place
                             </span>
                           )}
                         </div>
-                        <div className="mt-0.5 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                        <div className="mt-0.5 flex flex-wrap items-center gap-3 text-xs text-fg-muted">
                           <span
                             className="inline-flex items-center gap-1"
                             title={c.source_ref}
@@ -372,10 +363,10 @@ export function CorporaPage() {
                               {formatAge(c.last_synced_at)}
                             </span>
                           )}
-                          <ChangeSummary change={c.last_change} />
+                          <CorpusChangeSummary change={c.last_change} />
                           {c.status === "ready" && c.project_id && (
                             <span
-                              className="font-mono opacity-60"
+                              className="font-mono text-fg-muted"
                               title="Query it with cortex_search(query, project=…)"
                             >
                               {c.project_id}
@@ -584,7 +575,7 @@ function AddCorpusDialog({
 
         <div className="flex flex-col gap-4 py-2">
           <label className="flex flex-col gap-1 text-sm">
-            <span className="text-muted-foreground">Link or folder path</span>
+            <span className="text-fg-muted">Link or folder path</span>
             <input
               className={field}
               placeholder="https://site.atlassian.net/wiki/spaces/KEY  ·  ~/docs"
@@ -594,7 +585,7 @@ function AddCorpusDialog({
             />
             <span className="min-h-4 text-xs">
               {detecting ? (
-                <span className="text-muted-foreground">resolving…</span>
+                <span className="text-fg-muted">resolving…</span>
               ) : detected ? (
                 <span className="inline-flex items-center gap-1 text-success">
                   <CircleCheck className="size-3" /> {detected.label}
@@ -607,7 +598,7 @@ function AddCorpusDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <label className="flex flex-col gap-1 text-sm">
-              <span className="text-muted-foreground">Name</span>
+              <span className="text-fg-muted">Name</span>
               <input
                 className={field}
                 placeholder="derived from the source"
@@ -619,7 +610,7 @@ function AddCorpusDialog({
               />
             </label>
             <label className="flex flex-col gap-1 text-sm">
-              <span className="text-muted-foreground">Workspace</span>
+              <span className="text-fg-muted">Workspace</span>
               <input
                 className={field}
                 value={workspace}
@@ -631,9 +622,9 @@ function AddCorpusDialog({
           {needsCredentials && (
             <div className="grid grid-cols-2 gap-3">
               <label className="flex flex-col gap-1 text-sm">
-                <span className="text-muted-foreground">
+                <span className="text-fg-muted">
                   Keyring token name{" "}
-                  <span className="opacity-60">(private spaces only)</span>
+                  <span className="text-fg-muted">(private spaces only)</span>
                 </span>
                 <input
                   className={field}
@@ -643,9 +634,9 @@ function AddCorpusDialog({
                 />
               </label>
               <label className="flex flex-col gap-1 text-sm">
-                <span className="text-muted-foreground">
+                <span className="text-fg-muted">
                   Account email{" "}
-                  <span className="opacity-60">(with token)</span>
+                  <span className="text-fg-muted">(with token)</span>
                 </span>
                 <input
                   className={field}
@@ -735,15 +726,15 @@ function SearchDialog({
 
         <div className="max-h-[55vh] overflow-y-auto">
           {isFetching ? (
-            <div className="flex justify-center py-12 text-muted-foreground">
+            <div className="flex justify-center py-12 text-fg-muted">
               <Loader2 className="size-5 animate-spin" />
             </div>
           ) : !submitted ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">
+            <p className="py-8 text-center text-sm text-fg-muted">
               Type a query and press Enter.
             </p>
           ) : !data || data.results.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">
+            <p className="py-8 text-center text-sm text-fg-muted">
               No matches.
             </p>
           ) : (
@@ -754,11 +745,11 @@ function SearchDialog({
                     <span className="truncate text-xs font-medium" title={r.path}>
                       {r.path}
                     </span>
-                    <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                    <span className="shrink-0 text-xs tabular-nums text-fg-muted">
                       {r.score.toFixed(2)}
                     </span>
                   </div>
-                  <p className="line-clamp-3 text-xs text-muted-foreground">
+                  <p className="line-clamp-3 text-xs text-fg-muted">
                     {r.snippet}
                   </p>
                 </li>
@@ -811,7 +802,7 @@ function RemoveCorpusDialog({
             Also delete okuro&apos;s copy from disk
           </label>
         ) : (
-          <p className="py-2 text-sm text-muted-foreground">
+          <p className="py-2 text-sm text-fg-muted">
             Your folder at{" "}
             <span className="font-mono text-xs">{corpus?.path}</span> is indexed
             in place and will not be touched.

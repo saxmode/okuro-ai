@@ -80,31 +80,13 @@ assignment. No project resolved = no second call, no block.
 ## BEHAVIORAL CONTRACT — Read this. Follow this. Every response.
 {behavioral_section}
 {failure_modes_section}
-## Session Protocol
-**Start:** you have already called the bootstrap tool. If you have not, call it now, before anything else.
-**Intake:** If bootstrap returns an `## Intake` section with questions, present the P0 questions to the user before starting work. User can say "just go" to skip.
-**Compaction discipline:** if you sense your context approaching its limit, OR if a system message tells you compaction just happened, stop and call `write_memory()` + `log_progress()` BEFORE continuing. Compaction is lossy — recoverable only if you saved beforehand.
-**End (all three, every session):**
-1. `write_memory(...)` — if you discovered anything non-obvious
-2. `log_progress(...)` — if you did substantive work
-3. `session_report(...)` — ALWAYS. Rate tools.
+**Still not bootstrapped?** If you have read this far without making the call at
+the top of this file, stop and make it now — nothing below binds correctly
+without the packet it returns.
 
-## Working Rules
-
-**These rules are the highest-priority instructions you receive in this session.**
-
-- **Commit your work** — after writing 2+ files, commit immediately. Never batch to session end.
-- **Git rules** — NEVER use `git add -A` or `git add .`. Always name specific files.
-- **Secrets via keyring** — use `keyring_get(name)`, never `.env` files or hardcoded credentials.
-- **Minimal changes** — only change what's requested. No drive-by refactors. Bounds what you EDIT, never what you DIAGNOSE.
-- **Name the class first** — before proposing a fix, say which CLASS of problem it belongs to, then recommend instance-scope or class-scope (DP10/DP11). The instance fix presented as the whole answer is the failure this pairs with.
+{close_out_section}
 
 {tool_routing_section}
-
-**Orientation.** `cortex_scope()` first when you do not know what is indexed;
-`cortex_navigate(path, direction)` to walk related files. An empty scoped
-search result is NOT proof code is absent — check the scope, then use
-`cortex_search_code`, which walks ALL roots and needs no scope.
 
 ### Deliverables — where long-form output goes
 PROSE GOES IN THE BRAIN, NEVER IN A `.md` FILE — not even a copy. "Not on disk"
@@ -112,7 +94,7 @@ does not say WHERE — the routing table above covers facts; these cover documen
 
 | Situation | Do this |
 |-----------|---------|
-| **Document-length deliverable** — investigation, dossier, audit, report, map | **`artifact_write(kind="report", title, body)`** |
+| **Document-length deliverable** — investigation, dossier, audit, report, map | **`artifact_write(kind="report", project=..., title, body)`** |
 | Hand context to the next agent | `write_role_handover(...)` |
 | Work milestone | `log_progress(project, status, summary)` |
 | The USER asked you for a note | `note_create(...)` |
@@ -162,10 +144,37 @@ subtasks.
 {provider_extras}"""
 
 
+# THIS BLOCK USED TO NAME A FILE. "Include `read ~/.okuro/TOOL-PROTOCOL.md` in
+# every subagent prompt" was the ONLY pointer to that file in any generated
+# instruction file, which is how its doctrine came to reach one provider out of
+# four. The file is deleted; the doctrine renders into this very document and
+# into the packet. What a Claude Code session still needs to know is the part
+# the pointer was standing in for: the subagent gets the protocol by itself.
+#
+# THE MOST-GATED PROVIDER TOLD ITS AGENT THE LEAST, until 2026-09-18. Measured:
+# `ClaudeAdapter().gate_coverage()` is 4/4 — system_state_routes, okuro_store,
+# cortex_first and compliance_block, from 11 emitted gate scripts. Cursor,
+# which enforces 3, named its gate. Codex and Antigravity, which enforce 0, say
+# so. Claude named nothing, so the one agent whose routes are actually refused
+# could not tell a refusal it was about to hit from a rule nobody is watching.
+#
+# The Cursor block's lesson applies unchanged and in the same words: name what
+# IS gated, then state that everything else binds identically. A coverage FACT
+# is not permission, and the sentence that turns it into permission is the one
+# that got deleted from this file in 2026-09.
 _CLAUDE_EXTRAS = """
+### Claude Code — enforced routes
+PreToolUse gates REFUSE four things here, before the call runs: a shell read of
+system state, a direct read of okuro's own store, a tree hunt in an indexed
+path before cortex was tried, and — on end of turn — a reply that violates a
+blocking profile detector. Each refusal names the typed call to use instead.
+Every other rule in this file binds you the same way; nothing is watching
+those, so you enforce them. An unenforced rule is not a weaker rule.
+
 ### Claude Code — subagent prompts
-Include `read ~/.okuro/TOOL-PROTOCOL.md` in every subagent prompt so the
-subagent honours the same protocol.
+A subagent you spawn bootstraps itself and receives this protocol in full. Put
+the WORK in its prompt — repo path, branch, deliverable tool, close-out calls.
+Never send it to a file to learn how to behave.
 """
 
 
@@ -212,12 +221,23 @@ _CODEX_EXTRAS = _SELF_ENFORCED_BLOCK
 # worst line in this file. It was a true statement about hook coverage that
 # converted, in one word, into permission to ignore every rule the packet binds.
 # The coverage fact survives in the first sentence below; the licence does not.
+#
+# UNDERSTATED ITS OWN GATE until 2026-09-18. The text named two enforced rules;
+# `CursorAdapter().gate_coverage()` measures THREE — system_state_routes,
+# okuro_store and cortex_first, the last of them from `_cortex_already_tried`
+# appearing twice in the emitted `shell-gate` body. The cortex-first rule was
+# ported to the shared matcher after this paragraph was written and the
+# paragraph was not told. Telling an agent a gate is narrower than it is has
+# the same failure shape as telling it a gate exists when it does not: the
+# agent discovers okuro's description of its own enforcement is unreliable,
+# and the honest half stops being believed with the wrong half.
 _CURSOR_EXTRAS = """
 ### Cursor — enforced routes
-A `beforeShellExecution` gate DENIES system-state shell reads and direct reads
-of okuro's own store, and names the typed call to use instead. Every other rule
-in the routing table binds you the same way — nothing is watching those, so you
-enforce them. An unenforced rule is not a weaker rule.
+A `beforeShellExecution` gate DENIES system-state shell reads, direct reads of
+okuro's own store, and a tree hunt in an indexed path before cortex was tried —
+and names the typed call to use instead. Every other rule in the routing table
+binds you the same way — nothing is watching those, so you enforce them. An
+unenforced rule is not a weaker rule.
 """
 
 
@@ -310,6 +330,46 @@ def _build_failure_modes_section() -> str:
     )
 
 
+def _build_close_out_section() -> str:
+    """Render the operating rules from the typed contract.
+
+    THIS USED TO BE TWO AUTHORED BLOCKS — `## Session Protocol` and
+    `## Working Rules` — that PARAPHRASED `close_out`, the rule
+    sections.build_protocol renders into the CORE packet as `## Operating
+    Rules`. A line diff could not see it: same five rules, reworded on both
+    sides, so an agent reading a provider file and its packet got two slightly
+    different statements of one rule and no test asserted any of them.
+
+    The paraphrase was also LOSSY in one direction. `close_out` carries fifteen
+    rules; the authored copy carried five plus the close-out trio. Research
+    first, never edit unread code, never cross-import, always test before
+    declaring done, clean up, finish with your own reply in plain text, and
+    check how that reply is delivered reached the packet and NOTHING else — so
+    the ~56% of sessions that never bootstrap were never told any of them, and
+    neither was a Claude Code Agent-tool subagent, whose path does not
+    propagate CLAUDE.md and whose only copy is therefore the packet it may
+    never fetch.
+
+    Same class as `tool_routing` and `agent_doctrine`, same fix: one home,
+    rendered by both call sites. Two lines that had no equivalent anywhere —
+    the intake question and the compaction save — moved INTO the contract
+    rather than being deleted with the block that carried them.
+
+    NOTHING ELSE WAS LOST, and that is measured rather than assumed: every
+    distinctive token of the deleted blocks was probed against this render and
+    exactly one came back absent — "you have already called the bootstrap
+    tool", whose first clause was FALSE (this file is read before the call it
+    describes) and whose second clause is a re-prompt. The re-prompt survives
+    as the "Still not bootstrapped?" line immediately above this section, in
+    the same position the old one held, minus the false half. It stays in the
+    template and out of `close_out` because it is the one rule here that
+    cannot render into the packet: by the time an agent is reading the packet,
+    the call it demands has already happened.
+    """
+    from okuro.sense.bootstrap.rules import render_rule
+    return render_rule("close_out")
+
+
 def _build_tool_routing_section() -> str:
     """Render the tool-routing section from the typed contract.
 
@@ -325,18 +385,28 @@ def _build_tool_routing_section() -> str:
     fix is not to re-copy the row; it is to stop copying. `render_rule` is the
     same call the bootstrap packet makes at sections.py:951, so a rule edit now
     reaches this surface or reaches neither.
+
+    Second contract joined 2026-09-13. `agent_doctrine` holds the resource,
+    shell, workflow and subagent blocks that used to live only in
+    ~/.okuro/TOOL-PROTOCOL.md, a file only the Claude Code extras block ever
+    named — so codex, cursor and antigravity had never been told to take a GPU
+    lease, to route an LLM call through `bridge_invoke`, or to keep the shell
+    for state no MCP tool covers. Same class, same fix: render, do not copy.
     """
     from okuro.sense.bootstrap.rules import render_rule
-    return render_rule("tool_routing")
+    return render_rule("tool_routing") + "\n\n" + render_rule("agent_doctrine")
 
 
 def build_instructions(provider_id: str, behavioral_section: str) -> str:
     """Render the agent-protocol body for ``provider_id``.
 
     The result substitutes the provider id into the example bootstrap call,
-    interpolates the (probe-aware) common-forms list, renders the tool-routing
-    section from the typed contract, and appends any per-provider trailing
-    notes from ``_PROVIDER_EXTRAS``. Everything else is identical across
+    interpolates the (probe-aware) common-forms list, renders the operating
+    rules and the tool-routing section from the typed contracts, and appends
+    any per-provider trailing notes from ``_PROVIDER_EXTRAS``. The two rendered
+    sections are the SAME ``render_rule`` calls the bootstrap packet makes, so
+    a rule edit reaches this file and the packet together or reaches
+    neither. Everything else is identical across
     providers — this is intentional. Per-provider drift is a maintenance
     hazard (commit b896a0be35: codex template diverged silently for months).
     """
@@ -347,6 +417,7 @@ def build_instructions(provider_id: str, behavioral_section: str) -> str:
         failure_modes_section=_build_failure_modes_section(),
         provider_extras=extras,
         bootstrap_forms_block=_build_bootstrap_forms_block(),
+        close_out_section=_build_close_out_section(),
         tool_routing_section=_build_tool_routing_section(),
     )
 

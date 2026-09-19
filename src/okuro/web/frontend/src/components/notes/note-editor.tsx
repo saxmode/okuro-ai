@@ -46,14 +46,45 @@ function wikilinkSource(getOptions: () => string[]) {
 
 const theme = EditorView.theme(
   {
+    // N4 — THE RAW EDITOR RENDERED AT 7px. `0.875rem` is a Tailwind-default
+    // `text-sm` written as a rem literal, and the engine's root is 8px, so it
+    // resolved to 7px next to an 18px body and an 18px Milkdown surface. The
+    // kit names its sizes; `--text-base` is the tier a document body belongs
+    // to, and it is the same tier the WYSIWYG surface renders at — which is
+    // the point, because Source/Split/Live are three views of one document and
+    // they should not change size between them.
     "&": {
       backgroundColor: "transparent",
       color: "var(--color-fg-primary)",
       height: "100%",
-      fontSize: "0.875rem",
+      fontSize: "var(--text-base)",
     },
-    ".cm-scroller": { fontFamily: "var(--font-mono)", lineHeight: "1.65", overflow: "auto" },
-    ".cm-content": { padding: "1rem", caretColor: "var(--color-accent)" },
+    ".cm-scroller": {
+      fontFamily: "var(--font-mono)",
+      // THE KIT'S BODY LEADING — Q-P5-1, ruled 2026-09-15 under D1.
+      //
+      // Was the bare ratio `1.65`, then `var(--leading-relaxed, 1.65)`, which
+      // looked like the kit publishing its own leading and was not: the engine
+      // has never emitted `--leading-relaxed`. TAILWIND'S DEFAULT THEME does
+      // (`node_modules/tailwindcss/theme.css:394`, and the built sheet carries
+      // `--leading-relaxed:1.625`), so this read resolved — to Tailwind's
+      // number rather than to a kit decision, which is the D1 violation.
+      //
+      // `--type-body-line` is the nearest emitted value AND the right role: a
+      // prose editor is body text. Measured against okuro-ds:
+      //
+      //   authored fallback   1.65   -> 1.6   delta -0.050  (-3.03 %)
+      //   rendered today      1.625  -> 1.6   delta -0.025  (-1.54 %)
+      //
+      // NO FALLBACK, like the three reads around it (`--font-mono`,
+      // `--text-base`, `--color-fg-primary`). A fallback here would be a
+      // second literal to keep in step with the kit, which is the whole defect
+      // Q-P5-2 catalogued; with no sheet the scroller inherits, exactly as its
+      // font family does.
+      lineHeight: "var(--type-body-line)",
+      overflow: "auto",
+    },
+    ".cm-content": { padding: "var(--sh-s-16, 1rem)", caretColor: "var(--color-accent)" },
     ".cm-cursor": { borderLeftColor: "var(--color-accent)" },
     "&.cm-focused": { outline: "none" },
     ".cm-gutters": { display: "none" },

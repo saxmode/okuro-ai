@@ -24,7 +24,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from . import scale
+from . import scale, schema
 from .schema import COMPONENT_RUNGS, TEXT_RUNGS, TEXT_STYLES, Brand
 
 TEXT_DOWNSCALE_SHIFT = 1
@@ -130,7 +130,7 @@ def text_size(brand: Brand, rung: str, style: str) -> float:
     the same 8 for every brand. A rung shift (downscale, SCALES) simply reads a
     different row.
     """
-    return scale.size(scale.BASE, brand.sizes.text_factor(rung, style))
+    return scale.size(scale.BASE, schema.text_factor(rung, style))
 
 
 def text_table(brand: Brand, rung: str) -> dict[str, float]:
@@ -147,7 +147,7 @@ def component_size(brand: Brand, rung: str, role: str) -> float:
     so only the seven independent roles are authored.
     """
     g = lambda role: scale.size(  # noqa: E731
-        scale.BASE, brand.sizes.component_factor(rung, role)
+        scale.BASE, schema.component_factor(rung, role)
     )
 
     container = g("container-size")

@@ -2,7 +2,7 @@
 # <!-- AGENT_HEADER
 # role: code
 # purpose: Provider adapter registry — configures each agent provider.
-# index: def register | def get_provider | def list_providers | def generate_all | def regen_all_provider_instructions | def _ensure_loaded
+# index: def register | def get_provider | def list_providers | def generate_all | def regen_all_provider_instructions | def _seed_instruction_ledger | def _ensure_loaded
 # AGENT_HEADER_END -->
 """Provider adapter registry — configures each agent provider."""
 
@@ -34,26 +34,27 @@ def list_providers():
 
 
 def generate_all() -> list[str]:
-    """Generate instruction files, hooks, and TOOL-PROTOCOL.md for all detected providers.
+    """Generate instruction files and hooks for all detected providers.
 
     Each adapter writes to its canonical path (e.g., ~/.claude/, ~/.codex/).
-    TOOL-PROTOCOL.md goes to ~/.okuro/. No output_dir needed.
+    No output_dir needed.
+
+    A standalone ~/.okuro/TOOL-PROTOCOL.md used to be written here as well,
+    described in this docstring as provider-independent. It was not: one
+    generated file named it, so three of four providers never learned it
+    existed, and the doctrine it alone carried reached only Claude Code. That
+    doctrine now renders from `agent_doctrine` in data/agent_rules.yaml into
+    the bootstrap packet and into every file this function writes.
     """
     generated = []
+
+    _seed_instruction_ledger()
 
     # Provider-specific files (CLAUDE.md, hooks, etc.)
     for adapter in list_providers():
         if adapter.detect():
             generated.extend(adapter.generate_instructions())
             generated.extend(adapter.install_hooks())
-
-    # Standalone TOOL-PROTOCOL.md (provider-independent, read by all agents + subagents)
-    try:
-        from okuro.sense.bootstrap.sections import generate_tool_protocol
-        proto_path = generate_tool_protocol()
-        generated.append(proto_path)
-    except Exception:
-        pass
 
     return generated
 
@@ -84,6 +85,7 @@ def regen_all_provider_instructions() -> list[str]:
         plus the two profile caches.
     """
     paths: list[str] = []
+    _seed_instruction_ledger()
     for adapter in list_providers():
         try:
             if not adapter.detect():
@@ -114,6 +116,32 @@ def regen_all_provider_instructions() -> list[str]:
         log.warning("profile-turn-context.txt refresh failed: %s", exc)
 
     return paths
+
+
+def _seed_instruction_ledger() -> None:
+    """Carry the manifest's one known boundary into the ledger, once.
+
+    The provenance manifest records each managed file's CURRENT digest and
+    the time that content became live; the ledger records every change. When
+    the ledger is introduced against an installation that already has a
+    manifest, that single ``written_at`` is the only pre-ledger history that
+    exists anywhere, and it is worth exactly one interval.
+
+    Called from BOTH write entry points because they are the two doors
+    through which instruction files are regenerated — ``generate_all`` on
+    install and on the daemon refresh, ``regen_all_provider_instructions``
+    on a profile edit — and an installation that only ever takes the second
+    one would otherwise never seed. It is a no-op after the first success:
+    ``note_version`` skips a digest that is already the newest row.
+    """
+    try:
+        from ._instruction_ledger import seed_from_manifest
+
+        seeded = seed_from_manifest()
+        if seeded:
+            log.info("instruction ledger: seeded %d path(s) from manifest", seeded)
+    except Exception as exc:  # noqa: BLE001 — never block instruction writes
+        log.warning("instruction ledger: seed failed: %s", exc)
 
 
 _loaded = False

@@ -12,6 +12,8 @@ import subprocess
 from datetime import datetime, timezone
 from typing import Optional
 
+from okuro.system.proc_error import cli_error
+
 
 def get_docker_status(
     filter_name: Optional[str] = None,
@@ -27,7 +29,7 @@ def get_docker_status(
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
         if proc.returncode != 0:
             return {
-                "error": f"docker ps failed: {proc.stderr.strip()}",
+                "error": cli_error("docker ps", proc),
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 

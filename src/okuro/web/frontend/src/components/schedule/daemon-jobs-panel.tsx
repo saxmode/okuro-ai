@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { usePaneInterval } from "@/lib/pane-active";
 import { api, schedulesApi, type ScheduleTask } from "@/lib/api";
 import { SectionLabel } from "@/components/ui/section-label";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -28,7 +29,12 @@ export function DaemonJobsPanel() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["schedules"],
     queryFn: () => api<{ tasks: ScheduleTask[]; count: number }>("/api/schedules"),
-    refetchInterval: 60_000,
+    // L4 / T9 — the daemon list polls only while its pane is on screen. This
+    // panel has TWO mounting surfaces (SCHEDULED and HEALTH ?view=schedules)
+    // and `useIsPaneActive` answers for whichever one is showing, so one edit
+    // covers both. MEASURED off-screen before the guard: 3 calls per
+    // 70-second window at /know/repos with all five panes mounted.
+    refetchInterval: usePaneInterval(60_000),
     staleTime: 30_000,
   });
 
@@ -105,7 +111,10 @@ export function DaemonJobsPanel() {
       </p>
       {withheld > 0 && (
         <p className="text-2xs text-tertiary">
-          Jobs marked <span className="font-bold uppercase tracking-wider text-warning">feature off</span>{" "}
+          {/* `case-label`, not a literal `uppercase` — ruled 0d37d05e. This
+              span quotes a badge that IS rendered by the table above, so if the
+              kit stops upper-casing labels the quote has to stop with it. */}
+          Jobs marked <span className="case-label font-bold tracking-wider text-warning">feature off</span>{" "}
           belong to a feature this install has not switched on. Turn it on in{" "}
           <span className="font-mono">~/.okuro/config.yaml</span> under{" "}
           <span className="font-mono">features:</span> and they schedule again —

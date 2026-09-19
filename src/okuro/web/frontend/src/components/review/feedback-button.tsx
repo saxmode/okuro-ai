@@ -18,6 +18,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link, useLocation } from "react-router";
 import { MessageSquarePlus, Crosshair, X, Check, AlertCircle } from "lucide-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -26,6 +27,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
 import { reviewApi, reviewSyncApi } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { useFrameStamp } from "@/lib/ground-portal";
 import {
   declareSurface,
   domHint,
@@ -47,7 +49,35 @@ const SEVERITIES: { value: ReviewSeverity; label: string; hint: string }[] = [
 /** Severities that create a todo. Mirrors reviews.TODO_SEVERITIES server-side. */
 const MAKES_TODO: ReviewSeverity[] = ["blocker", "annoyance"];
 
-export function FeedbackButton() {
+/**
+ * TWO PLACEMENTS, ONE COMPONENT — C2, frame batch 3, 2026-09-15.
+ *
+ * `floating` is the shipped behaviour and stays the default: a 40px round
+ * button fixed at bottom-4 right-4, which is how every route outside the new
+ * shell still renders it.
+ *
+ * `glyph` is what the redesigned shell's bottom-right action container needs.
+ * The owner ruled the feedback affordance INTO that container, and the container
+ * is a 16px glyph row — so the trigger becomes a `.hit` glyph like its
+ * neighbours and the panel goes through a PORTAL.
+ *
+ * THE PORTAL IS NOT A STYLE CHOICE. The container's open state is a wrapper
+ * with `overflow: clip` (that is what lets it collapse to zero width without
+ * leaving its glyphs' 40px touch targets sticking out), so a 320px panel
+ * rendered in place would be clipped to nothing. Portalling to `document.body`
+ * is also what every Radix and Crepe overlay in this app already does, and the
+ * shell's own measurement notes record that portals still inherit the
+ * appearance because `data-appearance` sits on `documentElement`.
+ *
+ * NOTHING ELSE FORKS. Pick mode, the severity row, the sync warning, the route
+ * evidence and the pointer-target resolution are one implementation with one
+ * set of state; only where the trigger and the panel are painted differs.
+ */
+export function FeedbackButton({
+  variant = "floating",
+}: {
+  variant?: "floating" | "glyph";
+} = {}) {
   const location = useLocation();
   // Resolved when the panel OPENS, from whatever the pointer last touched.
   // Context cannot work here: this button is mounted in AppShell, above every
@@ -62,6 +92,21 @@ export function FeedbackButton() {
   const [picked, setPicked] = useState<{ surfaceId: string | null; hint: string } | null>(null);
 
   const panelRef = useRef<HTMLDivElement>(null);
+
+  // THE GROUND FOR THE PORTALLED PANEL — Q-P5-4, ruled 2026-09-15: this portal
+  // gets the same stamp as every other one, rather than an exemption.
+  //
+  // The glyph variant portals to `document.body` and MUST: `.genact` is
+  // `pointer-events:none` while closed and clips its own box, so a panel
+  // rendered in place would be clipped. Mounted on the body it would inherit
+  // the ROOT's ground, not the pane's — and exempting it is only true while
+  // the corner plate never overlaps a grounded pane, which nothing enforces.
+  //
+  // BEFORE THE EARLY RETURN BELOW, and unconditionally: a hook cannot be
+  // conditional, and this one has to run on every render for the same reason
+  // it exists — the ground under the trigger can change without this component
+  // re-rendering for its own reasons.
+  const { probe, frameProps } = useFrameStamp();
 
   const routeDefault = `route:${location.pathname}`;
   const surfaceId = picked?.surfaceId ?? contextTarget?.surfaceId ?? routeDefault;
@@ -182,16 +227,14 @@ export function FeedbackButton() {
     );
   }
 
-  return (
+  // THE PANEL, BOUND ONCE AND PAINTED IN TWO PLACES. Extracted so the glyph
+  // variant portals exactly the markup the floating variant renders inline —
+  // a second copy is how the two placements drift.
+  const panel = (
     <div
-      data-review-ignore
-      className="fixed bottom-4 right-4 z-[90] flex flex-col items-end gap-2"
+      ref={panelRef}
+      className="w-80 rounded border border-border bg-surface-elevated p-3 shadow-lg"
     >
-      {open && (
-        <div
-          ref={panelRef}
-          className="w-80 rounded border border-border bg-surface-elevated p-3 shadow-lg"
-        >
           <div className="mb-2 flex items-start justify-between gap-2">
             <div className="min-w-0">
               <div className="text-3xs uppercase tracking-wider text-tertiary">
@@ -286,8 +329,51 @@ export function FeedbackButton() {
               Pick element
             </Button>
           </div>
-        </div>
-      )}
+    </div>
+  );
+
+  // ---- GLYPH: the trigger is one slot of the shell's action container.
+  if (variant === "glyph") {
+    return (
+      <>
+        <button
+          type="button"
+          className="hit sh-ctl"
+          aria-label="Give feedback"
+          aria-expanded={open}
+          title="Give feedback on what you're looking at"
+          {...(open ? { "data-on": "" } : {})}
+          onClick={(e) => {
+            // The container is inside a clickable plate; without this the click
+            // also reaches the plate and, on a pointer, re-opens what it closed.
+            e.stopPropagation();
+            if (open) setOpen(false);
+            else openPanel();
+          }}
+        >
+          <MessageSquarePlus aria-hidden="true" />
+        </button>
+        {/* The probe: a display:none marker left where the component sits, so
+            the ground can be read from the tree the portal left behind. */}
+        <span {...probe} />
+        {open &&
+          createPortal(
+            <div data-review-ignore className="fb-panel-host" {...frameProps}>
+              {panel}
+            </div>,
+            document.body,
+          )}
+      </>
+    );
+  }
+
+  // ---- FLOATING: the shipped placement, unchanged.
+  return (
+    <div
+      data-review-ignore
+      className="fixed bottom-4 right-4 z-[90] flex flex-col items-end gap-2"
+    >
+      {open && panel}
 
       <button
         type="button"

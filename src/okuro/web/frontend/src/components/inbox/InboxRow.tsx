@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronDown, ChevronRight, Clock, Loader2, Play, X } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Clock, Loader2, Play, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { MarkdownContent } from "@/components/ui/markdown-content";
 import { cn } from "@/lib/utils";
+import { formatAge } from "@/lib/format";
 import {
   inboxApi,
   type InboxAction,
@@ -27,9 +28,14 @@ export const KIND_TONE: Record<
   "info" | "warning" | "neutral" | "error" | "success" | "accent"
 > = {
   continue: "success",
-  // accent — the only kind that is the user's own words. Visually distinct from
-  // every derived/inferred kind at a glance.
+  // accent — the kinds that are the USER'S OWN WORDS, as opposed to something
+  // okuro inferred. Two kinds share it because the palette has six tones for
+  // nine kinds, so sharing is the design, not a collision: `success` already
+  // covers continue + saved and `neutral` covers research + forgotten, and
+  // `StatusBadge` carries the meaning in the uppercase label and the dot, never
+  // in colour alone. Grouping by PROVENANCE is what makes the six legible.
   note: "accent",
+  commitment: "accent",
   task: "info",
   saved: "success",
   signal: "warning",
@@ -41,6 +47,7 @@ export const KIND_TONE: Record<
 export const KIND_LABEL: Record<InboxKind, string> = {
   continue: "Continue",
   note: "Note",
+  commitment: "Commitment",
   task: "Task",
   saved: "Saved",
   signal: "Signal",
@@ -52,6 +59,7 @@ export const KIND_LABEL: Record<InboxKind, string> = {
 export const KIND_ORDER: InboxKind[] = [
   "continue",
   "note",
+  "commitment",
   "task",
   "saved",
   "signal",
@@ -59,6 +67,37 @@ export const KIND_ORDER: InboxKind[] = [
   "research",
   "forgotten",
 ];
+
+/**
+ * WHICH DISPOSITIONS HAVE TO BE CONFIRMED, and why it is exactly one.
+ *
+ * R5 (372ccdb2): "modal dialog for permanent deletions, two-step arm (the
+ * TASKS pattern) for reversible actions, window.confirm removed everywhere."
+ * Read against what each action actually writes
+ * (`_PRODUCER_TRANSITION` in `okuro/sense/inbox/__init__.py`):
+ *
+ *   defer   — touches the producer NOT AT ALL. "A UI-level snooze; the row
+ *             simply comes back later." Nothing to confirm.
+ *   act     — todos -> 'doing', commitments -> 'acted'. Means "I am on it",
+ *             explicitly NOT "it is finished". In-progress, not terminal.
+ *   dismiss — todos -> 'dropped', signals -> 'discarded', thoughts /
+ *             commitments / reminders -> 'dismissed'. TERMINAL: the row leaves
+ *             the queue and `_PRODUCER_OPEN_STATES` makes a second dispose a
+ *             no-op, so no click in this UI walks it back.
+ *
+ * So dismiss is the one action a mis-click cannot undo. It is not a DELETION
+ * either — the producer row survives, only its status moves — so R5 sends it
+ * to the two-step arm rather than to a modal. A modal on every dismiss would
+ * cost a keystroke on each of fifty rows in a triage queue built around
+ * one-click disposition; the arm costs a second click only when you actually
+ * dismiss.
+ *
+ * ARMED PER ACTION, WHICH THE TASKS PATTERN GETS WRONG. `tasks.tsx:188` tests
+ * `if (!confirming)`, so arming Stop and then clicking Del EXECUTES Del on the
+ * first click. Keyed by action here, so arming one disarms and re-arms rather
+ * than firing the other.
+ */
+const NEEDS_CONFIRM: ReadonlySet<InboxAction> = new Set<InboxAction>(["dismiss"]);
 
 export interface InboxRowProps {
   item: InboxItem;
@@ -151,6 +190,17 @@ export function InboxRow({
     if (canExpand) setExpanded((e) => !e);
   };
 
+  // R5 two-step arm — see NEEDS_CONFIRM above. Null = nothing armed.
+  const [armed, setArmed] = useState<InboxAction | null>(null);
+  const request = (action: InboxAction) => {
+    if (NEEDS_CONFIRM.has(action) && armed !== action) {
+      setArmed(action);
+      return;
+    }
+    setArmed(null);
+    onDispose(action);
+  };
+
   return (
     <div
       role="listitem"
@@ -160,8 +210,8 @@ export function InboxRow({
         className={cn(
           "grid items-center gap-3",
           compact
-            ? "grid-cols-[auto_auto_1fr_auto] px-3 py-1.5"
-            : "grid-cols-[auto_auto_1fr_auto_auto] px-3 py-2",
+            ? "grid-cols-[auto_auto_1fr_auto_auto] px-3 py-1.5"
+            : "grid-cols-[auto_auto_1fr_auto_auto_auto] px-3 py-2",
         )}
       >
         <button
@@ -199,17 +249,58 @@ export function InboxRow({
           >
             {item.title}
           </span>
-          {item.project && (
-            <Badge variant="outline" className="shrink-0 text-3xs">
-              {item.project}
+          {/* S3 — THE BADGES YIELD BEFORE THE TITLE DOES.
+              Measured at 1366x1024, kit `standard`, pane 728: the title cell
+              is 361.8px and ONE badge was taking 102-164px of it, because both
+              badges were `shrink-0` and the title was the only thing that could
+              give. So 48 of 50 titles clipped while a project slug rendered in
+              full. Now they truncate and carry the full value in `title=`, and
+              the ORDER of yielding matches the order of the question a triage
+              queue answers: what is this (the title) before which project.
+              `18ch`/`12ch` are local constants — the engine names no badge
+              width (it ships --field-* for form controls and nothing else),
+              documented per D1.
+
+              THE TRUNCATION NEEDS AN INNER SPAN AND `justify-start`, and the
+              screenshot is what caught it. `Badge`'s base class carries
+              `justify-center` and `overflow-hidden` (badge.tsx:8), so a
+              `truncate` ON the badge clipped the string and CENTRED the
+              overflow: "meridian-review" rendered as "eridian-revie" — the
+              middle of the word, no ellipsis at either end, because the
+              ellipsis applies to a block and the overflowing text was an
+              anonymous flex item. The text gets its own truncating span, and
+              the badge stops centring it. `min-w-0` twice on purpose: a flex
+              item defaults to `min-width:auto` and will not shrink below its
+              content without it. */}
+          {/* THE COMPACT VARIANT SHOWS NEITHER BADGE, and the screenshot is
+              why. Measured at 1366x1024, kit `standard`: the NOW strip is
+              426px of a 728px pane (`lg:col-span-3` of five), its title cell
+              125.5px, and ONE badge took 72-108px of that — so the title span
+              got 8px on the first row and 76px on the rest, against 340-820px
+              of text. Row one rendered as the single letter "P".
+              `compact` already drops the salience bar for the same reason: a
+              glance surface spends its width on the thing you are glancing at.
+              Both values stay reachable — the full /start/inbox row shows
+              them, and the row's own `title` attribute carries the text. */}
+          {!compact && item.project && (
+            <Badge
+              variant="outline"
+              className="min-w-0 max-w-[18ch] justify-start text-3xs"
+              title={item.project}
+            >
+              <span className="min-w-0 truncate">{item.project}</span>
             </Badge>
           )}
           {/* Topic only while collapsed — the subject is the one tag worth
               scanning at a glance. The rest (who, where from, why) is context
               and stays behind the expand, per progressive disclosure. */}
-          {item.tags?.topic && (
-            <Badge variant="secondary" className="shrink-0 text-3xs">
-              {item.tags.topic}
+          {!compact && item.tags?.topic && (
+            <Badge
+              variant="secondary"
+              className="min-w-0 max-w-[12ch] justify-start text-3xs"
+              title={item.tags.topic}
+            >
+              <span className="min-w-0 truncate">{item.tags.topic}</span>
             </Badge>
           )}
           {item.dup_count > 1 && (
@@ -223,7 +314,22 @@ export function InboxRow({
             is fixed by grid-cols above, so dropping it would shift the actions. */}
         {!compact && (
           <div
-            className="flex items-center gap-1.5"
+            /* R3 / S3 — THE SALIENCE BAR IS PANE-AWARE, not window-aware.
+               It costs a 108.1px column (bar 64 + number 24 + gap), measured,
+               and it is the least load-bearing thing in the row: a relative
+               rank within one kind, which the row order already expresses. So
+               it yields to the title while the pane is narrow.
+
+               `@4xl:` is the PANE query the shell already provides — `.pane`
+               is a query container named `pane` (shell.css:~960) and Tailwind
+               v4's `@` variants resolve against the nearest one. `--container-4xl`
+               is 112rem = 896px under the engine's 8px root, which sits exactly
+               between the two states that matter: pane 728 at 1366 with the
+               panel open (bar hidden, title wins) and pane 946/990/1262 when
+               the user gives the page room (bar returns). A `lg:` here would be
+               true in every one of those states — the window cannot tell a
+               728px column from a 1262px one. */
+            className="hidden items-center gap-1.5 @4xl:flex"
             title={
               hasBar
                 ? `Rank within ${KIND_LABEL[item.kind] ?? item.kind} — relative to the top item of this kind`
@@ -247,10 +353,35 @@ export function InboxRow({
           </div>
         )}
 
+        {/* S5 — AGE, ON A QUEUE THAT HAD NO CLOCK ON IT ANYWHERE.
+            The payload carries `age_anchor_at`, `created_at` and `surfaced_at`
+            (measured: all three non-null on all 60 surfaced rows) and the page
+            rendered none of them, while `GRAVITY` decays the salience by age on
+            every reduce pass. Two rows could draw the same bar and be a week
+            apart, so the score's main input was the one thing you could not
+            see.
+
+            `age_anchor_at` AND NOT `created_at`, because that is the field the
+            SCORER measures from — showing a different clock than the ranking
+            uses would explain the order wrongly. It falls back to `created_at`
+            only when the anchor is absent.
+
+            ~36px at `text-3xs`, and it does not yield with the pane: 47 of 60
+            live titles are longer than any single line this pane can hold
+            (median 78 chars, p75 180, max 1303 against ~59 that fit), so a
+            fixed 36px changes nothing about the clip and answers the question
+            the bar cannot. */}
+        <span
+          className="whitespace-nowrap text-right text-3xs tabular-nums text-fg-muted"
+          title={`Ranked from ${item.age_anchor_at ?? item.created_at}`}
+        >
+          {formatAge(item.age_anchor_at ?? item.created_at)}
+        </span>
+
         <div className="flex items-center gap-1">
           <IconAction
             label="Act — dispatch now"
-            onClick={() => onDispose("act")}
+            onClick={() => request("act")}
             disabled={disabled}
             tone="success"
           >
@@ -258,19 +389,28 @@ export function InboxRow({
           </IconAction>
           <IconAction
             label="Defer"
-            onClick={() => onDispose("defer")}
+            onClick={() => request("defer")}
             disabled={disabled}
             tone="neutral"
           >
             <Clock className="h-3.5 w-3.5" aria-hidden="true" />
           </IconAction>
           <IconAction
-            label="Dismiss"
-            onClick={() => onDispose("dismiss")}
+            label={
+              armed === "dismiss"
+                ? "Confirm dismiss — this removes the item for good"
+                : "Dismiss"
+            }
+            onClick={() => request("dismiss")}
             disabled={disabled}
             tone="error"
+            armed={armed === "dismiss"}
           >
-            <X className="h-3.5 w-3.5" aria-hidden="true" />
+            {armed === "dismiss" ? (
+              <Check className="h-3.5 w-3.5" aria-hidden="true" />
+            ) : (
+              <X className="h-3.5 w-3.5" aria-hidden="true" />
+            )}
           </IconAction>
         </div>
       </div>
@@ -328,7 +468,7 @@ function TagDetail({ tags, showDivider }: TagDetailProps) {
     >
       {tags.rationale && (
         <div>
-          <dt className="text-3xs font-bold uppercase tracking-wider text-tertiary">
+          <dt className="case-label text-3xs font-bold tracking-wider text-tertiary">
             Why it&apos;s here
           </dt>
           <dd className="mt-0.5 text-fg-muted">{tags.rationale}</dd>
@@ -336,13 +476,13 @@ function TagDetail({ tags, showDivider }: TagDetailProps) {
       )}
       {from && (
         <div>
-          <dt className="text-3xs font-bold uppercase tracking-wider text-tertiary">From</dt>
+          <dt className="case-label text-3xs font-bold tracking-wider text-tertiary">From</dt>
           <dd className="mt-0.5 text-fg-muted">{from}</dd>
         </div>
       )}
       {entities.length > 0 && (
         <div>
-          <dt className="text-3xs font-bold uppercase tracking-wider text-tertiary">About</dt>
+          <dt className="case-label text-3xs font-bold tracking-wider text-tertiary">About</dt>
           <dd className="mt-1 flex flex-wrap gap-1">
             {entities.map((e) => (
               <Badge key={e} variant="outline" className="text-3xs">
@@ -362,11 +502,25 @@ interface IconActionProps {
   disabled: boolean;
   onClick: () => void;
   children: React.ReactNode;
+  /**
+   * R5 — this action is armed and the next click commits it. Renders filled
+   * rather than dimmed, so the state is visible without colour alone: the
+   * glyph swaps to a check AND the accessible name says what will happen.
+   */
+  armed?: boolean;
 }
 
-export function IconAction({ label, tone, disabled, onClick, children }: IconActionProps) {
-  const toneClass =
-    tone === "success"
+export function IconAction({
+  label,
+  tone,
+  disabled,
+  onClick,
+  children,
+  armed = false,
+}: IconActionProps) {
+  const toneClass = armed
+    ? "bg-error text-inverse"
+    : tone === "success"
       ? "text-tertiary hover:text-success"
       : tone === "error"
         ? "text-tertiary hover:text-error"
@@ -379,7 +533,13 @@ export function IconAction({ label, tone, disabled, onClick, children }: IconAct
       aria-label={label}
       title={label}
       className={cn(
-        "rounded p-1 transition-colors disabled:cursor-not-allowed disabled:opacity-40",
+        // `disabled:text-fg-disabled` rather than `disabled:opacity-40`:
+        // 6ba4d789 — an ink tier is a NAME, never an opacity. The two resolved
+        // to the same pixel by coincidence (`--color-foreground-disabled` is
+        // the engine's rung 40), and a coincidence is not a token. Opacity also
+        // dimmed the whole button including its focus ring; the name dims only
+        // the ink. `!` beats the tone class, which also sets a text colour.
+        "rounded p-1 transition-colors disabled:cursor-not-allowed disabled:!text-fg-disabled",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50",
         toneClass,
       )}

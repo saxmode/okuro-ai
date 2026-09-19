@@ -61,7 +61,7 @@ function RoundRow({ round, budget }: { round: ReviewRound; budget: number }) {
         </span>
         <span
           className={cn(
-            "rounded border px-1 py-0.5 text-3xs font-bold uppercase tracking-wider",
+            "rounded border px-1 py-0.5 text-3xs font-bold case-label tracking-wider",
             VERDICT_TONE[round.verdict] ??
               "border-border bg-surface text-fg-muted",
           )}
@@ -134,7 +134,7 @@ export function ReviewTimeline({
 
   return (
     <div className="space-y-1.5">
-      <div className="text-2xs uppercase tracking-wider text-tertiary">
+      <div className="text-2xs case-label tracking-wider text-tertiary">
         Review — {rounds.length} round{rounds.length === 1 ? "" : "s"} of {budget}
       </div>
       <ul className="space-y-1">

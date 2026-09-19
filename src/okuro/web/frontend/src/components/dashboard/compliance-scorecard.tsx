@@ -51,7 +51,7 @@ export function ComplianceScorecard() {
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
-              <tr className="text-3xs uppercase tracking-wider text-tertiary text-left">
+              <tr className="text-3xs case-label tracking-wider text-tertiary text-left">
                 <th className="py-2 pr-3 font-medium">Provider</th>
                 <th className="py-2 pr-3 font-medium text-right">Sessions</th>
                 <th className="py-2 pr-3 font-medium text-right">Score</th>

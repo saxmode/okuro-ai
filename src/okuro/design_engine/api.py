@@ -359,23 +359,24 @@ def _sizes(brand: Brand) -> dict:
     with ruling 4's amendment, and a payload that shipped a ladder would put one
     back on the wire for a client to iterate.
     """
-    factors = brand.sizes
     return {
         # CONSTANTS, carried so the page can state the rule -- not slots. The
-        # rail must not offer either; the ruling took both out of the brand.
+        # rail must not offer any of them; the ruling took them out of the brand.
         "root_percent": scale.ROOT_PERCENT,
         "root_px": scale.ROOT_PX,
         "base": scale.BASE,
-        # The authored factor table, which is what the rail edits. TEXT is his
-        # own 168 cells and travels whole; COMPONENTS are still an anchor, a
-        # step and seven role ratios, because he authored no table for them.
+        # THE FACTOR TABLES, AND THEY ARE NOW THE ENGINE'S (2026-09-17). They are
+        # still projected here, because the page DOCUMENTS the system and a
+        # reader who cannot see the table cannot check the rule. What changed is
+        # that the rail may only render them -- there is no brand field behind
+        # any of these numbers to write back to.
         "factors": {
             "text": {
-                rung: dict(row) for rung, row in factors.text_factors.items()
+                rung: dict(row) for rung, row in schema.TEXT_FACTORS.items()
             },
-            "component_anchor": factors.component_anchor_factor,
-            "component_rung_step": factors.component_rung_step,
-            "role_ratios": dict(factors.role_ratios),
+            "component_anchor": schema.COMPONENT_ANCHOR_FACTOR,
+            "component_rung_step": schema.COMPONENT_RUNG_STEP,
+            "role_ratios": dict(schema.ROLE_RATIOS),
         },
         "text_bands": [
             {"letter": letter, "name": name, "count": count}
@@ -710,7 +711,10 @@ def boot() -> dict:
     return {
         "brand": brand.model_dump(mode="json"),
         "model": resolved_model(brand),
-        "sheet": emitter.emit(brand).css,
+        # THE CONFIGURED RUNGS, so the page previews what the app renders.
+        # Every emit below passes them for the same reason: a preview at a
+        # different rung than the live sheet is an illustration, not evidence.
+        "sheet": emitter.emit(brand, rungs=_configured_rungs()).css,
         "stages": [asdict(s) for s in growth.STAGES],
         "rules": [asdict(r) for r in explain.RULES.values()],
         # THE SAME ROWS THE LIST ROUTE SERVES, so the overview is complete on
@@ -719,6 +723,21 @@ def boot() -> dict:
         # reload and none on open.
         "kits": rows,
         "active": _active_kit_id(),
+        # THE VIEWER'S RUNG, and the key is deliberately NOT `rung`. Both
+        # authoring pages already hold a `rung` of their own -- the preview
+        # scene's, which is ephemeral and may be null for "the default". Two
+        # different things under one name in one payload is how a page ends up
+        # seeding a persisted setting from a preview toggle.
+        #
+        # THE BREAKPOINT TRAVELS WITH IT, because the rail has to say WHERE the
+        # mobile rung applies and the alternative is a second copy of 767 in
+        # TypeScript. `scale.MOBILE_MAX_PX` picked that number to agree with the
+        # app's existing breakpoints rather than invent a third vocabulary; a
+        # literal in the rail would invent one anyway, one layer up.
+        "viewport": {
+            "rungs": _configured_rungs().model_dump(mode="json"),
+            "mobile_max_px": scale.MOBILE_MAX_PX,
+        },
         "families": installed_families(),
         "opened": chosen,
     }
@@ -815,7 +834,7 @@ def resolve_brand(body: BrandBody) -> dict:
 @router.post("/sheet")
 def sheet(body: BrandBody) -> Response:
     brand = _brand_of(body.brand)
-    rendered = emitter.emit(brand)
+    rendered = emitter.emit(brand, rungs=_configured_rungs())
     return Response(content=rendered.css, media_type="text/css")
 
 
@@ -862,7 +881,7 @@ def nesting(body: NestingBody) -> dict:
     guests = tuple(_brand_of(g) for g in body.guests)
     resolver = Resolver(host)
     ground = _host_ground(resolver, body.ground)
-    rendered = emitter.emit(host, guests=guests)
+    rendered = emitter.emit(host, guests=guests, rungs=_configured_rungs())
     return {
         "css": rendered.css,
         "host": {
@@ -888,7 +907,7 @@ def sheet_of_kit(kit_id: str) -> Response:
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     sources = kits.get(kit_id).font_sources if kit_id in kits.KITS else None
-    rendered = emitter.emit(brand, font_sources=sources)
+    rendered = emitter.emit(brand, font_sources=sources, rungs=_configured_rungs())
     return Response(content=rendered.css, media_type="text/css")
 
 
@@ -975,6 +994,53 @@ def _active_kit_id() -> str:
     return chosen
 
 
+def _configured_rungs() -> schema.ViewportRungs:
+    """WHICH RUNG THE VIEWER OPENS ON -- the system's answer, not a kit's.
+
+    His ruling, 2026-09-17: *"The font sizes are everywhere the same. The font
+    rungs aren't. ... It should use the same size over all design systems,
+    standard for the viewer: if desktop standard is L, for mobile it might be
+    M."* And on where the desktop value is decided: *"okuro-design-system has a
+    configuration item for this. Standard can be defined."* This is that item.
+
+    IT LIVES ON THE PROFILE FOR THE SAME REASON `design.kit` DOES, and the
+    argument is `_active_kit_id`'s, unchanged: `/engine.css` is fetched by a bare
+    `<link rel="stylesheet">` that carries no state, so the preference has to be
+    resolved server-side or not at all. A rung the client pinned instead would be
+    a SECOND authority -- `[data-rung]` is (0,1,1) against `:root`'s (0,1,0), so
+    it would silently win and this setting would become decorative.
+
+    A SIBLING OF `design.kit`, NOT A REPLACEMENT. The kit says what the app is
+    painted with; the rung says how big the viewer wants it. Before this existed
+    the kit answered both, which is why the app's type moved when the kit changed
+    -- measured 2026-09-17: `standard` at XL against three kits at L, on ladders
+    that were byte-identical at every rung.
+
+    FALLS BACK TO THE SHIPPED DEFAULT whenever the profile is unreadable, says
+    nothing, or names a rung that is not on the ladder -- the same four branches
+    `_active_kit_id` has, for the same reason: a sheet at the wrong size is a far
+    better failure than no sheet.
+    """
+    try:
+        from okuro.yu.profile import get_profile_raw
+
+        design = (get_profile_raw() or {}).get("design") or {}
+        stored = design.get("rung")
+    except Exception:
+        logger.warning("could not read the configured rungs; using the default")
+        return schema.ViewportRungs()
+    if not isinstance(stored, dict):
+        return schema.ViewportRungs()
+    try:
+        return schema.ViewportRungs.model_validate(stored)
+    except Exception:
+        logger.info(
+            "the profile's design.rung %r does not validate; using the default",
+            stored,
+        )
+        return schema.ViewportRungs()
+
+
 @public_router.get("/engine.css")
 def engine_css() -> Response:
     """The ACTIVE design system, emitted, for the running app.
@@ -994,7 +1060,7 @@ def engine_css() -> Response:
     kit_id = _active_kit_id()
     brand = store.load(kit_id)
     sources = kits.get(kit_id).font_sources if kit_id in kits.KITS else None
-    rendered = emitter.emit(brand, font_sources=sources)
+    rendered = emitter.emit(brand, font_sources=sources, rungs=_configured_rungs())
     return Response(
         content=rendered.css,
         media_type="text/css",

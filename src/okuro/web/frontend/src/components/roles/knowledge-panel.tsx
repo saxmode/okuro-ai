@@ -1,4 +1,6 @@
 import { useState } from "react";
+
+import { cn } from "@/lib/utils";
 import {
   useMutation,
   useQuery,
@@ -91,9 +93,24 @@ export function KnowledgePanel({ roleId }: KnowledgePanelProps) {
 
   const entries = data ?? [];
 
-  const handleDelete = (entryId: string, content: string) => {
-    const preview = content.length > 60 ? content.slice(0, 60) + "…" : content;
-    if (!window.confirm(`Soft-delete this entry?\n\n"${preview}"`)) return;
+  /**
+   * R5 (372ccdb2), REVERSIBLE BRANCH — the two-step arm, and the p3 spec has
+   * the weight of this action wrong in BOTH directions.
+   *
+   * It said "removes a role's accumulated learning with a single click and no
+   * confirm step". There WAS a confirm — a `window.confirm`, which is the one
+   * surface okuro-ds can never style and the exact thing R5 exists to remove.
+   * And it is not a removal: the endpoint's own docstring reads "Soft-delete a
+   * knowledge entry by dropping its confidence to 0", the handler runs
+   * `UPDATE role_knowledge SET confidence = 0.0` and the response carries
+   * `{"soft": true}` (orchestrator/api/roles.py:823). The row survives.
+   *
+   * So this was never the modal case. R5 reserves the modal for a permanent
+   * act and the arm for a reversible one, and a confidence-0 row is
+   * recoverable — the button even disables itself once confidence is already
+   * 0, which is the page saying so.
+   */
+  const handleDelete = (entryId: string) => {
     delMutation.mutate(entryId);
   };
 
@@ -102,7 +119,7 @@ export function KnowledgePanel({ roleId }: KnowledgePanelProps) {
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3 text-xs">
         <div className="flex items-center gap-2">
-          <span className="text-2xs uppercase tracking-wider text-tertiary">
+          <span className="text-2xs case-label tracking-wider text-tertiary">
             Type
           </span>
           <Select value={typeFilter} onValueChange={setTypeFilter}>
@@ -120,7 +137,7 @@ export function KnowledgePanel({ roleId }: KnowledgePanelProps) {
           </Select>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-2xs uppercase tracking-wider text-tertiary">
+          <span className="text-2xs case-label tracking-wider text-tertiary">
             Min confidence
           </span>
           <input
@@ -157,7 +174,7 @@ export function KnowledgePanel({ roleId }: KnowledgePanelProps) {
         <div className="rounded border border-border bg-surface-elevated p-3 space-y-2">
           <div className="flex gap-2">
             <div className="flex-1">
-              <label className="mb-1 block text-2xs uppercase tracking-wider text-tertiary">
+              <label className="mb-1 block text-2xs case-label tracking-wider text-tertiary">
                 Type
               </label>
               <Select
@@ -177,7 +194,7 @@ export function KnowledgePanel({ roleId }: KnowledgePanelProps) {
               </Select>
             </div>
             <div className="flex-1">
-              <label className="mb-1 block text-2xs uppercase tracking-wider text-tertiary">
+              <label className="mb-1 block text-2xs case-label tracking-wider text-tertiary">
                 Source URL (optional)
               </label>
               <Input
@@ -188,7 +205,7 @@ export function KnowledgePanel({ roleId }: KnowledgePanelProps) {
               />
             </div>
             <div>
-              <label className="mb-1 block text-2xs uppercase tracking-wider text-tertiary">
+              <label className="mb-1 block text-2xs case-label tracking-wider text-tertiary">
                 Confidence
               </label>
               <div className="flex h-7 items-center gap-2">
@@ -242,7 +259,7 @@ export function KnowledgePanel({ roleId }: KnowledgePanelProps) {
             <EntryRow
               key={e.id}
               entry={e}
-              onDelete={() => handleDelete(e.id, e.content)}
+              onDelete={() => handleDelete(e.id)}
               deleting={delMutation.isPending}
             />
           ))
@@ -261,7 +278,10 @@ function proofHost(url: string): string {
   }
 }
 
-function EntryRow({
+/** Exported so the R5 arm can be proven by RENDERING it: the arm lives in
+ *  this component, so a source ratchet alone cannot show that the first click
+ *  does not delete. */
+export function EntryRow({
   entry,
   onDelete,
   deleting,
@@ -270,6 +290,10 @@ function EntryRow({
   onDelete: () => void;
   deleting: boolean;
 }) {
+  /* Armed state lives in THIS component, so it is per row by construction —
+     one entry's arm cannot arm another's. Same shape MODELS' PullButton uses
+     for R5's reversible branch. */
+  const [armed, setArmed] = useState(false);
   const confidence = entry.confidence ?? 0;
   const confidenceLabel = confidence.toFixed(2);
   const confidenceTone =
@@ -288,7 +312,7 @@ function EntryRow({
       {/* Header: type + meta + delete */}
       <div className="mb-2 flex items-center gap-2">
         <span
-          className={`shrink-0 rounded bg-surface px-1.5 py-0.5 text-3xs font-semibold uppercase tracking-wider ${
+          className={`shrink-0 rounded bg-surface px-1.5 py-0.5 text-3xs font-semibold case-label tracking-wider ${
             TYPE_TONE[entry.type] ?? "text-fg-muted"
           }`}
         >
@@ -304,12 +328,35 @@ function EntryRow({
         )}
         <button
           type="button"
-          onClick={onDelete}
+          onClick={() => {
+            if (!armed) {
+              setArmed(true);
+              return;
+            }
+            setArmed(false);
+            onDelete();
+          }}
           disabled={deleting || confidence === 0}
-          aria-label="Soft-delete entry"
-          className="ml-auto text-tertiary opacity-0 transition-opacity hover:text-error group-hover:opacity-100 disabled:opacity-30"
+          aria-label={armed ? "Confirm soft-delete" : "Soft-delete entry"}
+          title={
+            armed
+              ? "Click again to drop this entry's confidence to 0"
+              : "Soft-delete — drops confidence to 0, the row survives"
+          }
+          className={cn(
+            "ml-auto transition-opacity group-hover:opacity-100 disabled:opacity-30",
+            armed
+              ? "text-error opacity-100"
+              : "text-tertiary opacity-0 hover:text-error",
+          )}
         >
-          <Trash2 className="h-3.5 w-3.5" />
+          {/* The armed state says what the second click does, in words: an
+              icon that only changes colour is not a confirmation. */}
+          {armed ? (
+            <span className="whitespace-nowrap type-small">Soft-delete?</span>
+          ) : (
+            <Trash2 className="h-3.5 w-3.5" />
+          )}
         </button>
       </div>
 
@@ -321,7 +368,7 @@ function EntryRow({
       {/* Proof — clearly secondary; the knowledge above stands without it */}
       {entry.source_url && (
         <div className="mt-2 flex items-center gap-1.5 border-t border-border-subtle pt-2 text-3xs text-tertiary">
-          <span className="uppercase tracking-wider">Proof</span>
+          <span className="case-label tracking-wider">Proof</span>
           <a
             href={entry.source_url}
             target="_blank"

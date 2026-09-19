@@ -1,7 +1,7 @@
 // <!-- AGENT_HEADER
 // role: code
 // purpose: /workflows' NodeViewConfig — the data that makes the ONE shared node
-//   component (flow-designer/nodes.tsx FlowNode) behave as a workflow subtask.
+//   component (graph/nodes FlowNode) behave as a workflow subtask.
 //   No node component of its own: business logic only.
 // AGENT_HEADER_END -->
 import React from "react";
@@ -11,7 +11,7 @@ import {
   type NodeBadge,
   type NodeDataLike,
   type NodeViewConfig,
-} from "@/components/flow-designer/node-view";
+} from "@/components/graph/nodes";
 
 import { stepLabel } from "@/lib/nouns";
 import {

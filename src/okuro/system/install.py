@@ -32,7 +32,7 @@ from typing import Optional
 
 from okuro.embed.config import EmbedConfig, load_or_init as load_embed_config
 from okuro.system.interpreter import ensure_okuro_interpreter
-from okuro.system.port_registry import EMBED_PORT_DEFAULT
+from okuro.system.port_registry import service_ports
 from okuro.system.service_manager import (
     DarwinServiceManager,
     ServiceSpec,
@@ -103,6 +103,19 @@ def get_service_registry(
     """
     root = project_root_override or project_root()
 
+    # Ports come from THIS INSTALL's declared set (env → config → default),
+    # never from a module constant. A constant in a unit template is a
+    # host-wide fact written into a per-install file, which is how two
+    # installs on one host end up with byte-identical units fighting over
+    # 13333/13334/3090. `okuro ports reassign` rewrites the config and then
+    # re-runs this function, so the units cannot drift from the config.
+    ports = service_ports()
+    orchestrator_env = {"OKURO_PORT": str(ports["orchestrator"])}
+    embed_env = {"OKURO_EMBED_PORT": str(ports["embed"])}
+    daemon_env: dict[str, str] = {}
+    if ports.get("daemon"):
+        daemon_env["OKURO_MCP_HTTP_PORT"] = str(ports["daemon"])
+
     return {
         "okuro-orchestrator": ServiceSpec(
             name="okuro-orchestrator",
@@ -118,6 +131,7 @@ def get_service_registry(
                 "okuro.orchestrator.api.serve",
             ],
             working_directory=root,
+            environment=dict(orchestrator_env),
             # Spawns claude/codex/agy for decomposition + bridge calls.
             # Those CLIs' auth credentials live in the user's keychain with
             # ACL scoped to the Aqua session — without this binding the
@@ -136,9 +150,9 @@ def get_service_registry(
             ],
             working_directory=root,
             environment={
-                # Sourced from port_registry — keeps the plist value in
+                # Sourced from port_registry — keeps the unit value in
                 # lock-step with embed_port() so they can never drift apart.
-                "OKURO_EMBED_PORT": str(EMBED_PORT_DEFAULT),
+                **embed_env,
                 "HF_HUB_OFFLINE": "1",
                 "TRANSFORMERS_OFFLINE": "1",
             },
@@ -159,6 +173,7 @@ def get_service_registry(
                 "okuro.daemon",
             ],
             working_directory=root,
+            environment=dict(daemon_env),
             # Hosts the HTTP MCP surface that subagents (claude/codex/
             # agy) call back into, and runs the capability harvester
             # which itself spawns claude. Same Aqua-binding requirement

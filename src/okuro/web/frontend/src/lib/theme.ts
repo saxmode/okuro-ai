@@ -28,6 +28,62 @@ const THEME_MODE_LS_KEY = "okuro.theme-mode";
  */
 const APPEARANCE_ATTR = "data-appearance";
 
+/**
+ * AN APPEARANCE FLIP IS NOT AN ANIMATION, and this is the attribute that says so.
+ *
+ * Ruled by the owner 2026-09-14 (p1 question 7). Moved here from the shell's own
+ * copy of this module in p2, because a guard that lives in one of two theme
+ * writers is not a guard — it is a difference between two code paths that write
+ * the same two DOM keys.
+ *
+ * WHY IT IS NEEDED. p1 moved the shell's dim ink tier from an `opacity` to a
+ * `color` (`--sh-ink-dim`), because okuro-ds has no opacity token and D1 forbids
+ * an alpha tier. The elements carrying that tier already had
+ * `transition:opacity`, which became `transition:color` — and BOTH `--sh-ink`
+ * and `--sh-ink-dim` change on a flip. So a flip started animating the ink over
+ * 650ms. Measured 150ms into a flip: an inactive bar label read
+ * `rgb(78,78,78)` on its way to `rgb(179,179,179)`. Worse, it was INCONSISTENT:
+ * `.sb-arrow` transitions only `transform`, so it flipped instantly while the
+ * labels faded around it.
+ *
+ * AN ATTRIBUTE, NOT A CLASS. Every piece of state the shell exposes to CSS is a
+ * data attribute — `data-appearance`, `data-panel`, `data-content`,
+ * `data-topic`, `data-active`, `data-on`, `data-tone`, `data-bar`. A class here
+ * would be the only classList-based state in the whole frame. It also keeps the
+ * appearance mechanism in ONE place: `setAppearance` already writes two things
+ * on `documentElement`, and this is the third, written by the same function.
+ *
+ * AND CSS STILL OWNS THE MOTION. The stylesheet decides what the attribute
+ * means (`shell/styles/shell.css`, REDUCED MOTION block). No JS touches a
+ * duration.
+ *
+ * THE ONE SIDE EFFECT, stated rather than hidden: the guard zeroes EVERY
+ * transition for its lifetime, so flipping the appearance while a topic switch
+ * is in flight snaps the plane to its target instead of finishing the slide.
+ * The window is two animation frames, about 33ms, and a theme flip is a
+ * deliberate, rare click. The alternative was a curated list of the ten
+ * selectors that carry an ink transition, which is more fragile and would
+ * silently stop covering the eleventh.
+ */
+const SWITCHING_ATTR = "data-appearance-switching";
+
+/** Guards nest: a second flip inside the window must not be uncovered by the
+ *  first one's deferred clear. */
+let switchToken = 0;
+
+function guardTransitions(): void {
+  if (typeof document === "undefined") return;
+  const root = document.documentElement;
+  const mine = ++switchToken;
+  root.setAttribute(SWITCHING_ATTR, "");
+  // Two frames: one for the new values to compute, one for them to paint.
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => {
+      if (switchToken === mine) root.removeAttribute(SWITCHING_ATTR);
+    }),
+  );
+}
+
 export type ThemeMode = "dark" | "light";
 
 /**
@@ -63,9 +119,15 @@ export function setAppearance(mode: ThemeMode): () => void {
   const root = document.documentElement;
   const previousAttr = root.getAttribute(APPEARANCE_ATTR);
   const previousScheme = root.style.colorScheme;
+  // The guard goes up BEFORE the pair is written, or the first frame of the new
+  // colours is already interpolating by the time the attribute lands.
+  guardTransitions();
   root.setAttribute(APPEARANCE_ATTR, mode);
   root.style.colorScheme = mode;
   return () => {
+    // The undo is a flip too, so it guards on the same terms. Restoring the
+    // pair without the guard gives back exactly the ink fade this prevents.
+    guardTransitions();
     if (previousAttr === null) root.removeAttribute(APPEARANCE_ATTR);
     else root.setAttribute(APPEARANCE_ATTR, previousAttr);
     root.style.colorScheme = previousScheme;
@@ -78,6 +140,24 @@ export function setAppearance(mode: ThemeMode): () => void {
  * scrollbars match). Persisted globally — the choice is remembered across
  * brands per the theming decision.
  */
+/**
+ * The appearance the browser is SHOWING, read off the attribute the engine keys
+ * its blocks on. NOT `currentThemeMode()`: that consults the stored choice and
+ * falls back to inferring one, which is a second answer to a question
+ * `<html data-appearance>` already answers.
+ *
+ * MOVED HERE FROM `pages/settings.tsx` IN THE p4-SYSTEM PASS. It is a six-line
+ * read of the attribute `setAppearance` above writes, so its home is beside
+ * that writer — and SYSTEM/DESIGN needed it, which would otherwise have made
+ * one page import another.
+ */
+export function liveAppearance(): ThemeMode {
+  if (typeof document === "undefined") return "dark";
+  return document.documentElement.getAttribute("data-appearance") === "light"
+    ? "light"
+    : "dark";
+}
+
 export function applyThemeMode(mode: ThemeMode, persist = true): void {
   if (typeof document === "undefined") return;
   setAppearance(mode);

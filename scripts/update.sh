@@ -73,9 +73,11 @@ build_fe_locally() {
     # Delegates to the shared scripts/build-frontend.sh — the single source of
     # truth for the SPA build (also used by install.sh's fresh path). Keeping
     # exactly one builder is what stops a fresh install from shipping no dist.
+    # The commit pin ($DIST/.commit-sha, read below) is written by the builder
+    # itself, not here. It lived here until 2026-09-14, which meant install.sh
+    # — the other caller of the same builder — produced a dist with no pin and
+    # the next update rebuilt it for nothing. One builder, one writer.
     run bash "$REPO_ROOT/scripts/build-frontend.sh" "$REPO_ROOT/src/okuro/web/frontend" || return 1
-    mkdir -p "$DIST"
-    echo "$HEAD_FULL" > "$DIST_SHA_FILE"
 }
 
 # ── pre-flight ────────────────────────────────────────────────────────

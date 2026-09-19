@@ -153,6 +153,36 @@ let hydrated = false;
 let pushTimer: ReturnType<typeof setTimeout> | null = null;
 let flushListenersBound = false;
 
+/**
+ * THE DOCUMENT THE SERVER IS KNOWN TO HOLD, as a fingerprint. `null` means
+ * "never written" (the `saved_at === null` case) and therefore differs from
+ * everything, which is what makes first-run seeding still work.
+ *
+ * WHY IT EXISTS — a write* call is not evidence of an edit. Three of this
+ * module's callers fire with NO user gesture on every single mount of
+ * `/deliver/people`:
+ *
+ *   · `PeopleGraph.tsx:698`  — the group-geometry migration, when any stored
+ *                              group predates `GROUP_GEOM_VERSION`;
+ *   · `PeopleGraph.tsx:1093` — the spring loop's 30-tick checkpoint;
+ *   · `PeopleGraph.tsx:1113` — the spring loop's FINAL REST WRITE, which has
+ *                              no `positionsChanged` guard at all and so runs
+ *                              on every mount of an already-settled graph.
+ *
+ * So merely LOOKING at the page PUT the whole layout back, value-identical,
+ * and moved `updated_at` on every row — the field `_layout_saved_at()` uses as
+ * the hydration discriminator. Measured 2026-09-15: 17 positions + 5 groups +
+ * settings, all values equal to what the server already held.
+ *
+ * THE GUARD IS AT THIS LAYER AND NOT AT THE THREE CALL SITES on purpose
+ * (DP11). The class is "a persistence layer that cannot tell a user edit from
+ * a machine re-derivation", and a fourth machine writer is one refactor away.
+ * Suppressing by VALUE rather than by gesture is also the honest test: a
+ * spring that genuinely moves a node has changed the arrangement and still
+ * saves, while a re-push of identical numbers does not.
+ */
+let serverFingerprint: string | null = null;
+
 /** The complete document, read from the cache at flush time rather than
  *  passed in — write* callers only ever hold one of the three collections,
  *  and the PUT replaces all of them. */
@@ -164,16 +194,55 @@ function snapshot() {
   };
 }
 
+/**
+ * A key-order-independent identity for the document.
+ *
+ * `JSON.stringify(snapshot())` WOULD NOT DO. `positions` is a Record whose
+ * iteration order is insertion order, and the spring rebuilds it by spreading
+ * and re-assigning; a group object arrives from the API in the server's field
+ * order and leaves the migration in the spread's. Both produce a different
+ * string for identical values, which would report every mount as an edit and
+ * put the defect straight back. `memberIds` is sorted for the same reason the
+ * backup diff below already sorts it — membership is a set, not a sequence.
+ */
+function fingerprint(): string {
+  const doc = snapshot();
+  return JSON.stringify({
+    positions: Object.keys(doc.positions)
+      .sort()
+      .map((id) => [id, doc.positions[id]!.x, doc.positions[id]!.y]),
+    groups: doc.groups.map((g) => [
+      g.id,
+      g.name,
+      [...g.memberIds].sort(),
+      g.center ? [g.center.x, g.center.y] : null,
+      g.radius ?? null,
+      g.geomVersion ?? null,
+    ]),
+    settings: doc.settings.connectionStyle,
+  });
+}
+
 function pushNow(): void {
   if (!hydrated) return;
   if (pushTimer !== null) {
     clearTimeout(pushTimer);
     pushTimer = null;
   }
+  const fp = fingerprint();
+  // Nothing the server does not already hold. See `serverFingerprint`.
+  if (fp === serverFingerprint) return;
+
   // Fire-and-forget by design: a failed save must never break dragging.
   // The next write re-pushes the whole document, so a dropped request
-  // costs nothing beyond that one lost round-trip.
+  // costs nothing beyond that one lost round-trip — which is why the
+  // fingerprint is advanced optimistically and ROLLED BACK on failure:
+  // without the rollback a dropped request would make the retry look like
+  // a no-op and the edit would never reach the server.
+  const previous = serverFingerprint;
+  serverFingerprint = fp;
   peopleApi.putLayout(snapshot()).catch((err) => {
+    if (serverFingerprint === fp) serverFingerprint = previous;
     console.warn("[people-graph] layout save failed", err);
   });
 }
@@ -181,6 +250,18 @@ function pushNow(): void {
 function schedulePush(): void {
   if (!hydrated) return;
   if (typeof window === "undefined") return;
+
+  // A write that changed no value schedules nothing, and CANCELS a pending
+  // push whose change has since been undone. This is also what makes the
+  // `pagehide` flush below fire only for a real edit: there is no timer to
+  // flush unless some value actually moved.
+  if (fingerprint() === serverFingerprint) {
+    if (pushTimer !== null) {
+      clearTimeout(pushTimer);
+      pushTimer = null;
+    }
+    return;
+  }
 
   if (pushTimer !== null) clearTimeout(pushTimer);
   pushTimer = setTimeout(() => {
@@ -284,6 +365,10 @@ export async function hydrateGraphLayout(): Promise<void> {
   });
 
   hydrated = true;
+  // The cache now IS the server copy, so record what the server holds. Taken
+  // after the three writes rather than from `remote`, so it is the document as
+  // this client re-serialises it — the same path every later comparison takes.
+  serverFingerprint = fingerprint();
 }
 
 export type GraphBackup = {
@@ -326,6 +411,7 @@ if (typeof window !== "undefined") {
 /** Test seam — resets the module's sync state between cases. */
 export function __resetGraphSyncForTests(): void {
   hydrated = false;
+  serverFingerprint = null;
   if (pushTimer !== null) clearTimeout(pushTimer);
   pushTimer = null;
 }

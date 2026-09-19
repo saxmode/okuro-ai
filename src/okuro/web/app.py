@@ -7,6 +7,8 @@
 #   def api_gpu
 #   def api_storage
 #   def api_system
+#   def _split_author
+#   def api_about
 #   def api_features
 #   def api_models
 #   def api_doctor
@@ -90,6 +92,65 @@ def api_system():
     from okuro.system.storage import get_storage_status
 
     return {"gpu": get_gpu_status(), "storage": get_storage_status()}
+
+
+def _split_author(value: str) -> tuple[str | None, str | None]:
+    """``"Jane Doe <jane@example.org>"`` -> ``("Jane Doe", "jane@example.org")``.
+
+    Parsed with :func:`email.utils.getaddresses`, not a regex: the field is
+    an RFC 5322 address LIST, so a display name may itself contain a comma
+    (``"Doe, Jane" <j@x>``) and a hand-rolled ``split(",")`` cuts it in half.
+
+    Only the FIRST entry is read. The page credits the project's author, not
+    a contributor roll — and a missing half yields ``None`` rather than an
+    empty string, so the caller can drop the line instead of rendering a gap.
+
+    A value with no ``@`` is a display name, and the early return is load-
+    bearing: ``getaddresses(["Jane Doe"])`` answers ``[("", "Jane")]`` —
+    it reads the bare string AS an address and truncates it at the space.
+    Without the guard the page would print half a name into a ``mailto:``.
+    """
+    from email.utils import getaddresses
+
+    if "@" not in value:
+        return (value.strip() or None), None
+    pairs = getaddresses([value])
+    if not pairs:
+        return None, None
+    name, addr = pairs[0]
+    return (name.strip() or None), (addr.strip() or None)
+
+
+@router.get("/api/about")
+def api_about():
+    """Who wrote okuro — derived from the installed distribution's metadata.
+
+    pyproject's ``[project] authors`` is the ONE home for this fact. The
+    release owner gate permits the name in LICENSE, NOTICE and pyproject.toml
+    and refuses it everywhere else, so a literal on the About page would be
+    both a second home that drifts and a blocking gate finding. The page asks
+    the package instead, and nothing about authorship is written twice.
+
+    ``Author-email`` carries the combined ``Name <addr@host>`` form because
+    that is how PEP 621 serialises ``authors``; plain ``Author`` stays empty.
+    A distribution without either yields nulls and the page drops the credit
+    rather than printing a placeholder.
+
+    NOT THE VERSION, DELIBERATELY. ``importlib.metadata`` is a snapshot of
+    the last install and goes stale in an editable checkout — measured here
+    as 3.0.2 against a 3.1.0 tree — which is why the version keeps coming
+    from the literal in ``okuro.__version__``. Authorship does not move
+    between releases, so the same staleness costs nothing.
+    """
+    from importlib.metadata import PackageNotFoundError, metadata
+
+    try:
+        meta = metadata("okuro")
+    except PackageNotFoundError:
+        return {"author": None, "author_email": None}
+
+    name, email = _split_author(meta.get("Author-email") or "")
+    return {"author": (meta.get("Author") or "").strip() or name, "author_email": email}
 
 
 @router.get("/api/features")
@@ -194,23 +255,50 @@ async def api_models_search(query: str = "", modality: str = "text", limit: int 
 
 
 @router.get("/api/models/discoveries")
-def api_models_discoveries(query: str = "", status: str = "", limit: int = 100):
+def api_models_discoveries(query: str = "", status: str = "", limit: int = 100,
+                           category: str = "", variants: str = "hide",
+                           interesting: bool = False):
     """The durable discoveries list — what the weekly scan found for this box.
 
     This is the Discover tab's DEFAULT content (no live network round-trip):
     fit-gated candidates the Monday scan filed, newest-and-highest-signal
     first. ``query`` substring-filters the durable list; ``status`` narrows to
     one lifecycle bucket. Dismissed rows are hidden unless explicitly asked for.
-    """
-    from okuro.ai_models import list_discoveries
 
-    return {
-        "discoveries": list_discoveries(
-            status=status or None,
-            query=query or None,
-            limit=limit,
-        ),
-    }
+    ``variants='hide'`` (default) omits rows carrying an identity-variant tag —
+    abliterated, uncensored, nsfw, roleplay. Ruling 3: the scan TAGS those and
+    keeps them, and this parameter is the toggle. ``category`` narrows to one
+    wanted bucket; ``interesting=true`` to rows the scan judged worth a look.
+
+    ``categories`` is returned beside the rows: the per-bucket ledger of the
+    last run, so a category that found nothing says so instead of being
+    indistinguishable from a broken scanner.
+    """
+    from okuro.ai_models import list_category_scans, list_discoveries
+
+    rows = list_discoveries(
+        status=status or None,
+        query=query or None,
+        limit=limit,
+        category=category or None,
+        variants=variants or "hide",
+        interesting_only=bool(interesting),
+    )
+
+    # P3's best placement, joined in ONE query for the whole page — the same
+    # shape `store_scan.inventory` uses for units. A fit per row would be N+1
+    # against a table the scan has already written, and the Interesting tab
+    # cannot answer "would this run here" without it.
+    try:
+        from okuro.ai_models.fitting import best_fits
+
+        fits = best_fits([r["catalog_id"] for r in rows], subject_kind="release")
+        for r in rows:
+            r["best_fit"] = fits.get(r["catalog_id"])
+    except Exception:  # a missing fit must never empty the discovery list
+        log.exception("release fit join failed")
+
+    return {"discoveries": rows, "categories": list_category_scans()}
 
 
 @router.post("/api/models/discoveries/status")
@@ -233,9 +321,44 @@ def api_models_discovery_status(payload: dict):
     return {"ok": True, "catalog_id": catalog_id, "status": status}
 
 
+@router.post("/api/models/pull/dry-run")
+def api_models_pull_dry_run(payload: dict):
+    """Plan a pull WITHOUT downloading: destination, headroom, file list.
+
+    The page calls this before it calls POST /api/models/pull, so a headroom
+    shortfall is on screen before the bytes move. Ruling 8 is that the warning
+    never becomes a refusal, so this returns the numbers and the pull button
+    stays live beside them.
+    """
+    from fastapi import HTTPException
+
+    from okuro.ai_models import acquire
+
+    body = payload or {}
+    catalog_id = body.get("catalog_id")
+    if not catalog_id:
+        raise HTTPException(status_code=400, detail="catalog_id required")
+    try:
+        return acquire.pull_model(
+            str(catalog_id), store=body.get("store"), to=body.get("to"),
+            file=body.get("file"), dry_run=True)
+    except Exception as exc:          # a failed plan is an answer, not a 500
+        return {"ok": False, "dry_run": True, "catalog_id": catalog_id,
+                "reason": str(exc)}
+
+
 @router.post("/api/models/pull")
 def api_models_pull(payload: dict):
-    """Start acquiring a catalog entry into the bundle store (background)."""
+    """Start acquiring a model in the background.
+
+    Into a declared MODEL STORE when this host declares one (P6) — destination
+    from the modality bucket, headroom warned about and never enforced, the
+    new unit scanned, lineaged, fitted and the discovery row marked installed.
+    Into okuro's own bundle store when no store is declared, or when
+    ``bundle: true`` asks for it, which is what this route did before P6.
+
+    The job id is the catalog_id; GET /api/models/pull/<job_id> polls it.
+    """
     from fastapi import HTTPException
 
     from okuro.ai_models.edition import detect_edition, local_inference_enabled
@@ -253,6 +376,17 @@ def api_models_pull(payload: dict):
         raise HTTPException(status_code=400, detail="catalog_id required")
     force = bool((payload or {}).get("force"))
     display_name = (payload or {}).get("display_name") or catalog_id
+    body = payload or {}
+    store_name = body.get("store")
+    to_rel = body.get("to")
+    only_file = body.get("file")
+
+    # A declared model store is where a model belongs; the bundle store is
+    # okuro's own serving format and stays reachable with bundle: true.
+    from okuro.ai_models import acquire as _acquire
+
+    to_store = (not bool(body.get("bundle"))
+                and _acquire.pick_store(store_name)[0] is not None)
 
     def _now() -> str:
         from datetime import datetime, timezone
@@ -263,8 +397,10 @@ def api_models_pull(payload: dict):
         if job and job.get("state") == "downloading":
             return job
         _PULL_JOBS[catalog_id] = {
+            "job_id": catalog_id,
             "catalog_id": catalog_id,
             "display_name": display_name,
+            "into": "store" if to_store else "bundle",
             "state": "downloading",
             "error": None,
             "bundle_id": None,
@@ -289,28 +425,45 @@ def api_models_pull(payload: dict):
 
     def _work():
         try:
+            from okuro.ai_models import acquire
             from okuro.ai_models.acquire import pull
             from okuro.ai_models.discovery import resolve_entry
             from okuro.ai_models.edition import effective_detection
             from okuro.capability import capabilities
 
-            entry = resolve_entry(catalog_id)
-            if entry is None:
-                raise ValueError(f"unknown catalog_id: {catalog_id}")
-            bundle = pull(
-                entry,
-                detection=effective_detection(capabilities()),
-                allow_oversize=force,
-                progress_cb=_on_progress,
-            )
-            # A pulled model is installed — reflect that on its discovery row so
-            # the Discover list shows "Installed", not a stale "Pull" button.
-            try:
-                from okuro.ai_models import mark_installed
-                mark_installed(catalog_id)
-            except Exception:
-                pass
-            done = {"state": "done", "error": None, "bundle_id": bundle.id, "progress": 1.0}
+            if to_store:
+                res = acquire.pull_model(
+                    catalog_id, store=store_name, to=to_rel, file=only_file,
+                    progress_cb=_on_progress)
+                if not res.get("ok"):
+                    raise ValueError(res.get("reason")
+                                     or (res.get("registration") or {}).get("reason")
+                                     or "the pull did not register a unit")
+                done = {"state": "done", "error": None, "progress": 1.0,
+                        "bundle_id": None,
+                        "destination": (res.get("destination") or {}).get("path"),
+                        "headroom": res.get("headroom"),
+                        "unit_ids": (res.get("registration") or {}).get("unit_ids") or [],
+                        "results": res.get("results") or []}
+            else:
+                entry = resolve_entry(catalog_id)
+                if entry is None:
+                    raise ValueError(f"unknown catalog_id: {catalog_id}")
+                bundle = pull(
+                    entry,
+                    detection=effective_detection(capabilities()),
+                    allow_oversize=force,
+                    progress_cb=_on_progress,
+                )
+                # A pulled model is installed — reflect that on its discovery row
+                # so the Discover list shows "Installed", not a stale "Pull".
+                try:
+                    from okuro.ai_models import mark_installed
+                    mark_installed(catalog_id)
+                except Exception:
+                    pass
+                done = {"state": "done", "error": None, "bundle_id": bundle.id,
+                        "progress": 1.0}
         except Exception as exc:  # surface the failure to the poller
             done = {"state": "error", "error": str(exc), "bundle_id": None}
         with _PULL_LOCK:
@@ -338,6 +491,18 @@ def api_models_pull_active():
     the page. Client removes a finished card via /api/models/pull/dismiss."""
     with _PULL_LOCK:
         return {"jobs": list(_PULL_JOBS.values())}
+
+
+@router.get("/api/models/pull/{job_id:path}")
+def api_models_pull_job(job_id: str):
+    """Poll ONE pull by job id. The literal /status, /active and /dismiss
+    routes are declared above this one, so they keep winning the match."""
+    with _PULL_LOCK:
+        job = _PULL_JOBS.get(job_id)
+    if job is None:
+        return {"job_id": job_id, "state": "idle", "error": None,
+                "bundle_id": None}
+    return job
 
 
 @router.post("/api/models/pull/dismiss")

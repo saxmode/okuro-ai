@@ -89,7 +89,7 @@ export function ProgressPanel({
               <TimelineTitle>{e.summary || "—"}</TimelineTitle>
               {e.next_steps && (
                 <TimelineBody>
-                  <span className="uppercase tracking-wider text-tertiary">
+                  <span className="case-label tracking-wider text-tertiary">
                     Next:
                   </span>{" "}
                   {e.next_steps}
@@ -105,7 +105,7 @@ export function ProgressPanel({
               key={i}
               type="button"
               onClick={() => setActive(e)}
-              className="block w-full text-left text-2xs hover:bg-surface/60 rounded px-1 py-0.5"
+              className="block w-full text-left text-2xs hover:bg-surface-subtle rounded px-1 py-0.5"
             >
               <div className="flex items-center gap-2">
                 <span className="font-medium text-fg-muted">{e.project}</span>
@@ -181,7 +181,7 @@ export function ProgressPanel({
                       </p>
                       {h.next_steps && (
                         <p className="mt-1 text-2xs text-tertiary">
-                          <span className="uppercase tracking-wider text-tertiary">
+                          <span className="case-label tracking-wider text-tertiary">
                             Next:
                           </span>{" "}
                           {h.next_steps}

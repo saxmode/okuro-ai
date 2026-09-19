@@ -4,6 +4,7 @@ import { flattenElements } from "./flatten";
 import { chartSvg } from "./chart-svg";
 import { dividerColor, elementBodyHtml } from "./element-body";
 import { tokenizeApiSrc } from "@/lib/slides-api";
+import { deckBackground, elementInk } from "./deck-theme";
 
 /** Export helpers — PDF via the browser print pipeline, PPTX via pptxgenjs. */
 
@@ -31,7 +32,7 @@ function elHtml(el: SlideElement, surface?: string): string {
   const style =
     common +
     `display:flex;flex-direction:column;align-items:${alignItems};justify-content:${justify};` +
-    `background:${el.bg ?? "transparent"};color:${el.color ?? "#eafff0"};font-size:${el.fontSize ?? 28}px;` +
+    `background:${el.bg ?? "transparent"};color:${elementInk(el)};font-size:${el.fontSize ?? 28}px;` +
     `font-weight:${el.fontWeight ?? 400};border-radius:${el.radius ?? 0}px;text-align:${el.align ?? "left"};` +
     (el.font ? `font-family:${el.font};` : "") + tracking +
     `line-height:${el.lineHeight ?? DEFAULT_LINE_HEIGHT};white-space:pre-wrap;word-break:break-word;overflow:${topAligned ? "visible" : "hidden"};` +
@@ -78,7 +79,7 @@ export function exportPdf(deck: Deck): void {
       const els = flat
         .map((el) => elHtml(el, el.kind === "chart" ? chartSurface(el, flat, deck.background) : deck.background))
         .join("");
-      return `<div class="slide" style="width:${w}px;height:${h}px;background:${deck.background ?? "#0b0f0c"};font-family:${deck.font ?? "Inter,system-ui,sans-serif"};position:relative;overflow:hidden;">${els}</div>`;
+      return `<div class="slide" style="width:${w}px;height:${h}px;background:${deckBackground(deck)};font-family:${deck.font ?? "Inter,system-ui,sans-serif"};position:relative;overflow:hidden;">${els}</div>`;
     })
     .join("");
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(deck.title)}</title>
@@ -364,7 +365,7 @@ export async function exportPng(deck: Deck, index: number, scale = 2): Promise<v
   const slide = deck.slides[index];
   if (!slide) return;
   const { w, h } = deckSize(deck);
-  const bg = deck.background ?? "#0b0f0c";
+  const bg = deckBackground(deck);
   const font = deck.font ?? "Inter,system-ui,sans-serif";
   // Embed the brand webfont(s) so the foreignObject renders in the real face,
   // not a fallback (#15). Computed once — identical for both render attempts.

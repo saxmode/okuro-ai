@@ -8,6 +8,8 @@
 #   def _repo_root
 #   def _main_root
 #   def _worktrees
+#   def _same_bytes
+#   def _link_frontend_modules
 #   def wt
 #   def wt_add
 #   def wt_list
@@ -72,6 +74,86 @@ def _worktrees(repo: Path) -> list[tuple[Path, str]]:
             results.append((current, line[len("branch "):].removeprefix("refs/heads/")))
             current = None
     return results
+
+
+#: The frontend dependency cache, relative to a tree root.
+_FRONTEND = Path("src") / "okuro" / "web" / "frontend"
+_MODULES = _FRONTEND / "node_modules"
+
+#: The files that decide whether main's installed set is the RIGHT set for
+#: this tree. Both are tracked, so both travel with the branch.
+_DEP_INPUTS = ("package.json", "pnpm-lock.yaml")
+
+
+def _same_bytes(a: Path, b: Path) -> bool:
+    """True when both files exist and are byte-identical."""
+    try:
+        return a.is_file() and b.is_file() and a.read_bytes() == b.read_bytes()
+    except OSError:
+        return False
+
+
+def _link_frontend_modules(main_root: Path, dest: Path) -> None:
+    """Point a new tree's frontend at main's installed dependencies.
+
+    WHY A WORKTREE NEEDS THIS AT ALL. ``node_modules`` is gitignored, so
+    ``git worktree add`` never materialises it — and three gates resolve that
+    path relative to THE TREE THEY LIVE IN, on purpose, so that a worktree
+    measures its own code: ``_frontend_dir`` in ``tests/web/conftest.py``, and
+    ``FRONTEND`` / ``TAILWIND_THEME`` in ``tests/design_engine/test_drift.py``.
+    Those gates FAIL rather than skip when a prerequisite is missing — that is
+    their whole doctrine — so in a worktree the entire browser set errors at
+    setup instead of running.
+
+    MEASURED, NOT PREDICTED. The full suite on ``feat/home-project-guard``
+    (2026-09-18, 48m57s) produced 53 errors across 8 files, and every one of
+    them was this: 52 ``no node_modules in <tree>/src/okuro/web/frontend`` and
+    one ``tailwind's theme is not at <tree>/.../node_modules/tailwindcss``.
+    Every one of the 69 trees on this box has the same hole.
+
+    WHY A SYMLINK RATHER THAN ``pnpm install``. The cache is DERIVED from
+    ``package.json`` + ``pnpm-lock.yaml``, and both are tracked. When those
+    match main's byte for byte, the installed set is the same set, so a second
+    copy buys nothing and costs a gigabyte and a minute per tree.
+    ``tests/web/conftest.py`` already names this exact remedy in the message it
+    fails with.
+
+    WHY IT REFUSES WHEN THEY DIFFER. A branch that changes a dependency would
+    otherwise be measured against MAIN's modules and pass for the wrong reason
+    — which is the failure the shell gates exist to catch, reintroduced one
+    level underneath them. So a mismatch links nothing and says what to run.
+
+    Never raises: a tree that cannot be provisioned is still a usable tree.
+    """
+    if not (dest / _FRONTEND).is_dir():
+        return  # not an okuro checkout — nothing to provision
+    link = dest / _MODULES
+    if link.is_symlink() or link.exists():
+        return  # already provisioned, or the tree installed its own
+    target = main_root / _MODULES
+    if not target.is_dir():
+        warn(f"No frontend node_modules in {main_root} — the browser gates "
+             f"cannot run in this tree either.")
+        info(f"Install them once in the main tree:  "
+             f"cd {main_root / _FRONTEND} && pnpm install")
+        return
+    drifted = [
+        name for name in _DEP_INPUTS
+        if not _same_bytes(main_root / _FRONTEND / name, dest / _FRONTEND / name)
+    ]
+    if drifted:
+        warn(f"This tree's {' and '.join(drifted)} differ from main's — "
+             f"NOT linking main's node_modules, which would measure this "
+             f"branch against the wrong dependency set.")
+        info(f"Install this tree's own set:  "
+             f"cd {dest / _FRONTEND} && pnpm install")
+        return
+    try:
+        link.symlink_to(target, target_is_directory=True)
+    except OSError as exc:
+        warn(f"Could not link frontend node_modules: {exc}")
+        return
+    ok(f"Frontend deps linked: {link} -> {target}")
 
 
 @click.group("wt")
@@ -153,6 +235,11 @@ def wt_add(topic, branch_arg, base, repo_arg):
             raise SystemExit(1)
         ok(f"Worktree created: {dest}")
         info(f"Branch: {branch}" + ("" if branch_exists else f" (new, from {base})"))
+
+    # Before the binding, and on the reuse path too: this is what makes an
+    # EXISTING tree repairable — re-running `okuro wt add <topic>` provisions
+    # it without a second command to remember.
+    _link_frontend_modules(main_root, dest)
 
     marker = dest / ".okuro-worktree"
     marker.write_text(

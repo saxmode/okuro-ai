@@ -1,6 +1,7 @@
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Segmented } from "@/components/ui/segmented";
 import { SectionLabel } from "@/components/ui/section-label";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -8,11 +9,13 @@ import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
 import { MetricCard } from "@/components/ui/metric-card";
 import { DaemonJobsPanel } from "@/components/schedule/daemon-jobs-panel";
 import { SystemPanel } from "@/components/dashboard/system-panel";
-import { useUrlTab } from "@/hooks/use-url-tab";
 import { useSystemStatus } from "@/hooks/use-tasks";
 import { formatDuration } from "@/lib/format";
-import { PageHeader } from "@/components/shell/page-header";
 import { parseApiDate } from "@/lib/format";
+import { usePaneInterval } from "@/lib/pane-active";
+import { sectionSlugs } from "@/shell/views/sections";
+import type { LeafViewProps } from "@/shell/views/registry";
+import { useSectionTitle } from "@/shell/components/PageTitle";
 
 interface DoctorCheck {
   name: string;
@@ -55,6 +58,25 @@ const AGENT_CHECKS = new Set(["Providers", "GPU"]);
 
 type CheckGroup = "CORE" | "AGENTS" | "SCHEDULES" | "OTHER";
 
+/**
+ * The five tabs, named as the shell names its sections, and the index each one
+ * is. Derived from `sectionSlugs` rather than retyped: a rename in
+ * `sections.ts` then moves both halves or fails the build, instead of leaving
+ * the page pointing at an index that means something else.
+ */
+type HealthTab = "checks" | "machine" | "storage" | "schedules" | "cortex";
+
+const HEALTH_SLUGS = sectionSlugs("system", "health");
+const SECTION_OF: Record<HealthTab, number> = {
+  checks: Math.max(0, HEALTH_SLUGS.indexOf("checks")),
+  machine: Math.max(0, HEALTH_SLUGS.indexOf("machine")),
+  storage: Math.max(0, HEALTH_SLUGS.indexOf("storage")),
+  schedules: Math.max(0, HEALTH_SLUGS.indexOf("schedules")),
+  cortex: Math.max(0, HEALTH_SLUGS.indexOf("cortex")),
+};
+const TAB_OF_SECTION = (index: number): HealthTab =>
+  (HEALTH_SLUGS[index] as HealthTab | undefined) ?? "checks";
+
 function groupCheck(name: string): CheckGroup {
   if (CORE_CHECKS.has(name)) return "CORE";
   if (AGENT_CHECKS.has(name)) return "AGENTS";
@@ -63,48 +85,84 @@ function groupCheck(name: string): CheckGroup {
 }
 
 /**
- * /health — services, GPU, storage, docker, schedules, cortex.
- * Renamed from /system. Wave 2 W2.7.
+ * THE FIVE TABS ARE FIVE ADDRESSES — Q-L1, the cheapest real conversion in the
+ * topic after MODELS.
+ *
+ * `sections.ts` already declared five sections in the page's own rendered
+ * order, and the counts already matched; only the mechanism was missing. What
+ * it cost before, measured: `/system/health?view=storage` left the URL
+ * untouched with the Services tab still active, and so did `?view=machine`.
+ *
+ * `ui/segmented`, not `ui/tabs`, and that is not taste. Radix `Tabs` owns its
+ * own active value and UNMOUNTS inactive content, so it cannot be driven from
+ * the shell's section index without fighting it (inventory §3). `Segmented` is
+ * controlled by construction and MODELS already runs on it.
+ *
+ * TWO SPELLINGS CHANGED AND BOTH OLD ONES STILL RESOLVE. `services` became
+ * CHECKS because SYSTEM has a SERVICES *leaf* two labels along the same rail
+ * and the tab is full of doctor checks; `system` became MACHINE because the
+ * topic is already called SYSTEM. `SECTION_ALIASES` in `shell/views/sections`
+ * maps the two old `?tab=` values, so a live bookmark lands where it meant to
+ * rather than silently on the default.
  */
-export function HealthPage() {
-  const tab = useUrlTab("services");
+export function HealthPage({
+  view: section,
+  onSelectView,
+}: Partial<LeafViewProps> = {}) {
+  /**
+   * `onSelectView` IS ABSENT OUTSIDE THE SHELL and for a pane on its way out
+   * (`TopicBar.tsx:429`), so the section keeps a local fallback — the same
+   * reason MODELS has one and the same reason `pane-active` defaults to true.
+   */
+  const [localSection, setLocalSection] = useState(0);
+  const mode = TAB_OF_SECTION(section ?? localSection);
+  const setMode = (next: HealthTab) => {
+    const index = SECTION_OF[next];
+    if (onSelectView) onSelectView(index);
+    else setLocalSection(index);
+  };
+
+  /* THE VIEW SWITCHER IS ON THE PLATE. It is this leaf's only control, and
+     it was the first interactive row of the pane — under the blurred plate. */
+  const header = useMemo(
+    () => ({
+      actions: (
+        <Segmented<HealthTab>
+          ariaLabel="Health view"
+          value={mode}
+          onChange={setMode}
+          options={[
+            { label: "Checks", value: "checks" },
+            { label: "Machine", value: "machine" },
+            { label: "Storage", value: "storage" },
+            { label: "Schedules", value: "schedules" },
+            { label: "Cortex", value: "cortex" },
+          ]}
+        />
+      ),
+    }),
+    [mode],
+  );
+  useSectionTitle(header);
 
   return (
     <div className="page-shell space-y-8">
-      <PageHeader
-        title="Health"
-        subtitle="Services, hardware, storage, schedules — is anything broken?"
-      />
+      {/* R1 (86b8f1f0) — THE LEAF TITLE IS THE SHELL'S. `TopicBar` renders
+          `<h1 class="c-title">Health</h1>` above this pane, so the page's own
+          PageHeader h1 is gone. The subtitle survives as content because it
+          states the question the page answers, which is what tells a reader
+          why five unrelated tabs are one leaf. `text-fg-muted` rather than
+          `PageHeader`'s `text-tertiary` — the standing AA failure, kit todo
+          c581c9b2. */}
+      <p className="type-small text-fg-muted">
+        Services, hardware, storage, schedules — is anything broken?
+      </p>
 
-      <Tabs value={tab.value} onValueChange={tab.onValueChange}>
-        <TabsList>
-          <TabsTrigger value="services">Services</TabsTrigger>
-          <TabsTrigger value="system">System</TabsTrigger>
-          <TabsTrigger value="storage">Storage</TabsTrigger>
-          <TabsTrigger value="schedules">Schedules</TabsTrigger>
-          <TabsTrigger value="cortex">Cortex</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="services">
-          <ServicesTab />
-        </TabsContent>
-
-        <TabsContent value="system">
-          <SystemTab />
-        </TabsContent>
-
-        <TabsContent value="storage">
-          <StorageTab />
-        </TabsContent>
-
-        <TabsContent value="schedules">
-          <SchedulesTab />
-        </TabsContent>
-
-        <TabsContent value="cortex">
-          <CortexHealthTab />
-        </TabsContent>
-      </Tabs>
+      {mode === "checks" && <ServicesTab />}
+      {mode === "machine" && <SystemTab />}
+      {mode === "storage" && <StorageTab />}
+      {mode === "schedules" && <SchedulesTab />}
+      {mode === "cortex" && <CortexHealthTab />}
     </div>
   );
 }
@@ -114,7 +172,11 @@ function ServicesTab() {
   const { data: doctor, isLoading } = useQuery({
     queryKey: ["doctor"],
     queryFn: () => api<DoctorResult>("/api/doctor"),
-    refetchInterval: 30_000,
+    // L4 / T9 — Law 3 keeps all five topic panes mounted, so an unguarded
+    // interval polls from four topics away. HEALTH owns FOUR of them and is
+    // the heaviest background cost in SYSTEM: doctor 30s, storage 60s, cortex
+    // coverage 120s, cortex enrichment 30s. Measured before the guards.
+    refetchInterval: usePaneInterval(30_000),
     staleTime: 10_000,
   });
 
@@ -193,7 +255,7 @@ function StorageTab() {
   const { data, isLoading } = useQuery({
     queryKey: ["storage"],
     queryFn: () => api<StorageResult>("/api/storage"),
-    refetchInterval: 60_000,
+    refetchInterval: usePaneInterval(60_000),
     staleTime: 30_000,
   });
 
@@ -263,7 +325,7 @@ function CortexHealthTab() {
   const coverage = useQuery({
     queryKey: ["cortex-coverage"],
     queryFn: () => api<CoverageResult>("/api/cortex/coverage"),
-    refetchInterval: 120_000,
+    refetchInterval: usePaneInterval(120_000),
     staleTime: 60_000,
   });
 
@@ -273,7 +335,7 @@ function CortexHealthTab() {
       api<{ events: EnrichmentEvent[]; count: number }>(
         "/api/cortex/enrichment?limit=50",
       ),
-    refetchInterval: 30_000,
+    refetchInterval: usePaneInterval(30_000),
     staleTime: 15_000,
   });
 
@@ -305,10 +367,20 @@ function CortexHealthTab() {
               />
             </div>
             {coverage.data.projects.length > 0 ? (
-              <div className="overflow-hidden rounded-md border border-border">
+              // MEASURED, NOT ASSUMED: at a 751.63px pane this table is 778px
+              // wide, and `overflow-hidden` made the last 28px — the whole
+              // Coverage column — unreachable with no scrollbar and no way to
+              // get there. Same class as the Discover table the MODELS pass
+              // fixed (1186px inside a 750px box), and the 204-state sweep
+              // reads `paneScrollW == paneClientW` right past it, because a box
+              // that hides its overflow reports none to its ancestor. Only the
+              // per-element clip census sees it. Six columns, one of them a
+              // filesystem path: a scroller is the answer the contract allows.
+              <div className="overflow-x-auto rounded-md border border-border">
                 <table className="w-full text-xs">
                   <thead className="border-b border-border bg-surface">
-                    <tr className="text-left text-2xs uppercase tracking-wider text-tertiary">
+                    {/* `case-label`, not a literal `uppercase` — 0d37d05e. */}
+                    <tr className="case-label text-left text-2xs tracking-wider text-tertiary">
                       <th className="px-3 py-2 font-medium">Project</th>
                       <th className="px-3 py-2 font-medium text-right">Eligible</th>
                       <th className="px-3 py-2 font-medium text-right">With sidecar</th>

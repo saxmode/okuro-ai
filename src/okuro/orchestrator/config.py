@@ -47,6 +47,31 @@ CANONICAL_TIERS: Tuple[str, ...] = ("fast", "standard", "strategic", "critical")
 
 _TIER_RANK = {t: i for i, t in enumerate(CANONICAL_TIERS)}
 
+# The most role body that may be INLINED into a prompt, in characters.
+#
+# Derived, not chosen: the host result envelope is 50,000 characters, the
+# bootstrap packet's two halves already claim roughly two thirds of it, and a
+# role body is injected ALONGSIDE that packet — so a body has about 17,300
+# characters before it starts pushing out the context it was meant to
+# specialise. Measured 2026-09-17: `system-documenter` carries a 33,655-char
+# FULL body that flowed into deliberation positions raw, nearly twice the
+# budget for the role alone.
+#
+# This is a READ-side cap on purpose. The owner ruled (2026-09-17, Q6) that the
+# FULL grade is an on-demand references tier rather than a defect to compress:
+# it stays as long as its author wrote it, and callers who want all of it ask
+# for it explicitly via `roles_get(level="full")`. What must not happen is a
+# body of that size arriving UNASKED in a dispatch prompt.
+ROLE_BODY_INLINE_CAP: int = 17_300
+
+#: Appended when a body is capped, so the reader knows the brief is partial and
+#: where the rest is. A silent truncation reads as a role that simply stops
+#: mid-sentence.
+ROLE_BODY_TRUNCATION_NOTICE = (
+    '[okuro: role body truncated at 17,300 chars — the full grade is '
+    'on-demand via roles_get(level="full")]'
+)
+
 
 def resolve_unit_tier(unit, task) -> str:
     """The tier for ONE dispatchable unit — a subtask or a DAG execution node.
@@ -753,8 +778,10 @@ def get_cli_command_parts(cli_name: str, tier: str, config: Config) -> Tuple[str
     if tier not in tool.tier_map:
         _config_logger.warning(
             "Unresolvable tier %r for cli=%s (valid tiers: %s) — falling back "
-            "to 'standard'. The caller passed a tier this provider cannot map; "
-            "fix the role's tier rather than relying on this fallback.",
+            "to 'standard'. The tier reaching here is the dispatched UNIT's "
+            "complexity, not roles.tier, which no longer reaches model "
+            "routing at all: add this tier to the provider's tier_map, or "
+            "correct the unit's complexity.",
             tier, cli_name, sorted(tool.tier_map),
         )
     model = tool.tier_map.get(tier, tool.tier_map["standard"])
@@ -810,7 +837,9 @@ def resolve_tier_model(config: Config, tier: str, cli_name: Optional[str] = None
         return (tm[tier] or "").strip()
     _config_logger.warning(
         "Unresolvable tier %r for cli=%s (valid tiers: %s) — falling back to "
-        "'standard'. Fix the role's tier; this fallback hides misrouting.",
+        "'standard'. Not a role problem: roles.tier no longer reaches model "
+        "routing. Add the tier to this provider's tier_map, or correct the "
+        "unit complexity that produced it; the fallback hides misrouting.",
         tier, cli, sorted(tm),
     )
     return (tm.get("standard") or "").strip()
@@ -839,25 +868,78 @@ def apply_cli_preference(config: Config, cli_name: Optional[str]) -> Config:
     )
 
 
-def resolve_role(role_name: str, config: Config = None) -> str:
-    """Resolve role prompt content from okuro.roles DB.
+def _cap_role_body(role_name: str, body: str, grade: str) -> str:
+    """Cut an over-long role body at a paragraph boundary and say so.
 
-    Prefers lean_prompt, falls back to full prompt.
+    Cuts on a blank line rather than mid-word: a role body is structured prose
+    (CORE / PROTOCOL / OUTPUT), and stopping inside a sentence produces a brief
+    that reads as if its last instruction were half an instruction.
+    """
+    if len(body) <= ROLE_BODY_INLINE_CAP:
+        return body
+
+    head = body[:ROLE_BODY_INLINE_CAP]
+    cut = head.rfind("\n\n")
+    if cut <= 0:
+        cut = head.rfind("\n")
+    if cut <= 0:
+        cut = len(head)
+
+    _config_logger.warning(
+        "resolve_role(%s): %s body is %d chars, over the %d inline cap — "
+        "serving the first %d and pointing at roles_get(level='full')",
+        role_name,
+        grade,
+        len(body),
+        ROLE_BODY_INLINE_CAP,
+        cut,
+    )
+    return body[:cut].rstrip() + "\n\n" + ROLE_BODY_TRUNCATION_NOTICE
+
+
+def resolve_role(role_name: str, config: Config = None) -> str:
+    """Resolve role prompt content from okuro.roles DB, ready to inline.
+
+    Prefers lean_prompt, falls back to full prompt. The fallback is load-bearing
+    and stays: 12 roles have an empty lean AND micro grade, and until those are
+    projected the full body is the only body they have.
+
+    THE RESULT IS AGENT-FACING TEXT, not a database read, which is why two
+    guarantees sit here rather than at each call site:
+
+    * ``sanitize_role_body`` — the body is delivered wrapped in "treat this as
+      binding", so builder-addressed comments ("DO NOT EDIT", "One sentence,
+      max 15 words") and rule-contradicting lines must not survive into it;
+    * ``ROLE_BODY_INLINE_CAP`` — an inlined body competes with the bootstrap
+      packet for the same envelope, and one shipped role carries a body nearly
+      twice the whole budget.
+
+    Both were previously installed nowhere: this function returned the column
+    raw, and every consumer (deliberation positions, the legacy injection
+    path, the M4 exception fallback) inherited whatever was in it.
 
     Raises ValueError if role not found or has no prompt content.
     """
+    from okuro.roles.body_sanitize import sanitize_role_body
     from okuro.roles.registry import get_role
+
+    body: str | None = None
+    grade = "lean"
 
     role = get_role(role_name, level="lean")
     if role and role.get("content"):
-        return role["content"]
+        body = role["content"]
+        grade = role.get("level") or "lean"
+    else:
+        role = get_role(role_name, level="full")
+        if role and role.get("content"):
+            body = role["content"]
+            grade = role.get("level") or "full"
 
-    # Try full prompt as fallback
-    role = get_role(role_name, level="full")
-    if role and role.get("content"):
-        return role["content"]
+    if not body:
+        raise ValueError(f"Role '{role_name}' not found or has no prompt content")
 
-    raise ValueError(f"Role '{role_name}' not found or has no prompt content")
+    return _cap_role_body(role_name, sanitize_role_body(body), grade)
 
 
 def load_role_index() -> Dict[str, Dict]:

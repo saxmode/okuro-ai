@@ -20,11 +20,20 @@ import {
 import React from "react";
 import { useNavigate } from "react-router";
 
-import { FlowCanvas } from "@/components/flow-designer/flow-canvas";
-import { dagreLayout } from "@/components/flow-designer/graph";
-import { NodeViewContext } from "@/components/flow-designer/node-view";
-import { useGraphEditor } from "@/components/flow-designer/use-graph-editor";
-import { BridgeContext, FlowNode, NOOP_BRIDGE } from "@/components/flow-designer/nodes";
+import { STEPS_LOWER } from "@/lib/nouns";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { FlowCanvas } from "@/components/graph/canvas";
+import { dagreLayout, reconcileEdgePorts } from "@/components/graph/nodes";
+import { NodeViewContext } from "@/components/graph/nodes";
+import { useGraphEditor } from "@/components/graph/editor";
+import { BridgeContext, FlowNode, NOOP_BRIDGE } from "@/components/graph/nodes";
 import {
   roleApi,
   workflowApi,
@@ -85,9 +94,16 @@ export function isResize(change: NodeChange): boolean {
 
 interface Props {
   workflowId: string | null;
+  /** Put `id` into the address THROUGH THE ROUTER, never through `history`.
+   *  See useGraphEditor's `syncId` doc for the measurement behind that. */
+  syncId?: (id: string | null) => void;
 }
 
-export function WorkflowDesigner({ workflowId }: Props) {
+/** A mount with no router around it (a test) still works; the address is a
+ *  convenience, and reaching for `history` instead is the defect. */
+const NOOP_SYNC_ID = () => {};
+
+export function WorkflowDesigner({ workflowId, syncId = NOOP_SYNC_ID }: Props) {
   const navigate = useNavigate();
   const rf = useReactFlow();
 
@@ -95,6 +111,9 @@ export function WorkflowDesigner({ workflowId }: Props) {
   const [edges, setEdges] = React.useState<Edge[]>([]);
   const [name, setName] = React.useState(NEW_NAME);
   const [description, setDescription] = React.useState("");
+  // Stored connections whose endpoint node is gone. Nothing can attach them,
+  // so the only honest treatment is to say so rather than drop them silently.
+  const [undrawable, setUndrawable] = React.useState({ dangling: 0, portless: 0 });
   // Graph-level, exactly like okuro-flow persists its own `portMode`: how a
   // diagram is READ is a property of the diagram, not of any one node.
   const [portLayout, setPortLayout] = React.useState<PortLayout>("tb");
@@ -140,6 +159,7 @@ export function WorkflowDesigner({ workflowId }: Props) {
     origin: ORIGIN,
     defaultName: NEW_NAME,
     initialId: workflowId,
+    syncId,
     initiallyLoading: true,
     serialize: () => serializeRef.current(),
     getName: () => nameRef.current,
@@ -180,8 +200,21 @@ export function WorkflowDesigner({ workflowId }: Props) {
       ...n,
       type: n.type || (isSubtask(n.data as NodeData) ? "subtask" : "note"),
     }));
-    setNodes(ns);
-    setEdges(((g.edges as Edge[]) || []).map((e) => ({ ...DEFAULT_EDGE, ...e })));
+    const es = ((g.edges as Edge[]) || []).map((e) => ({ ...DEFAULT_EDGE, ...e }));
+    // The same reconciliation /flow does, from the same module: React Flow
+    // refuses an edge whose handle the node does not declare and silently
+    // does not draw it. This store holds two documents today, so the audit
+    // that found 40 such edges in 1,306 was all /flow's — but the editors
+    // share the canvas, the ports and this failure mode, so they share the
+    // fix rather than waiting for the first workflow to lose a connection.
+    const rec = reconcileEdgePorts(ns, es) as {
+      nodes: Node[];
+      dangling: Edge[];
+      portless: Edge[];
+    };
+    setNodes(rec.nodes);
+    setEdges(es);
+    setUndrawable({ dangling: rec.dangling.length, portless: rec.portless.length });
     setName(d.name || NEW_NAME);
     setDescription(d.description || "");
     const st = (g as { settings?: { portLayout?: string } }).settings;
@@ -377,13 +410,31 @@ export function WorkflowDesigner({ workflowId }: Props) {
     [patchNode],
   );
 
+  /**
+   * R5 (372ccdb2), PERMANENT BRANCH — A MODAL, NOT AN ARM, and the weight was
+   * read from the store rather than assumed.
+   *
+   * The p3 spec records "no confirm on delete — nothing". There WAS one, a
+   * `window.confirm`, which is the single surface okuro-ds can never style and
+   * the exact thing R5 removes. So this was the WRONG KIND of confirm, not a
+   * missing one — the third file in this pass where that turned out to be the
+   * case.
+   *
+   * And it really is permanent. `graphdoc/store.py:274::delete_doc` runs
+   * `DELETE FROM docs` AND `DELETE FROM history` in ONE transaction, with the
+   * comment "History dies with its document" — because ids are name slugs, so
+   * leaving snapshots behind would let a later document of the same name
+   * inherit a stranger's history. There is nothing to restore, which is why
+   * R5 gives this the modal and gives the reversible acts the arm.
+   */
+  const [pendingDelete, setPendingDelete] = React.useState(false);
   const deleteWorkflow = React.useCallback(async () => {
     const id = currentIdRef.current;
     if (!id) return;
-    if (!window.confirm(`Delete workflow "${nameRef.current}"? This cannot be undone.`)) return;
+    setPendingDelete(false);
     try {
       await workflowApi.remove(id, ORIGIN);
-      navigate("/workflows");
+      navigate("/work/workflows");
     } catch {
       flash("failed to delete");
     }
@@ -429,7 +480,7 @@ export function WorkflowDesigner({ workflowId }: Props) {
     <BridgeContext.Provider value={nodeBridge}>
       <div className="fd-root wf-root">
         <div className="fd-topbar">
-          <button className="fd-tbtn" onClick={() => navigate("/workflows")}>
+          <button className="fd-tbtn" onClick={() => navigate("/work/workflows")}>
             ‹ Workflows
           </button>
           <input
@@ -461,10 +512,46 @@ export function WorkflowDesigner({ workflowId }: Props) {
           </button>
           <span style={{ flex: 1 }} />
           {msg && <span className="fd-savebadge">{msg}</span>}
-          <button className="fd-tbtn danger" onClick={deleteWorkflow}>
+          <button className="fd-tbtn danger" onClick={() => setPendingDelete(true)}>
             Delete
           </button>
         </div>
+
+        {/* `ui/dialog` steers `open` through `usePaneModalOpen`, so this cannot
+            survive a topic change and leave the app unclickable (the class fix
+            from commit 164647757). */}
+        <Dialog open={pendingDelete} onOpenChange={(o) => !o && setPendingDelete(false)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Delete “{name}”?</DialogTitle>
+              <DialogDescription>
+                This removes the workflow AND its version history in one
+                transaction — the store deletes both together on purpose, so a
+                later workflow of the same name cannot inherit these snapshots.
+                There is nothing to restore afterwards. The drawing, its{" "}
+                {STEPS_LOWER}, its roles and its acceptance criteria are gone.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setPendingDelete(false)}>
+                Keep it
+              </Button>
+              <Button variant="destructive" size="sm" onClick={deleteWorkflow}>
+                Delete permanently
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {undrawable.dangling + undrawable.portless > 0 && (
+          <div className="fd-undrawable" role="status">
+            {undrawable.dangling + undrawable.portless} stored{" "}
+            {undrawable.dangling + undrawable.portless === 1 ? "connection" : "connections"} could
+            not be drawn
+            {undrawable.dangling > 0 && ` — ${undrawable.dangling} with no node to attach to`}
+            {undrawable.portless > 0 && ` — ${undrawable.portless} on a title or note node`}
+          </div>
+        )}
 
         <div className="fd-wrap">
           <div className="fd-canvas">
@@ -494,7 +581,7 @@ export function WorkflowDesigner({ workflowId }: Props) {
             {selectedIsSubtask && selected ? (
               <>
                 <div className="fd-inspector-head">
-                  <h1>Part</h1>
+                  <h2>Part</h2>
                   <div className="fd-sub">
                     {phaseNameOf(
                       nodes as Array<{ id: string; data?: NodeData }>,
@@ -513,7 +600,7 @@ export function WorkflowDesigner({ workflowId }: Props) {
             ) : (
               <>
                 <div className="fd-inspector-head">
-                  <h1>Workflow</h1>
+                  <h2>Workflow</h2>
                   <div className="fd-sub">
                     Drawn, not decomposed — every node is a part brief, every
                     edge a dependency.

@@ -10,9 +10,9 @@ import "@xyflow/react/dist/style.css";
 import React from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
-import { FlowCanvas } from "@/components/flow-designer/flow-canvas";
-import { GanttBar } from "@/components/flow-designer/gantt-node";
-import { TimeRuler } from "@/components/flow-designer/time-axis";
+import { FlowCanvas } from "@/components/graph/canvas";
+import { GanttBar } from "@/components/task/gantt/gantt-node";
+import { TimeRuler } from "@/components/task/gantt/time-axis";
 import {
   type GanttZoom,
   BAR_GUTTER,
@@ -23,8 +23,8 @@ import {
   durationToWidth,
   laneToY,
   startOfDay,
-} from "@/components/flow-designer/gantt-scale";
-import "@/components/flow-designer/flow-designer.css";
+} from "@/components/graph/canvas";
+import "@/components/graph/graph.css";
 import { flowDesignerApi, ganttApi, taskApi, transcribeAudio, type FlowDesignerSummary, type SuggestedEpic } from "@/lib/api";
 
 const ZOOMS: GanttZoom[] = ["day", "week", "month", "quarter", "year"];
@@ -207,6 +207,50 @@ function enforceConstraints(nodes: any[], edges: any[], anchorIds: string[]): an
 
 function Gantt() {
   const [params, setParams] = useSearchParams();
+
+  /**
+   * THE GANTT USED TO EVICT ITSELF FROM ITS OWN ADDRESS, and there were FOUR
+   * writers doing it rather than the one p2 recorded.
+   *
+   * `setParams({ … })` with an OBJECT LITERAL replaces the whole query string.
+   * `?view=gantt` was not in that object, so it was deleted; `viewIndexFrom`
+   * then returned 0 and the mount fell through to the run list. Measured on
+   * :3071, sampling every 60 ms:
+   *
+   *   t= 77 ms  /work/tasks?view=gantt                      the gantt
+   *   t=143 ms  /work/tasks?flow=…&zoom=week                the gantt, mid-render
+   *   t=212 ms  same url                                    THE RUN LIST
+   *
+   * The four sites and when each fires:
+   *   :247  on mount, as soon as the flow list arrives   <- the eviction
+   *   :531  after POST /api/gantt/suggest persists       <- you generate a
+   *                                                        gantt and are
+   *                                                        thrown to the list
+   *   :549  you pick a different flow
+   *   :560  you change the zoom
+   *
+   * Fixing only the first makes the address reachable and then evicts on the
+   * first interaction — a bug that presents as a fix. So all four go through
+   * ONE merging writer, and `setParams` is not called directly anywhere else
+   * in this file. The query belongs to the shell; this page owns two keys of
+   * it.
+   */
+  const setGanttParams = React.useCallback(
+    (next: { flow?: string; zoom?: string }) => {
+      setParams(
+        (prev) => {
+          const merged = new URLSearchParams(prev);
+          for (const [k, v] of Object.entries(next)) {
+            if (v) merged.set(k, v);
+            else merged.delete(k);
+          }
+          return merged;
+        },
+        { replace: true },
+      );
+    },
+    [setParams],
+  );
   const navigate = useNavigate();
   const flowId = params.get("flow");
   const zoom = (params.get("zoom") as GanttZoom) || "week";
@@ -244,7 +288,7 @@ function Gantt() {
     flowDesignerApi.list().then((r) => {
       setFlows(r.flows);
       const first = r.flows[0];
-      if (!flowId && first) setParams({ flow: first.id, zoom }, { replace: true });
+      if (!flowId && first) setGanttParams({ flow: first.id, zoom });
     });
   }, []);
 
@@ -352,7 +396,10 @@ function Gantt() {
       const s = byId.get(e.source);
       const t = byId.get(e.target);
       const conflict = s && t && t.position.x < s.position.x + widthOf(s);
-      if (conflict) return { ...e, style: { stroke: "#ef4444", strokeWidth: 2 }, animated: true };
+      /* An SVG `stroke` takes a CSS variable, so the conflict red is the
+         engine's `--color-error` rather than a literal. */
+      if (conflict)
+        return { ...e, style: { stroke: "var(--color-error)", strokeWidth: 2 }, animated: true };
       if (s?.selected || t?.selected) return { ...e, style: { stroke: accentHex, strokeWidth: 2.5 }, animated: true };
       return e;
     });
@@ -528,7 +575,7 @@ function Gantt() {
       // persist immediately so it survives reload + appears in the selector
       const id = "gantt-" + slugify(name);
       await saveGantt(id, name, g.nodes, g.edges);
-      setParams({ flow: id, zoom }, { replace: true });
+      setGanttParams({ flow: id, zoom });
       flowDesignerApi.list().then((r) => setFlows(r.flows));
       window.setTimeout(() => rf.fitView({ duration: 300, padding: 0.2 }), 120);
     } catch (e) {
@@ -537,16 +584,26 @@ function Gantt() {
       setSuggesting(false);
       setSuggestMsg("");
     }
-  }, [desc, suggesting, origin, zoom, setEdges, setNodes, setParams, rf, saveGantt]);
+  }, [desc, suggesting, origin, zoom, setEdges, setNodes, setGanttParams, rf, saveGantt]);
 
   return (
-    <div className="flex h-full w-full flex-col bg-[var(--color-surface)]">
-      <div className="flex items-center gap-3 border-b border-[var(--color-border-subtle)] px-4 py-2 text-sm">
+    <div className="flex h-full w-full flex-col bg-surface">
+      {/* WRAP, and the select gets a floor it can shrink to. This row needed
+          1,225px and the narrow pane gives 728, so the whole gantt overflowed
+          its container by 497px — the one clause R2 cares most about. The flow
+          NAMES are long: they are slugs, and the longest in the store runs to
+          78 characters, so a `<select>` sized to its widest option is what
+          made the row that wide (flow ids are the user's data, so the example
+          lives in the pass report rather than here);
+          `min-w-0` plus a kit width lets it truncate instead. The gantt's
+          geometry could not be measured at all until the four eviction
+          writers were fixed, so this is the first reading of it. */}
+      <div className="flex flex-wrap items-center gap-3 border-b border-border-subtle px-4 py-2 text-sm">
         <span className="font-semibold">WORK · Gantt</span>
         <select
-          className="rounded border border-[var(--color-border)] bg-transparent px-2 py-1"
+          className="w-field-sm min-w-0 max-w-full truncate rounded border border-border bg-transparent px-2 py-1"
           value={flowId || ""}
-          onChange={(e) => setParams({ flow: e.target.value, zoom }, { replace: true })}
+          onChange={(e) => setGanttParams({ flow: e.target.value, zoom })}
         >
           {flows.map((f) => (
             <option key={f.id} value={f.id}>
@@ -555,9 +612,9 @@ function Gantt() {
           ))}
         </select>
         <select
-          className="rounded border border-[var(--color-border)] bg-transparent px-2 py-1"
+          className="rounded border border-border bg-transparent px-2 py-1"
           value={zoom}
-          onChange={(e) => setParams({ flow: flowId || "", zoom: e.target.value }, { replace: true })}
+          onChange={(e) => setGanttParams({ zoom: e.target.value })}
         >
           {ZOOMS.map((z) => (
             <option key={z} value={z}>
@@ -566,17 +623,17 @@ function Gantt() {
           ))}
         </select>
         <button
-          className="rounded border border-[var(--color-border)] px-2 py-1 hover:border-[var(--color-accent)]"
+          className="rounded border border-border px-2 py-1 hover:border-accent"
           onClick={addEpic}
         >
           + Epic
         </button>
-        <span className="ml-auto text-[var(--color-fg-muted)]">drag a bar's dot to connect · double-click → intake / run</span>
+        <span className="ml-auto text-fg-muted">drag a bar's dot to connect · double-click → intake / run</span>
       </div>
       {/* describe a project -> LLM-suggested gantt (P1) */}
-      <div className="flex items-center gap-2 border-b border-[var(--color-border-subtle)] px-4 py-2">
+      <div className="flex items-center gap-2 border-b border-border-subtle px-4 py-2">
         <input
-          className="flex-1 rounded border border-[var(--color-border)] bg-transparent px-3 py-1.5 text-sm"
+          className="flex-1 rounded border border-border bg-transparent px-3 py-1.5 text-sm"
           placeholder="Describe a project → okuro suggests a high-level gantt…"
           value={desc}
           onChange={(e) => setDesc(e.target.value)}
@@ -584,7 +641,7 @@ function Gantt() {
           disabled={suggesting}
         />
         <button
-          className="rounded bg-[var(--color-accent)] px-3 py-1.5 text-sm font-medium text-[var(--color-surface)] disabled:opacity-50"
+          className="rounded bg-accent px-3 py-1.5 text-sm font-medium text-fg-inverse disabled:opacity-50"
           onClick={onSuggest}
           disabled={suggesting || !desc.trim()}
         >
@@ -599,7 +656,7 @@ function Gantt() {
         </div>
       )}
       {/* top: compact gantt */}
-      <div className="relative flex-[3] overflow-hidden border-b border-[var(--color-border-subtle)]">
+      <div className="relative flex-[3] overflow-hidden border-b border-border-subtle">
         <FlowCanvas
           mode="gantt"
           nodes={displayNodes}
@@ -625,7 +682,7 @@ function Gantt() {
       {/* bottom: tasks for this gantt (1 epic = 1 run -> these rows ARE the tasks).
           Hover a row to highlight + centre its bar; hover a bar to highlight its row. */}
       <div className="flex-[2] overflow-auto">
-        <div className="px-4 py-1.5 text-2xs uppercase tracking-wider text-[var(--color-fg-subtle)]">
+        <div className="px-4 py-1.5 text-2xs case-label tracking-wider text-fg-subtle">
           Tasks · {rows.length}
         </div>
         {rows.map((n) => (
@@ -653,7 +710,7 @@ function Gantt() {
           <div className="fd-intake">
             <div className="fd-intake-hd">
               <span className="font-semibold">{intakeNode.data?.title || intakeNode.id}</span>
-              <button className="text-[var(--color-fg-muted)]" onClick={() => setIntakeNode(null)}>
+              <button className="text-fg-muted" onClick={() => setIntakeNode(null)}>
                 ✕
               </button>
             </div>
@@ -671,7 +728,7 @@ function Gantt() {
                 <button className={"fd-intake-mic" + (recording ? " rec" : "")} onClick={toggleRecord}>
                   {recording ? "◼ Stop" : "🎙 Dictate"}
                 </button>
-                <span className="text-2xs text-[var(--color-fg-subtle)]">{recording ? "recording…" : "speech → text (Groq)"}</span>
+                <span className="text-2xs text-fg-subtle">{recording ? "recording…" : "speech → text (Groq)"}</span>
               </div>
             </div>
             <div className="fd-intake-ft">
@@ -693,19 +750,19 @@ function Gantt() {
           <div className="fd-intake">
             <div className="fd-intake-hd">
               <span className="font-semibold">{resultNode.data?.title || resultNode.id}</span>
-              <button className="text-[var(--color-fg-muted)]" onClick={() => setResultNode(null)}>
+              <button className="text-fg-muted" onClick={() => setResultNode(null)}>
                 ✕
               </button>
             </div>
             <div className="fd-intake-body">
               {!resultState ? (
-                <div className="text-sm text-[var(--color-fg-muted)]">loading…</div>
+                <div className="text-sm text-fg-muted">loading…</div>
               ) : (
                 <>
                   <div className="flex items-center gap-2">
                     <span className={"fd-tldot fd-gbar-" + (resultNode.data?.status || "pending")} />
                     <span className="text-sm">{resultState.status}</span>
-                    <span className="ml-auto text-2xs text-[var(--color-fg-subtle)]">{resultState.progress_percent ?? 0}%</span>
+                    <span className="ml-auto text-2xs text-fg-subtle">{resultState.progress_percent ?? 0}%</span>
                   </div>
                   <div className="fd-intake-sec">Artifacts</div>
                   {(resultState.artifacts || []).length ? (
@@ -725,7 +782,7 @@ function Gantt() {
                       </button>
                     ))
                   ) : (
-                    <div className="text-xs text-[var(--color-fg-subtle)]">none yet</div>
+                    <div className="text-xs text-fg-subtle">none yet</div>
                   )}
                   {artifactText && (
                     <>

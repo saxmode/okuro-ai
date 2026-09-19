@@ -5,7 +5,23 @@ import { cn } from "@/lib/utils";
 export interface SegmentedOption<V extends string | null = string> {
   label: string;
   value: V;
-  count?: number;
+  /**
+   * The badge beside the label. THREE STATES, not two — R7 (372ccdb2) is why.
+   *
+   *   `undefined` -> this option has no count. Nothing renders.
+   *   a number    -> the TRUE total. Renders.
+   *   `null`      -> the total is UNKNOWN. Renders an em dash.
+   *
+   * The third state exists because the inbox chips used to print the CAP as if
+   * it were the total: `All 50` against a real 60, with the `Research` and
+   * `Forgotten` chips reading 0 while the partition held 3 and 1 — the cap had
+   * truncated those kinds out of the counting fetch entirely. R7 rules that a
+   * capped list shows the true total and that an unknown value renders as a
+   * dash, never as a number it is not and never borrowed from a neighbour.
+   * Hiding the badge would not satisfy that: an absent count reads as "this
+   * option has none", which is a different claim from "nobody knows".
+   */
+  count?: number | null;
   icon?: ReactNode;
   /**
    * An option the control OFFERS and cannot honour.
@@ -219,14 +235,15 @@ export function Segmented<V extends string | null = string>({
           >
             {opt.icon}
             <span>{opt.label}</span>
-            {opt.count != null && (
+            {opt.count !== undefined && (
               <span
                 className={cn(
                   "tabular-nums",
                   active ? "opacity-80" : "text-fg-subtle",
                 )}
+                title={opt.count === null ? "Total unknown — the list is capped" : undefined}
               >
-                {opt.count}
+                {opt.count === null ? "—" : opt.count}
               </span>
             )}
           </button>

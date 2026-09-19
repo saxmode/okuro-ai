@@ -30,7 +30,7 @@ function MediaFull({ a }: { a: MediaAsset }) {
   const url = mediaApi.fileUrl(a.id);
   if (a.kind === "audio") {
     return (
-      <div className="flex w-full max-w-xl flex-col items-center gap-4 rounded-xl border border-border bg-black/20 p-8">
+      <div className="flex w-full max-w-xl flex-col items-center gap-4 rounded-xl border border-border bg-surface-subtle p-8">
         <Music className="h-16 w-16 text-tertiary" />
         <div className="text-center text-sm text-fg">{a.title || a.id}</div>
         <audio controls autoPlay src={url} className="w-full" />
@@ -87,11 +87,11 @@ export function Inspector({ a, onClose, onTagsChanged, onDelete, hidePreview = f
   return (
     <div className="flex w-72 shrink-0 flex-col gap-3 overflow-y-auto border-l border-border p-3">
       <div className="flex items-center gap-2">
-        <span className="text-xs font-semibold uppercase tracking-wide text-tertiary">{KIND_META[a.kind]?.label ?? a.kind}</span>
+        <span className="text-xs font-semibold case-label tracking-wide text-tertiary">{KIND_META[a.kind]?.label ?? a.kind}</span>
         <button onClick={onClose} className="ml-auto rounded border border-border p-1 text-tertiary hover:text-fg"><X className="h-3.5 w-3.5" /></button>
       </div>
       {!hidePreview && (
-        <div className="flex items-center justify-center rounded-lg border border-border bg-black/10 p-2">
+        <div className="flex items-center justify-center rounded-lg border border-border bg-surface-subtle p-2">
           {a.kind === "audio" ? (
             <audio controls src={url} className="w-full" />
           ) : a.kind === "video" ? (
@@ -108,10 +108,10 @@ export function Inspector({ a, onClose, onTagsChanged, onDelete, hidePreview = f
         {a.created_at && <span>{a.created_at.slice(0, 10)}</span>}
       </div>
       <div>
-        <div className="mb-1 text-[11px] uppercase tracking-wide text-tertiary">Tags</div>
+        <div className="mb-1 text-[11px] case-label tracking-wide text-tertiary">Tags</div>
         <div className="flex flex-wrap gap-1">
           {tags.map((t) => (
-            <button key={t} onClick={() => remove(t)} title="remove" className="group rounded border border-border px-1.5 py-0.5 text-[11px] text-fg hover:border-[var(--color-status-error,#f92f77)]">
+            <button key={t} onClick={() => remove(t)} title="remove" className="group rounded border border-border px-1.5 py-0.5 text-[11px] text-fg hover:border-error">
               {t} <span className="opacity-40 group-hover:opacity-100">×</span>
             </button>
           ))}
@@ -126,8 +126,8 @@ export function Inspector({ a, onClose, onTagsChanged, onDelete, hidePreview = f
       </div>
       {Object.keys(a.meta || {}).length > 0 && (
         <div className="text-[11px] text-tertiary">
-          <div className="mb-1 uppercase tracking-wide">Meta</div>
-          <pre className="max-h-32 overflow-auto whitespace-pre-wrap break-words rounded bg-black/10 p-1.5">{JSON.stringify(a.meta, null, 1)}</pre>
+          <div className="mb-1 case-label tracking-wide">Meta</div>
+          <pre className="max-h-32 overflow-auto whitespace-pre-wrap break-words rounded bg-surface-subtle p-1.5">{JSON.stringify(a.meta, null, 1)}</pre>
         </div>
       )}
       <button onClick={openHandover} className="flex items-center justify-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-fg hover:border-accent hover:text-accent">
@@ -141,7 +141,7 @@ export function Inspector({ a, onClose, onTagsChanged, onDelete, hidePreview = f
         <button
           onClick={doDelete}
           disabled={deleting}
-          className={`flex items-center justify-center gap-1 rounded-md border px-2 py-1 text-xs transition-colors disabled:opacity-40 ${confirmDel ? "border-[var(--color-status-error,#f92f77)] text-[var(--color-status-error,#f92f77)]" : "border-border text-tertiary hover:border-[var(--color-status-error,#f92f77)] hover:text-[var(--color-status-error,#f92f77)]"}`}
+          className={`flex items-center justify-center gap-1 rounded-md border px-2 py-1 text-xs transition-colors disabled:opacity-40 ${confirmDel ? "border-error text-error" : "border-border text-tertiary hover:border-error hover:text-error"}`}
           title={confirmDel ? "Click again to confirm" : "Delete this asset"}
         >
           <Trash2 className="h-3.5 w-3.5" /> {deleting ? "deleting…" : confirmDel ? "Confirm delete" : "Delete"}
@@ -187,7 +187,7 @@ export function MediaLightbox({ items, index, onClose, onIndex, onPatchTags, onD
   }, [index, items.length, onClose, onIndex]);
 
   if (!a) return null;
-  const navBtn = "absolute top-1/2 -translate-y-1/2 rounded-full border border-border bg-black/40 p-2 text-fg transition-colors hover:border-accent hover:text-accent disabled:opacity-30";
+  const navBtn = "absolute top-1/2 -translate-y-1/2 rounded-full border border-border bg-surface-subtle p-2 text-fg transition-colors hover:border-accent hover:text-accent disabled:opacity-30";
   // Portal to <body>: escapes any transformed/filtered ancestor that would make
   // a `fixed` overlay resolve to the ancestor's box instead of the viewport, so
   // the lightbox truly fills the screen.
@@ -204,11 +204,20 @@ export function MediaLightbox({ items, index, onClose, onIndex, onPatchTags, onD
           aria-label={a.title || "asset preview"}
           ref={ref}
           tabIndex={-1}
+          /* `bg-black/90` STAYS, AND IT IS A DELIBERATE LOCAL VALUE RATHER
+             THAN A MISSED TOKEN. This is a full-screen MEDIA STAGE, not a
+             modal scrim: the point is to see the asset and nothing else, in
+             either appearance. The kit's `--color-scrim` is the wrong name for
+             it twice over — it is the MODAL scrim, and under the dark kit it
+             resolves to `rgba(0, 0, 0, 1)`, fully opaque (77545bf7, which
+             records that as a KIT value not to be patched from a page). A
+             stage that is opaque in dark and 60% in light would be two
+             different products. */
           className="fixed left-0 top-0 z-50 flex h-screen w-screen bg-black/90 outline-none backdrop-blur-sm"
           onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
         >
           <div className="relative flex min-w-0 flex-1 items-center justify-center p-6" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-            <button onClick={onClose} title="Close (Esc)" className="absolute right-3 top-3 z-10 rounded-full border border-border bg-black/40 p-2 text-fg hover:border-accent hover:text-accent">
+            <button onClick={onClose} title="Close (Esc)" className="absolute right-3 top-3 z-10 rounded-full border border-border bg-surface-subtle p-2 text-fg hover:border-accent hover:text-accent">
               <X className="h-4 w-4" />
             </button>
             <span className="absolute left-4 top-4 z-10 text-xs text-tertiary">{index + 1} / {items.length}</span>

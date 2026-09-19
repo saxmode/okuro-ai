@@ -10,6 +10,7 @@ import {
 } from "@xyflow/react";
 import * as dagre from "@dagrejs/dagre";
 import "@xyflow/react/dist/style.css";
+import { useGraphColorMode } from "@/lib/graph-theme";
 
 interface GraphNode {
   id: string;
@@ -33,6 +34,14 @@ const NODE_H = 36;
 /** Obsidian-style link graph. Dagre lays nodes out left→right; clicking a node
  *  opens that note. Note→note edges only (ghost links have no target). */
 function GraphInner({ nodes, edges, activeId, onSelect }: NoteGraphProps) {
+  // R6 (372ccdb2): ONE theme bridge for every `@xyflow/react` mount in okuro.
+  // The vendor sheet carries its own light and dark blocks and defaults to
+  // `light`, so a mount without this draws a light canvas on the dark ground —
+  // which is what made PEOPLE's nodes near-invisible circles before
+  // `lib/graph-theme.ts` existed. Read ONCE into a const here: a hook called
+  // inline in JSX sits one refactor away from a conditional-hook violation,
+  // which is the trap the p4 DELIVER pane-gate adoption hit out loud.
+  const graphColorMode = useGraphColorMode();
   const { rfNodes, rfEdges } = useMemo(() => {
     const g = new dagre.graphlib.Graph();
     g.setDefaultEdgeLabel(() => ({}));
@@ -75,6 +84,7 @@ function GraphInner({ nodes, edges, activeId, onSelect }: NoteGraphProps) {
 
   return (
     <ReactFlow
+      colorMode={graphColorMode}
       nodes={rfNodes}
       edges={rfEdges}
       onNodeClick={(_, node) => onSelect(node.id)}

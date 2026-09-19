@@ -545,6 +545,13 @@ class DecisionGate:
     `await_user_decision` log event, polls plan.yaml for selected_option_id,
     locks the chosen option as an ADR in task.adrs, then resumes dispatch.
     M1 primitive — paired with Task.adrs + Task.gates_enabled.
+
+    S2 — a gate may name a SUBJECT: the artifact the decision is made
+    against (a diff, a plan, a report). ``subject_artifact_id`` names it
+    and ``subject_sha256`` is its body hash AT THE MOMENT THE GATE WAS
+    POSED. ``resolve_decision_gate`` re-hashes before locking an ADR and
+    refuses when the two disagree, so an approval can never outlive the
+    text it approved. Both empty = legacy gate, unchanged in every path.
     """
     id: str
     prompt: str
@@ -553,6 +560,11 @@ class DecisionGate:
     selected_option_id: str = ""
     selected_rationale: str = ""
     resolved_at: str = ""
+    # S2 — the artifact this decision is made against, and its body hash
+    # when the gate was posed. Populate via
+    # ``okuro.orchestrator.gate_subject.gate_subject_for(artifact_id)``.
+    subject_artifact_id: str = ""
+    subject_sha256: str = ""
 
 
 @dataclass
@@ -1267,7 +1279,16 @@ def _phase_to_dict(phase: "Phase") -> dict:
         phase_dict["serialize"] = True
     gate = getattr(phase, "decision_gate", None)
     if gate is not None:
-        phase_dict["decision_gate"] = asdict(gate)
+        gate_dict = asdict(gate)
+        # S2 — an unset subject is DROPPED rather than written as "". A
+        # gate with no subject must serialize to exactly the bytes it
+        # serialized to before the field existed, otherwise every legacy
+        # plan.yaml rewrites itself on the first save and the diff of a
+        # real change drowns in noise.
+        for key in ("subject_artifact_id", "subject_sha256"):
+            if not gate_dict.get(key):
+                gate_dict.pop(key, None)
+        phase_dict["decision_gate"] = gate_dict
     return phase_dict
 
 
@@ -1576,6 +1597,10 @@ def load_task(task_id: str, tasks_dir: Path) -> Task:
                     selected_option_id=gate_data.get("selected_option_id", "") or "",
                     selected_rationale=gate_data.get("selected_rationale", "") or "",
                     resolved_at=gate_data.get("resolved_at", "") or "",
+                    # S2 — absent keys load as "", which is exactly the
+                    # legacy gate: no subject, no hash check at resolve.
+                    subject_artifact_id=gate_data.get("subject_artifact_id", "") or "",
+                    subject_sha256=gate_data.get("subject_sha256", "") or "",
                 )
             phase = Phase(
                 id=phase_dict["id"],
@@ -2590,6 +2615,48 @@ def pending_decision_gates(task: Task) -> list[tuple[int, "DecisionGate"]]:
     return out
 
 
+def _verify_gate_subject_or_raise(gate: "DecisionGate") -> None:
+    """S2 — refuse to lock an ADR whose basis moved.
+
+    A no-op for a gate with no ``subject_artifact_id``, which is every
+    gate that existed before this field, so legacy resolves never touch
+    the artifact store at all.
+
+    Every refusal message is built by the exception itself — it names the
+    artifact and says the basis moved, because that message is what the
+    user reads in the 409 and in the TTY, and "sha256 mismatch" tells
+    them nothing they can act on.
+
+    MUTATES the gate in the one case where the subject was named but
+    never pinned: the current hash is written and the resolve proceeds.
+    The caller is inside ``resolve_decision_gate``'s file lock and saves
+    the plan afterwards, so the pin lands with the rest of the decision.
+    """
+    aid = getattr(gate, "subject_artifact_id", "") or ""
+    if not aid:
+        return
+
+    from okuro.orchestrator.gate_subject import SubjectError, verify_gate_subject
+
+    try:
+        check = verify_gate_subject(
+            aid, getattr(gate, "subject_sha256", "") or "", gate_id=gate.id,
+        )
+    except SubjectError as exc:
+        # ValueError keeps this function's contract and the endpoint's 409
+        # mapping. `from exc` keeps the SubjectError as __cause__, which is
+        # how the engine tells "your basis moved" apart from "that is not
+        # an option" without re-querying the store and racing itself.
+        raise ValueError(str(exc)) from exc
+
+    if check.recorded_now:
+        gate.subject_sha256 = check.sha256
+        logger.info(
+            "gate %s: subject %s carried no hash — pinned %s at resolve time",
+            gate.id, aid, check.sha256[:12],
+        )
+
+
 def resolve_decision_gate(
     task_id: str,
     phase_id: int,
@@ -2606,6 +2673,21 @@ def resolve_decision_gate(
     Raises ValueError when the phase or gate is missing, when the gate is
     already resolved, or when ``selected_option_id`` does not match any
     option on the gate.
+
+    S2 — SUBJECT VERIFICATION. When the gate carries a
+    ``subject_artifact_id``, the artifact's body is re-hashed here and
+    compared against the ``subject_sha256`` recorded when the gate was
+    posed. A mismatch, or an artifact that no longer exists, raises
+    ValueError and the gate STAYS PENDING: the user is approving a
+    specific text, and text that moved underneath them is a different
+    decision. The resulting ADR carries both fields, so the approval
+    names its basis forever.
+
+    ``skipped=True`` IS ALLOWED REGARDLESS — a skip is not an approval.
+    Nothing is locked, no ADR is written, and refusing the skip would
+    strand a task whose basis moved with no way out but an abort. The
+    verification exists to stop a stale APPROVAL, not to stop a user
+    from declining to decide.
     """
     adr: dict = {}
     with _locked_task_dir(task_id, tasks_dir):
@@ -2627,6 +2709,11 @@ def resolve_decision_gate(
             gate.status = "skipped"
             gate.resolved_at = datetime.utcnow().isoformat()
         else:
+            # S2 — the basis is checked BEFORE the option, because a
+            # decision made against text that moved is not a decision
+            # worth validating. Nothing above this line has mutated the
+            # gate, so either raise leaves it pending on disk.
+            _verify_gate_subject_or_raise(gate)
             option = next(
                 (o for o in gate.options if o.id == selected_option_id),
                 None,
@@ -2650,6 +2737,12 @@ def resolve_decision_gate(
                 "selected_rationale": gate.selected_rationale,
                 "resolved_at": gate.resolved_at,
             }
+            # S2 — only a gate that HAD a subject records one. A legacy
+            # gate's ADR keeps the exact shape every existing consumer
+            # (brief injection, term-consistency check) already reads.
+            if gate.subject_artifact_id:
+                adr["subject_artifact_id"] = gate.subject_artifact_id
+                adr["subject_sha256"] = gate.subject_sha256
             task.adrs = list(task.adrs) + [adr]
 
         save_plan(task, tasks_dir)

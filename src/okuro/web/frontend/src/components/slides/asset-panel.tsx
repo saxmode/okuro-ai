@@ -61,7 +61,7 @@ export function AssetPanel({
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-border p-3">
       <div className="flex items-center gap-2">
-        <span className="text-xs uppercase tracking-wide text-tertiary">brand assets</span>
+        <span className="text-xs case-label tracking-wide text-tertiary">brand assets</span>
         <select
           value={kind}
           onChange={(e) => setKind(e.target.value as (typeof KINDS)[number])}
@@ -79,7 +79,7 @@ export function AssetPanel({
           {busy ? "uploading…" : `+ Upload ${kind}`}
         </label>
         <span className="text-xs text-tertiary">{brandId}</span>
-        {err && <span className="text-xs text-[var(--color-status-error,#f92f77)]">{err}</span>}
+        {err && <span className="text-xs text-error">{err}</span>}
       </div>
 
       {assets.length === 0 ? (
@@ -91,14 +91,14 @@ export function AssetPanel({
               <button
                 onClick={() => onInsert(a)}
                 title={`${a.kind} · ${a.name} — click to insert`}
-                className="flex h-16 w-full items-center justify-center overflow-hidden rounded border border-border bg-black/20 hover:border-accent"
+                className="flex h-16 w-full items-center justify-center overflow-hidden rounded border border-border bg-surface-elevated hover:border-accent"
               >
                 <img src={tokenizeApiSrc(a.url)} alt={a.name} className="h-full w-full object-contain" />
               </button>
               <button
                 onClick={() => del(a.id)}
                 aria-label="delete asset"
-                className="absolute -right-1 -top-1 hidden h-4 w-4 items-center justify-center rounded-full bg-[var(--color-status-error,#f92f77)] text-[10px] text-white group-hover:flex"
+                className="absolute -right-1 -top-1 hidden h-4 w-4 items-center justify-center rounded-full bg-error text-[10px] text-inverse group-hover:flex"
               >
                 ×
               </button>

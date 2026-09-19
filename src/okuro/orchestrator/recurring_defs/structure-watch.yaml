@@ -1,0 +1,40 @@
+# Decision 5 — the weekly source poll, event-gated.
+#
+# This is a `kind: command` definition: the scheduler runs the program named
+# below and judges it by its exit code. No model is spawned to run it, because
+# nothing in it is a judgement — it is nine HTTP requests and a hash compare.
+#
+# The RESEARCHER is spawned by the program itself, and only when a source
+# actually changed or the quarterly floor (90 days) has passed. That gate is
+# the whole point: okuro's other role job runs an LLM nightly whether or not
+# anything moved, and five months of it produced 386 knowledge rows saying
+# "no significant change".
+#
+# `{python}` is replaced with okuro's own interpreter at load time, so this
+# file installs unchanged on any machine.
+#
+# Once installed this file is YOURS: the scheduler writes last_run_at,
+# run_count, next_run_at and outcome_history into it, and a reinstall will
+# never overwrite it.
+#
+# WHY status IS NOT `scheduled`, AND WHY YOU MUST NOT "FIX" IT.
+# `requires-schema-2` is a deliberate tripwire against an OLDER okuro. A loader
+# written before `kind` existed would read this file, see nothing it recognises
+# beyond the prose, and schedule it as an LLM task — spending an agent on a
+# description written for a program. That old loader skips any definition whose
+# status is not `scheduled`, so this is the one word it already refuses. A
+# loader that understands schema_version 2 reads it as `scheduled`. Setting it
+# to `scheduled` by hand removes the protection and changes nothing else.
+schema_version: 2
+title: Structure watch — weekly source poll
+description: >
+  Poll every enabled source in role_structure_sources, store the bodies,
+  file source_health actions for anything alarming, and dispatch the
+  structure researcher only when at least one source changed or the last
+  research run is older than the quarterly floor.
+kind: command
+command: "{python} -m okuro.roles.structure_watch"
+scheduler: "0 4 * * 1"
+status: requires-schema-2
+timeout_seconds: 600
+role: ""

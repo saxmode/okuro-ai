@@ -1,0 +1,849 @@
+/* SPDX-License-Identifier: Apache-2.0
+   ============================================================================
+   TOKENS — the shell's whole vocabulary, and the bridge to the design system.
+
+   Values measured from Figma r21uoRRsv3ycN3QdNYI1Nk page 356:167 and signed off
+   against okuro/docs/research/okuro-ui-redesign-2026-09-13/index.html.
+   Ported, NOT re-derived: every number below already survived ~20 rounds of
+   correction against the file.
+   ============================================================================
+
+   THE ROOT IS MIRRORED HERE, AND IT IS THE LOAD-BEARING LINE OF THIS FILE.
+   --------------------------------------------------------------------------- */
+
+/* BYTE-IDENTICAL TO WHAT THE ENGINE EMITS. `emit.py:1049` writes
+   `html{font-size:50%}` from `scale.ROOT_PERCENT`, a SYSTEM CONSTANT no brand
+   can author (`scale.py:52-60`; `Brand` has no `root_percent` field). Every
+   `--sh-*` length in this file is a rem and therefore a GRID FACTOR, so with no
+   sheet linked the root would be 16px and the whole shell would render at
+   DOUBLE — which is exactly the case the old px fallbacks covered before the
+   `var(--spacing-*)` bridges were removed.
+
+   Two identical declarations are idempotent whichever wins, so this costs
+   nothing when the sheet IS linked. The shell is designed to be liftable into a
+   standalone app that fetches `/engine.css` over HTTP, and that fetch can fail;
+   this is the line that makes the failure harmless.
+
+   NOTHING CAN GUARD THIS. It is a plain declaration, not a `--name`, so no drift
+   gate can see it — the same blind spot recorded for `base-scale` in `391cec68`,
+   where a custom-property census could not see a value emit wrote as a real
+   property. If someone deletes this line, the shell doubles in size only on the
+   no-sheet path, which is the path nobody looks at. */
+html{font-size:50%}
+
+/* ---------------------------------------------------------------------------
+   THREE NAMESPACES LIVE AT `:root`, AND MIXING THEM UP IS A SILENT BUG.
+
+   This was learned the expensive way. The shell declared `--ground` as a
+   background colour; the engine declares `--ground` as a CONTAINER-QUERY
+   SENTINEL holding an opaque string (`--ground: g-131313`) and keys seven
+   `@container style(--ground: g-…)` blocks off it. Measured with the sheet
+   linked: `getPropertyValue('--ground')` returned `g-131313`, so
+   `body{background:var(--ground)}` was invalid at computed-value time and the
+   body went transparent. `--color-border` was the same defect one file over.
+   Neither failed loudly. Both were invisible until someone linked the sheet.
+
+     TIER 1 — THE ENGINE'S, 174 names. `--color-*`, `--motion-*`, `--font-*`,
+       `--type-*`, `--spacing-*`, `--radius-*`, `--shadow-*`, `--row-*`,
+       `--prose-max`, `--ground`, `--background`, `--foreground`, … The shell
+       READS these and never declares one. The engine refills them in every rule
+       that publishes a ground, at `:root[data-appearance="dark"]` and at eleven
+       selectors carrying no `:root` at all, so anything the shell declares at
+       plain `:root` loses to them on specificity. Enumerate them with
+       `okuro design tokens okuro-ds | grep -ohE -- '--[a-zA-Z0-9-]+ *:'`.
+
+     TIER 2 — SHARED ACROSS OKURO'S APPS. `--color-background`,
+       `--color-foreground`, `--color-border`, `--color-muted-foreground`,
+       `--default-transition-duration`, `--default-transition-timing-function`
+       (Tailwind's theme namespace — the spelling IS the utility name) and
+       `--interaction-duration` (read directly by three files in
+       `frontend/src/`, measured). These keep their exact spelling, because
+       renaming one does not rename its call sites. They live in globals.css and
+       must MEAN what frontend/src/globals.css makes them mean.
+
+     TIER 3 — THE SHELL'S OWN, and every one of them wears `--sh-`. That is the
+       whole discipline: the prefix is what makes a tier-1 collision impossible
+       to write by accident rather than something a future audit has to find.
+
+   ANYTHING NEW GOES IN TIER 3 UNLESS IT IS A UTILITY NAME A LIFTED COMPONENT
+   ALREADY WEARS. To check a name before declaring it, grep the emitted sheet.
+   ============================================================================ */
+
+/* ---------------------------------------------------------------------------
+   THE DESIGN-SYSTEM BRIDGE — three values, and two of the three names in the
+   signed-off mockup do not exist in the emitted sheet.
+
+   HOW A STANDALONE APP CONSUMES THE OKURO DESIGN SYSTEM (measured 2026-09-13
+   against the live tree, not assumed):
+
+     <link rel="stylesheet" href="http://<okuro-host>:13333/engine.css">
+
+   served by `src/okuro/design_engine/api.py::engine_css` at
+   `@public_router.get("/engine.css")`. It is deliberately NOT under `/api/*`
+   because a `<link rel=stylesheet>` fetch carries no bearer token, and it is
+   `Cache-Control: no-store` because the sheet is regenerated from the saved kit
+   on every request. The sheet also expects `data-appearance="dark"` on <html>;
+   with the attribute absent, `:root` is the LIGHT ground.
+
+   THE EMITTER HAS TWO DOORS AND THEY ARE NOT INTERCHANGEABLE:
+     - the CLASS door  — `.ds-speed-*` / `.ds-curve-*`, written by
+       `design_engine/emit.py`. Measured 95% preview-only; the app wears zero.
+     - the PER-NAME door — `--motion-*`, written by `design_engine/adapter.py`
+       and refilled in every rule that publishes a ground. This is the one the
+       product reads, so it is the one this shell reads.
+
+   `okuro.design.tokens.generate_css` and `/tokens.css` are GONE — unlinked
+   2026-09-03, deleted with v1. Nothing here may reach for them.
+
+   So each name below is `var(<real emitted name>, <measured fallback>)`:
+   the engine wins when its sheet is present, the measured value holds when it
+   is not, and the mockup's vocabulary stays intact either way. NO FOURTH TOKEN.
+   --------------------------------------------------------------------------- */
+:root{
+  /* --motion-medium = adapter.py:771-773, from V1_MOTION_SPEEDS["medium"] = 650
+     (kits.py:122). Exactly the 650ms Figma uses for every SMART_ANIMATE edge. */
+  --sh-speed-medium:650ms;
+  --sh-speed-medium:var(--motion-medium,650ms);
+
+  /* --motion-easing = adapter.py:706, `motion.curve(motion.default_curve)`.
+     okuro's kit sets default_curve="signature" (kits.py:300) and signature =
+     OKURO_SIGNATURE_CURVE = cubic-bezier(0.75, -0.1, 0.4, 1.0) (kits.py:136). */
+  --sh-curve-signature:cubic-bezier(0.75, -0.1, 0.4, 1.0);
+  --sh-curve-signature:var(--motion-easing,cubic-bezier(0.75, -0.1, 0.4, 1.0));
+
+  /* NOT a var() bridge, and that is the design rather than a gap. The engine
+     never emits this name: `globals.css:313-320` states the rule — "a kit cannot
+     make its own buttons feel slow, because the speed of a pointer is not a
+     brand property". It is a constant deliberately outside the brand vocabulary,
+     so a local declaration is the correct consumption. */
+  --interaction-duration:120ms;
+
+  /* ONE curve for the whole shell. The owner ruled H7 "use the design system
+     curve" and H5 "convention wins", which collapsed three hand-drawn beziers
+     into this one. No literal bezier and no literal ms below this block. */
+  --sh-curve:var(--sh-curve-signature);
+
+  /* THE SIGNATURE FOR PROPERTIES THAT CANNOT GO BELOW THEIR START, and it is
+     the second curve this shell has ever had. The owner ruled it 2026-09-19
+     after the rail was measured; H5/H7 stand for everything else.
+
+     THE ANTICIPATION IS NOT FREE ON EVERY PROPERTY. `y1 = -0.1` means the
+     output goes NEGATIVE for the first fifth of the move — which is the point
+     on a transform, and is dead time on anything the engine clamps at zero.
+     Measured on `.bar`'s `flex-grow`, 0 -> 1, rail switch SYSTEM -> WORK:
+
+       t=29..131ms   flex-grow reads exactly "0" on eight consecutive frames
+       t=149ms       0.00089 — the first value the layout can use
+       and the LEAVING bar meanwhile overshoots to 1.006, which changes
+       nothing at all: it is the only flexible item, so any positive grow
+       factor takes the same 100% of the free space.
+
+     So the shell's signature move began with a fifth of a second in which
+     nothing whatsoever happened, on every section switch. The owner: *"section
+     bar deliver stays for a short period of time. it's not moving
+     immediately."* It read worst from SYSTEM because SYSTEM is the last bar
+     and therefore the widest, so the travel — and the dead time in front of
+     it — is at its longest.
+
+     ONLY y1 CHANGES. `x1`, `x2` and `y2` are the signature's own, so the
+     acceleration and the settle are identical and this is the same gesture
+     with its impossible part removed rather than a new one.
+
+     USE IT FOR: flex-grow, flex-basis, fr track sizes, and any other value
+     whose floor is its start. NOT for opacity crossfades — `.sb-quote`'s two
+     layers rely on the arriving one being clamped at 0 while the leaving one
+     is still opaque, which is the dip doing exactly what it should. */
+  --sh-curve-clamped:cubic-bezier(0.75, 0, 0.4, 1.0);
+}
+
+/* ---------------------------------------------------------------------------
+   SURFACE — every value here comes from the kit now, and that is D1.
+   ---------------------------------------------------------------------------
+   the owner, 2026-09-14 (memory 685cc4b4): "The new shell needs to consume
+   okuro-ds. There are values that can be used that are similar enough. okuro-ds
+   is authoritative. Nothing styling is outside this base."
+
+   SO THE SIGNED-OFF LITERALS ARE GONE AS VALUES. #0A0A0A, the white-at-10%
+   hairline and the white-at-5% wash were measured over ~20 rounds against
+   Figma and the owner said "this looks exactly how i want it to be" of the
+   result. They are not preserved. Each maps to the NEAREST okuro-ds name and
+   takes okuro-ds's value; the look moves to what the kit says. That is the
+   ruling, not a regression, and #0A0A0A in particular is a value the design
+   system ALREADY RETIRED — `design_engine/schema.py:141` says "okuro's black is
+   #030303 (P0 q6: the note wins over the v1 kit's #0a0a0a)".
+
+   THE FALLBACKS ARE okuro-ds's OWN DARK VALUES AND NOTHING ELSE. A fallback
+   fires only when no sheet is linked, so a fallback that disagrees with the kit
+   is a fourth opinion nobody can see. Measured from
+   `okuro design tokens okuro-ds`, `:root[data-appearance="dark"]`:
+
+     --color-background-base   #030303      --color-fg           #ffffff
+     --color-border-subtle     #1c1c1c      --color-fg-muted     #b3b3b3
+
+   EIGHT OF THE NINE HARDCODED DARK ASSUMPTIONS COLLAPSE INTO `--sh-ink`, and
+   that is why this block is short. `--sh-hairline`, `--sh-overlay-hover`, the
+   blob's four gradient stops and the MAX ring were all WHITE at an alpha — nine
+   separate places asserting "the ground is dark". Expressed as the ink at an
+   alpha instead, the whole set follows the polarity for free, so light mode
+   needs no second palette. The two `<meta>` tags in index.html are the
+   remainder; they cannot read a custom property and are unhandled in the live
+   app too (see the report's questions).
+   --------------------------------------------------------------------------- */
+:root{
+  --sh-ink:var(--color-fg,#ffffff);
+  --sh-ground:var(--color-background-base,#030303);
+
+  /* THE FIRST ACCENT THE SHELL HAS EVER NAMED, and it exists because of one
+     disagreement rather than a wish for colour. The blob is painted TWICE — by
+     the engine on a canvas, and by a CSS gradient when reduced motion mounts no
+     canvas. The engine reads `--color-accent` off documentElement; the gradient
+     read `--sh-ink`. Same box, two hues, depending on an OS setting. The owner
+     ruled accent 2026-09-16, so the fallback needs the engine's own name.
+
+     THE FALLBACK IS THE INK, NOT A HEX. A missing sheet degrades to monochrome
+     — the convention the four `--color-status-*` fallbacks already carry and
+     the drift test already allow-lists. A literal green here would be okuro's
+     brand asserted from inside the shell, which is exactly what D1 forbids. */
+  --sh-accent:var(--color-accent,var(--sh-ink));
+
+  /* THE HAIRLINE BECOMES OPAQUE, AND IT IS THE SAME PIXEL IN ALL FOUR STATES.
+     The engine's subtle border IS the shell's 10% wash, resolved — checked in
+     both polarities and both kits rather than only in dark:
+
+       okuro-ds dark   white@.10 over #030303 -> 28.2   emitted #1c1c1c = 28
+       standard dark   white@.10 over #131313 -> 42.6   emitted #2b2b2b = 43
+       okuro-ds light  black@.10 over #ffffff -> 229.8  emitted #e6e6e6 = 230
+       standard light  black@.10 over #ffffff -> 229.8  emitted #e7e7e7 = 231
+
+     So the signed-off hairline and the kit's agree to within a rounding step
+     everywhere, which makes this the one colour in this block that D1 costs
+     nothing at all.
+
+     WHAT IS GIVEN UP IS TRACKING. An alpha wash follows whatever it is layered
+     over; an opaque token does not. The one place that differs is a hovered
+     row, where the hairline now sits on ground + the 5% wash rather than
+     compositing with it. Accepted: the engine decides borders per ground, and
+     a token that quietly re-derives itself per surface is the thing D1 removes. */
+  --sh-hairline:var(--color-border-subtle,#1c1c1c);
+
+  /* hover is a wash on the surface, never a brightness change on its contents.
+     NO ENGINE NAME EXISTS FOR IT, verified rather than assumed: of the 174
+     emitted names, nothing is a hover wash. `--color-background-overlay` is
+     rgba(3,3,3,0.95), a near-opaque scrim, and `--color-borders-hover` is a
+     border. So this stays a MECHANISM — the ink at 5% — which is the same
+     licence `--interaction-duration` has: interaction feedback is not a brand
+     property. Written as color-mix on --sh-ink rather than as a literal
+     white, so it inverts with the appearance instead of vanishing on white. */
+  --sh-overlay-hover:color-mix(in srgb, var(--sh-ink) 5%, transparent);
+  /* THE DIM INK LEVEL, AND IT IS NOW A NAME RATHER THAN AN ALPHA.
+     ⚠ INTERIM, AND THE LOUDEST VISIBLE CHANGE IN p1. See question 2.
+
+     THE SHELL HAS EXACTLY TWO INK LEVELS AND BOTH MUST BE okuro-ds NAMES. That
+     is D1 applied to the one place the shell had been resisting it: `--o-dim`
+     was `.46`, an OPACITY, and okuro-ds has no opacity token at all — it
+     resolves dim ink as colours. An alpha tier is styling living outside the
+     base, which D1 forbids, so the mechanism goes and a name takes its place.
+
+     WHY `--color-fg-muted` AND NOT THE NEARER ONE. Two candidates, and neither
+     reproduces the signed-off look:
+
+                                dark       on #030303   light      on #ffffff
+       today, --sh-ink @ .46    #777777    4.60 PASS    #8b8b8b    3.40 FAIL
+       --color-fg-tertiary      #818181    5.29 PASS    #818181    3.90 FAIL
+       --color-fg-muted         #b3b3b3    9.84 PASS    #4f4f4f    8.19 PASS
+
+     `--color-fg-tertiary` is the NEAREST — ten units off the current dim — and
+     it is the one okuro-ds does NOT invert: it emits the same #818181 in both
+     appearances, so it fails AA on the kit's own light ground. `--color-fg-muted`
+     is the only okuro-ds ink that is AA-safe in both. The owner has ruled
+     compliance over look on this exact tier once already (N3, memory 4f55af93,
+     "go with the standard" at a deltaL* of 5.87), so compliance is the interim
+     default and the alternative is question 2 of the p1 report.
+
+     WHAT IT COSTS, stated plainly: the dim tier gets much brighter in dark
+     (#777777 -> #b3b3b3) and much stronger in light (#8b8b8b -> #4f4f4f), so
+     the two-tier monochrome loses separation between its tiers — the very thing
+     the .46 was tuned over ~20 rounds to get right. ONE TOKEN, so the flip to
+     `--color-fg-tertiary` (or back to an alpha) is one line.
+
+     A SECOND, QUIETER CONSEQUENCE OF MOVING FROM opacity TO color. `opacity`
+     dimmed an element AND its descendants, including its own border. Two rules
+     carried both a dim tier and a `--sh-hairline` border — `.sb-row` and
+     `.v-detail` — so their hairline was being DOUBLE-dimmed: #1c1c1c at .46
+     over #030303 composited to about #0f0f0f. With a colour tier the border is
+     the hairline token at full strength. That is the correct value arriving,
+     not a regression, but it is visible: those two dividers get brighter.
+
+     WHAT STAYED `opacity`: every fade. A pane, the content, the panel's info
+     block, the icon/text crossfade and the row-actions reveal all animate 0 to
+     1 and have nothing to do with an ink tier. The sub-item stagger keeps its
+     opacity fade and takes the colour tier on top. The transient .75 hover step
+     is gone — with two named levels, hover goes to full ink. */
+  --sh-ink-dim:var(--color-fg-muted,#b3b3b3);
+
+  /* `--sh-plate` and `--sh-plate-blur` LIVED HERE AND NOTHING READ THEM.
+     Deleted 2026-09-17 after a `var(--sh-plate)` / `var(--sh-plate-blur)` sweep
+     of the whole frontend returned zero consumers. The plate's colour comes
+     from `.sh-plate::before`, which mixes `--sh-ground` at the point of use
+     (shell.css), and its blur from `--sh-blur-plate` below. Two names for one
+     surface, and the ones that survive are the ones something actually reads. */
+
+  /* THE CHROME PLATE'S BLUR, AS CSS RATHER THAN AS FIGMA'S NUMBER.
+     Figma's background-blur parameter is a RADIUS and CSS `blur()` takes a
+     standard deviation, so its own Dev Mode export writes this effect as
+     `blur(calc(var(--blur-amount, 32px) / 2))`. 32 in the file is 16px here.
+
+     NOT `var(--blur-md)`, AND THE REASON THAT USED TO BE GIVEN HERE WAS WRONG.
+     It said Tailwind wins that name on source order. Measured 2026-09-17 in a
+     live document: `--blur-md` computes to the ENGINE's 36.8px, because
+     Tailwind's value sits inside `@layer theme` and `/engine.css` is entirely
+     unlayered — unlayered normal declarations beat every cascade layer whatever
+     the order. There is no collision to route around.
+
+     THE TOKEN STAYS ANYWAY, for the reason above and one more: `--blur-md`
+     RE-BASES ACROSS THE RUNG LADDER, measured 3.2px at XXXXS through 41.6px at
+     XXL. Binding a Figma-measured chrome value to a density axis is exactly
+     what `--sh-s-*` exists to avoid. Figma-measured chrome must not move when
+     the density does. */
+  --sh-blur-plate:16px;
+
+  /* Figma's stand-ins for the content container — the RED was the padding and
+     the PURPLE the content — are GONE as of 2026-09-14. They were an
+     explanatory device, never a surface: The owner ruled the content surface flat
+     on the background, so the container paints nothing and there is no colour
+     left for them to stand in for. The structure they taught now lives in the
+     comment on `.content` in shell.css, which is where it is actually needed.
+     Kept out of the token file on purpose: a named colour nothing paints is an
+     invitation to paint something with it. */
+}
+
+/* ---------------------------------------------------------------------------
+   GEOMETRY
+   ---------------------------------------------------------------------------
+   THE SPACING SCALE IS THE KIT'S, SIX STEPS OF SEVEN, AND UNDER okuro-ds EVERY
+   ONE OF THEM IS EXACT. The engine ships `html{font-size:50%}`, so 1rem is 8px:
+
+     --sh-s-4    --spacing-xs        0.5rem   4px    exact
+     --sh-s-8    --spacing-sm        1rem     8px    exact
+     --sh-s-12   (no name)                    12px   LOCAL
+     --sh-s-16   --spacing-md        2rem     16px   exact
+     --sh-s-24   --spacing-lg        3rem     24px   exact
+     --sh-s-32   --spacing-lg-plus   4rem     32px   exact
+     --sh-s-48   --spacing-xl-plus   6rem     48px   exact
+
+   THE BRIDGE ABOVE IS GONE, 2026-09-16, AND THE TABLE IS KEPT ONLY TO SHOW WHAT
+   WAS TRIED. The warning that used to stand here — "this makes the panel's
+   internal geometry kit-dependent" — was correct, and the cost it predicted
+   arrived: The owner measured his own annotated frames against the running shell
+   and every token-driven distance was 15% over.
+
+   THE MECHANISM, NAMED PROPERLY, because "the kit's scale is bigger" is not it.
+   `--spacing-*` is a COMPONENT DENSITY axis. The engine re-bases the whole
+   ladder onto the brand's rung in `adapter.py:832` `rung_component_declarations`:
+
+       ratio = rungs[rung] / rungs[COMPONENT_ANCHOR_RUNG]
+
+   `standard` declares `defaults.rung.desktop = XL`, and XL/L = 1.15, so
+   `--spacing-md` is published as 2.3rem rather than its anchor value of 2rem.
+   That is DELIBERATE and twice ratified — the owner, 2026-09-06, quoted in the
+   engine's own source: *"I want the okuro-ui consume the full rung as designed"*
+   and *"the rung is an absolute default"*. An earlier normalisation that pinned
+   the ratio to 1 was REMOVED on purpose, because choosing XL moved nothing.
+
+   So nothing is wrong with the kit. The defect was that the shell subscribed
+   FIGMA-MEASURED CHROME to a control designed to move. `1960e403` measured this
+   on 2026-09-14 and ruled *"SPACING MUST NOT BE BRIDGED AT ALL … Class:
+   GEOMETRY, keep local"* — and the bridge shipped anyway. This is that ruling,
+   applied.
+
+   D1 IS NOT BENT BY THIS, it is satisfied. D1's own text carves out *"geometry
+   that is not styling (bar widths, gutters, panel anchors …)"*, and D1's test is
+   whether a kit value is *"similar enough"*. 16 against 18.4 is a 15% miss, so
+   the BRIDGE was the thing failing D1's wording.
+
+   ============ WHY rem AND NOT px ============
+   The engine's root is `font-size: 50%` of the user's own setting, so one rem is
+   one grid unit — 8px at the browser default, 9px for someone who sets 18. A px
+   literal would be immune to the rung AND deaf to that preference; rem is immune
+   to the rung and still scales with the reader. `rem = factor = grid units` is
+   the contract's own identity (ruled 2026-08-17), so these values ARE the grid
+   factors: 2rem is "two units", which reads back as 16px only by coincidence of
+   the default.
+
+   THE PX FALLBACKS ARE GONE WITH THE var()s, so the no-sheet case they covered
+   is handled by the root mirror at the top of this file instead. Without it,
+   every length here would render at DOUBLE when no sheet is linked.
+   --------------------------------------------------------------------------- */
+:root{
+  --sh-s-4:0.5rem;
+  --sh-s-8:1rem;
+  /* NO okuro-ds NAME: the kit's scale steps sm(8) -> md(16) and never lands on
+     12, so there was never anything to bridge to. It is 1.5 grid units.
+
+     ITS WCAG COUPLING IS DOCUMENTARY, NOT COMPUTATIONAL, and reading the code
+     rather than the comment is what settled how to treat it. The note below says
+     this gap "feeds a touch-target calculation" — it fed it ONCE, by hand:
+     `shell.css` sets `.k-icons{--sh-hit:3.5rem}`, a constant someone derived as
+     icon 16 + gap 12 = 28. Nothing reads `--sh-s-12` at runtime to get there.
+
+     SO LEAVING THIS ONE IN px WOULD HAVE BROKEN THE RELATION RATHER THAN
+     PROTECTING IT. `--sh-icon` moves to 2rem in this same sweep; a fixed 28px
+     target beside a pitch that scales is a target that starts OVERLAPPING its
+     neighbour — the exact failure the 28 was chosen to avoid. The target moves
+     onto the ladder with its own inputs, so the relation holds at every root.
+     The concept it would need is a
+     half-step between sm and md. Kept as a documented local constant per the
+     mapping audit, and it is question 3 of the p1 report.
+
+     FIVE USE SITES, and the first of them is load-bearing rather than cosmetic:
+       shell.css  .kids>*        the sub-item stack's gap
+       views.css  .v-group-head  gap
+       views.css  .v-actions     gap
+       views.css  .v-detail      padding
+       views.css  .v-detail dl   gap
+     The sub-item gap feeds a touch-target calculation — `.hit` records
+     "sub-item stack 16 + 12 = 28, so 40 would OVERLAP and it gets 28" — so a
+     kit that moved this number would move a WCAG 2.5.8 floor as a side effect.
+     That makes it the one spacing step it is a relief not to have a name for. */
+  --sh-s-12:1.5rem;
+  --sh-s-16:2rem;
+  --sh-s-24:3rem;
+  --sh-s-32:4rem;
+  --sh-s-48:6rem;
+  /* 9 UNITS. Read off Figma `r21uoRRsv3ycN3QdNYI1Nk` node `812:8585`, it is the
+     TITLE BAND'S HEIGHT: the band runs from the strip's lower edge (64) to 135,
+     and Figma states it as `h-[72px]`. My earlier note here called it "72
+     between the header's lower edge and the leaf title", which is the same
+     measurement misread as a gap — see `.c-band` in shell.css.
+     No `--spacing-*` name has ever produced 72. That is
+     not a gap in the kit: the grid was deleted AS DATA on 2026-08-17 ("the grid
+     is dead as data — no stored or generated value list anywhere"), so there is
+     no ladder to land on and 9 x 8 = 72 is legal by construction. */
+  --sh-s-72:9rem;
+
+  /* ONE icon size everywhere. 16 is load-bearing, not arbitrary: the collapsed
+     bar is exactly 16 pad + 16 icon + 16 pad = 48. Changing this to 24 means
+     the bar becomes 56, or the padding drops to 12. */
+  --sh-icon:2rem;
+
+  /* THE OPEN PANEL'S INTERNALS ARE DERIVED FROM THESE TWO, NOT FROM y-LITERALS.
+     Figma's numbers are measurements taken at 1024 tall, and transcribing them
+     as `top: 397px` pins the panel to a stage height the app does not have. All
+     three positions fall out of the blob's own diameter and the info block's
+     own height:
+
+       blob   397 + 230/2 = 512 = half of 1024   -> vertically CENTRED
+       info   748 + 276   = 1024                 -> BOTTOM-anchored
+       icons  716 + 16    = 732, then 16 to 748  -> one gap above the info
+
+     --sb-info-h is Figma Frame 139 (0,748 300x276), which ends exactly at 1024
+     — that coincidence is what says "bottom-anchored" rather than "at y=748".
+
+     IT IS AN ANCHOR DISTANCE, NOT THE ELEMENT'S HEIGHT, and the two are not the
+     same number: the info block's rendered content measures 174, so it ends
+     102px above the bottom rather than flush. Read as "how far up from the
+     bottom the block starts" it is exact; read as "how tall the block is" it is
+     wrong by 102. Same one-value-two-meanings shape as the gutter, named here
+     so the next change does not assume the second reading. */
+  --sh-blob-open:28.75rem;
+
+  /* THE BLOCK'S OWN RENDERED HEIGHT, 174 — NOT Figma's 276 FRAME HEIGHT.
+     This replaces --sb-info-h, and the rename is the fix. Anchoring on the
+     frame put 276px between the block's top and the bottom edge while the
+     content only filled 174 of it, so the panel ended up with ~102px of bottom
+     padding where the design calls for 32. The frame carried slack; the content
+     does not.
+
+     The block is now anchored with `bottom: 32` directly, so this token is only
+     read by things that need to sit ABOVE it — currently the icon row.
+
+     IT IS A FORMULA NOW, NOT A MEASUREMENT. Q1 ruled 2026-09-14: the sidebar is
+     to be redesigned later, and the real defect meanwhile was the JUMP when the
+     quote wraps — "nasty". So the quote box is pinned to exactly three lines
+     (`.sb-quote b` in shell.css) and the block's height stops depending on its
+     content. Once that is true, every term is deterministic and the anchor can
+     be derived instead of measured:
+
+       3 rows          3 * --sh-sb-row-h
+       quote margin    --sh-s-24
+       four lines      3 quote lines + 1 attribution line, at the quote's own
+                       size and line ratio
+
+     WHAT THE LITERAL 174 WAS, and why it had to go. It was a MEASURED RENDERED
+     HEIGHT taken with the shell's own px type scale. Once type and spacing came
+     from the kit it described neither kit, and the icon row was anchored on it:
+
+                            token   .sb-info real   .sb-quote   icons vs block
+       okuro-ds             174px       174px        54px (2 ln)   16px gap  OK
+       standard (active)    174px       204px        84px (3 ln)   11.6 OVERLAP
+
+     Under `standard` the quote wrapped from two lines to three at 14px, the
+     block grew 30px, and `.sb-icons` landed inside it — the five icon boxes sat
+     on top of the DAILY BRIEFS row. Three lines by construction removes the
+     wrap as a variable, and the formula removes the literal.
+
+     THE ONE DEPENDENCY WORTH NAMING: `--type-small-line` must stay a RATIO.
+     Both kits emit `1.5`, and the `--type-*-line` names are ratios by contract,
+     so the multiplication below is sound. A kit that emitted a length there
+     would make this `calc()` invalid rather than wrong, which is the failure
+     mode to prefer — it would be visible immediately. `.sb-quote b` itself uses
+     the `lh` unit and is immune either way; this token cannot, because at
+     `:root` `lh` would resolve against the ROOT line-height rather than the
+     quote's. */
+  /* THE PANEL BLOCK'S LEFT INSET, AS ONE VALUE INSTEAD OF THREE LITERALS.
+     It is 32 EXACTLY, and deliberately NOT `--sh-s-32`: that token resolves
+     through `--spacing-lg-plus`, which is 36.8px under `standard`. Measured
+     2026-09-16 when the full-bleed rules were added against the token while
+     `.sb-info` kept the literal — the borders overshot the panel's left edge by
+     4.8px, which is the drift this token now makes impossible.
+
+     WHICH OF THE TWO IS RIGHT IS A SEPARATE QUESTION, and it is the owner's: the
+     inset is a Figma-measured position, its neighbours in the same block are
+     kit-driven spacing. Changing it to follow the kit would move signed-off
+     geometry, so it stays measured and stays named.
+
+     THE OWNER RULED THE SEPARATE QUESTION ON 2026-09-19, AND IT IS 2rem.
+     *"sidepanel bottom elements have too much padding. towards the left it's
+     an additional 16 and towards right it's an additional 12px."* Measured
+     against the panel's own HEAD, which is the reference the eye uses: the
+     collapse arrow starts at x=32 and the OKURO mark ends at x=300, both
+     `--sh-inset` (16) from the panel's edges, while the block below sat at
+     48..284 — 16 too far in on BOTH sides, not 16 and 12. The head and the
+     block now share one edge. */
+  --sh-sb-inset:2rem;
+  /* THE FULL-BLEED TRAVEL, NAMED ONCE BECAUSE THREE ELEMENTS RIDE IT.
+     `.sb-row`, `.sb-drawer` and `.sb-meter` each reach from the window's left
+     edge to the info block's right edge. Each used to spell the trip out
+     itself, and each spelled the RETURN differently: the left pull was
+     `--sh-sb-inset + --sh-inset` in all three, while the width added back only
+     `--sh-inset`. Measured on main at 1366x1024: the rows ran 0..252 while the
+     icons, the quote and the info block all ended at 284 — 32px short, the
+     width of `--sh-sb-inset`, on every one of them.
+
+     That was deliberate once. The comment at `.sb-row` says "the right edge is
+     untouched: the ruling names the left, and the rail lives on the right",
+     and the 2026-09-17 ruling did only name the left. The owner ruled the other
+     half on 2026-09-19: the rows align right with the quote and the icons.
+     One token now carries the trip, so the two edges cannot disagree again. */
+  --sh-sb-bleed:calc(var(--sh-sb-inset) + var(--sh-inset));
+  /* THE COLLAPSED ICON PITCH, MEASURED OFF FIGMA RATHER THAN CHOSEN.
+     The collapsed side-panel variant (471:3338, 1024 tall) puts the five
+     glyphs at y 816, 856, 897, 936 and 976 — a 40px step, the last ending 33px
+     above the bottom. Named because two rules read it: the transform that
+     stacks the buttons and any future gate that checks the stack against the
+     design. */
+  --sh-sb-icon-pitch:5rem;
+  /* The pin picker spans the info block's own width, so the popover lines up
+     with the rows beneath it instead of introducing a third left edge. BOTH
+     SIDES READ IT NOW (S1, 2026-09-17): `.sb-info`'s width and `.sb-icons`'s
+     derived gap used to type 236 out, which meant the alignment this token
+     names could drift apart without either side saying so.
+
+     IT IS DERIVED NOW, NOT TYPED. It was 29.5rem — exactly the panel less two
+     insets, which is a RELATIONSHIP a literal cannot hold. The 2026-09-19
+     inset change proved it: 29.5rem would have left the block 236 wide inside
+     a 268-wide opening and pushed every right edge 32px short of the mark it
+     was just aligned to. Written as the subtraction it is, the block follows
+     the inset wherever the inset goes. */
+  --sh-sb-picker-w:calc(var(--sh-sidebar-open) - 2 * var(--sh-sb-inset));
+  --sh-sb-row-h:4rem;
+  /* THE METER'S HEIGHT IS ITS CONTENT'S NOW — `--sh-sb-meter-h` IS GONE (A-3 #3).
+     It was 3rem = 24px, and it was the reason the numbers crossed the
+     separator: with `box-sizing:border-box`, 24px less 12px of padding and a
+     1px border left an 11px content box for a 28.8px line of text, and
+     `align-items:end` hung the overflow upward across the hairline. A fixed row
+     height could only ever agree with one type scale, so it is removed rather
+     than retuned — the term below now states what the row actually is. */
+  --sh-sb-meter-bar-h:2.25rem;
+  /* ONE SQUARE OF THE ACTIVITY MONITOR, and it is the width the bars already
+     were. The owner ruled the monitor into columns of squares (R3); 2px was the
+     prototype's bar width, so taking the square FROM it is what keeps the
+     strip's pitch and makes the squares square without a second number. The row
+     count falls out of these two: (18 + 2) / (2 + 2) = 5. */
+  --sh-sb-meter-sq:0.25rem;
+  --sh-sb-info-content:calc(
+    3 * var(--sh-sb-row-h)
+    + var(--sh-s-24)
+    + 4 * var(--type-small-line, 1.5) * var(--font-size-xs, 12px)
+    + var(--sh-s-24)
+    /* The meter row: the hairline, the 24 that now separates the line from the
+       row on BOTH sides of it, and the row's own height — which is the number's
+       line box, because that is the taller of the two children and
+       `align-items:baseline` does not grow the row past it (asserted by the
+       gate, so a kit that changed the balance would be caught rather than
+       silently mis-anchor the icon row). */
+    + var(--border-width-hair, 1px)
+    + var(--sh-s-24)
+    + var(--type-body-line, 1.6) * var(--font-size-base, 2.25rem));
+  --sh-blob-collapsed:5rem;
+  /* THE OPEN BLOB'S FLOOR, AND IT IS THE COLLAPSED ONE'S DIAMETER (A-3 #6).
+     `.sb-blob`'s height is a subtraction that goes NEGATIVE on a short viewport,
+     and the clamp at its point of use was `max(0px, ...)` — so at 900 and 1024
+     tall, one open disclosure row took the panel's only live element to exactly
+     zero (measured, both engines). A floor turns that into a small blob instead
+     of no blob.
+
+     40 IS NOT A NEW NUMBER. It is `--sh-blob-collapsed`, already signed off as a
+     visible blob because it is what the collapsed panel shows — so the floor is
+     "never smaller than the panel already renders it", which needs no ruling.
+     Named separately from it so that changing the collapsed panel's blob and
+     changing the open one's floor stay two decisions. */
+  --sh-sb-blob-floor:var(--sh-blob-collapsed);
+
+  /* Touch target. The visual stays --sh-icon; the hit area is grown by a
+     transparent ::after, so layout is untouched. 40 is what fits the corner
+     bars exactly (gap 24 + icon 16 = pitch 40). WCAG 2.5.8 floor is 24,
+     Apple HIG and WCAG 2.5.5 AAA both want 44. */
+  --sh-hit:40px;
+
+  /* Window-control glyph size, named because the gutter is derived FROM it.
+     Figma drew these at 12px, which put their centres on y=38 — two pixels
+     above the top line every other element sits on. The mockup corrected them
+     to --sh-icon so the row centres on y=40 with no strut. */
+  --sh-winctl-glyph:var(--sh-icon);
+
+  /* THE RIGHT GUTTER IS AN ALIGNMENT CONSTRAINT, NOT A MARGIN — and because it
+     is derivable it must never be typed as a literal (decision 880dfd28).
+     Here is the derivation, in the tokens it actually depends on:
+
+       SYSTEM icon centre     = W - gutter - bar-collapsed + 16 + icon/2
+       rightmost glyph centre = W - 32 - winctl-glyph/2
+
+     Equate, with bar-collapsed = 48 and the icon's own 16px left pad:
+       gutter = 32 + winctl-glyph/2 - 48 + 16 + icon/2
+              = (winctl-glyph + icon) / 2
+
+     Figma's numbers put that at (12 + 16)/2 = 14 — which is exactly why its
+     collapsed rail stops at 1352 and not 1366, and the literal `14px` the
+     mockup shipped.
+
+     BUT THE MOCKUP ALSO CORRECTED THE GLYPHS FROM 12 TO 16, AND DID NOT CARRY
+     THAT CORRECTION INTO THE GUTTER. Measured on the served mockup at 1366
+     wide: SYSTEM icon centre 1328, last glyph centre 1326 — the constraint the
+     literal exists to satisfy is off by 2px in both `normal` states.
+
+     Written as the formula it lands exactly: (16 + 16)/2 = 16, icon centre
+     1326 = glyph centre 1326. The instance fix would be typing `16px`; this is
+     the class fix, and it tracks any future change to either glyph size.
+
+     ⚠ AND IT WAS STILL THE SAME BUG ONE LEVEL DEEPER — C5, 2026-09-15.
+     ---------------------------------------------------------------------
+     Read the derivation above again and notice what `32`, `48` and `16` ARE.
+     They are not constants: `32` is the plate's own `padding-right`, which is
+     `--sh-s-32`; `16` is the bar icon's `left`, which is `--sh-s-16`; `48` is
+     `--sh-bar-collapsed`. Two of those three are KIT-SCALED. The derivation
+     cancelled them — `32 + 16 - 48 = 0` — and the cancelled term was dropped,
+     which is exactly the failure `96ee0e9b` records: when two tokens happen to
+     share a value, writing the formula with one of them erases the dependency,
+     and the error appears later, when they diverge.
+
+     THEY DIVERGE UNDER EVERY KIT BUT okuro-ds. The engine's spacing scale is
+     ~15% larger under `standard`, so the term does not cancel:
+
+       okuro-ds   s-32 32.0 + s-16 16.0 - 48 =  0.0   ->  gutter 16.0, delta 0
+       standard   s-32 36.8 + s-16 18.4 - 48 =  7.2   ->  gutter 16.0, delta 7.2
+
+     7.2 is the whole of the 7.19px discrepancy the P3 todo records (measured
+     1322.39 vs 1315.20 at 1366 wide; the absolute values sit 6px left of p1's
+     because of the document's own scrollbar gutter). It was never the glyph
+     size scaling with the kit — the glyph is `--sh-winctl-glyph`, an alias of
+     the fixed `--sh-icon`, and it does not scale. It was the two PADDINGS.
+
+     So the formula now names every token the constraint actually depends on.
+     Under okuro-ds it still evaluates to exactly 16 and every p1 proof is
+     unchanged; under any other kit it tracks that kit's scale.
+     TO REVERT to the mockup's literal, replace this one line with `14px`. */
+  --sh-gutter:calc(
+    var(--sh-s-32) + var(--sh-s-16) - var(--sh-bar-collapsed)
+    + (var(--sh-winctl-glyph) + var(--sh-icon)) / 2);
+
+  /* THE FRAME'S LEFT INSET — AND IT IS NOT THE GUTTER, WHICH IS THE POINT.
+     -------------------------------------------------------------------------
+     `.app{padding-left}` used to read `--sh-gutter`, and under okuro-ds that is
+     harmless because both resolve to 16. Then C5 made the gutter kit-aware and
+     the left edge of the whole application moved 7.19px with it — measured,
+     `standard`: sidebar x 16.00 -> 23.19, plane 1044.00 -> 1036.81. A right-edge
+     ALIGNMENT CONSTRAINT had been silently doubling as the frame's own left
+     MARGIN, and the two have nothing to do with each other.
+
+     THAT IS THE SAME DEFECT C5 FIXED, ONE LEVEL FURTHER OUT, and `96ee0e9b`
+     names the remedy: give the second role its own name even when it aliases
+     the first, so the dependency stays visible and the next change to either
+     one propagates correctly.
+
+     SO THE INSET IS A SPACING STEP, because that is what it is — one step of
+     the kit's scale, like the content ring, the plate paddings and the bar
+     icon's own left, every one of which is kit-scaled. Under okuro-ds it is 16,
+     exactly what the p1 proofs recorded; under `standard` it is 18.4, which is
+     that kit's own step rather than the right gutter's arithmetic. */
+  --sh-inset:var(--sh-s-16);
+
+  --sh-sidebar-open:37.5rem;
+  /* 72, NOT 48 — the owner's annotated frame, 2026-09-16. The 48 was the
+     collapsed BAR's width borrowed for the panel because both read "collapsed";
+     his frame annotates the panel column as 72 and the bar column separately as
+     48. Two different things that happened to share a number. The arrow was
+     already centred in the 48 (measured 0.00 off axis), so this moves the
+     column, not the glyph inside it.
+
+     64, NOT 72, SINCE 2026-09-19: *"collapsed bar is 88px wide. should be
+     80."* He is reading the panel's RIGHT EDGE against the window, not the
+     column's own width — the panel starts at the shell's 16px gutter, so 72
+     wide ends at 88 and 64 wide ends at 80. The glyph stays centred by the
+     same derivation as before, `(collapsed - icon) / 2`, which is now 24. */
+  --sh-sidebar-collapsed:8rem;
+  --sh-bar-collapsed:6rem;
+  /* 64, FROM HIS OWN ARITHMETIC: 32 above the 16px top row and 16 below it.
+     It was 56, which made the row sit 3.2 off its own line. Ruled 2026-09-16
+     from the annotated frame. */
+  --sh-strip-h:8rem;
+  /* ============ THE BAND'S HEIGHT IS ITS CONTENT — A-3 #11, R6 ============
+     the owner, 2026-09-17: *"the title bar gets a SECOND ROW ONLY WHEN NEEDED —
+     one row while title + controls fit, a second row when they do not"*, and it
+     must hold at every rung the viewer configuration can select.
+
+     `--sh-s-72` USED TO BE THE BAND'S HEIGHT IN TWO PLACES — inside
+     `--sh-plate-h` here and on `.c-track` in shell.css. It is now the FLOOR of
+     one name, and both of those read that name, so the plate, the track, the
+     notch polygon (which cuts at `100%` of the plate) and `.content`'s
+     padding-top cannot drift apart. There is no second number.
+
+     `--sh-band-row` IS THE ONE MEASURED LENGTH IN THE WHOLE MECHANISM, and
+     `hooks/useBandHeight.ts` states why a measurement is unavoidable here: the
+     plate's boxes are all absolutely positioned over `.content`, which is a
+     different subtree, and CSS has no way to make one element's padding follow
+     another element's rendered height.
+
+     WHAT IS *NOT* MEASURED IS THE DECISION. Whether the controls take a second
+     row is `flex-wrap` on `.c-band-row` — the flex line-breaking algorithm, in
+     the engine, on the real type at the real rung. No script decides it and no
+     leaf declares it; the mirror only reports the height that decision
+     produced.
+
+     ZERO IS THE HONEST DEFAULT. Before the first observation, and after
+     unmount, `max()` returns the floor — so a document that never measures
+     lays out at exactly today's 72 rather than collapsing. Same contract as
+     `--sh-sb-info-content` in the sidebar. */
+  --sh-band-row:0px;
+  --sh-band-h:max(var(--sh-s-72), calc(var(--sh-band-row) + var(--sh-s-16)));
+  /* THE WHOLE TOP CHROME SURFACE — the menu strip plus the title band. Read by
+     `.top-plate`'s height AND by `.content`'s padding-top, which must reserve
+     exactly what the plate covers; one name so they cannot drift. */
+  --sh-plate-h:calc(var(--sh-strip-h) + var(--sh-band-h));
+  --sh-topics:5;
+
+  /* THE TYPEFACE FOLLOWS THE KIT, which is D1 applied to the one token where
+     it is most visible. Under `okuro-ds` that is JetBrains Mono; under the
+     `standard` kit that is active today it is LATO, and the shell renders in
+     Lato. That is the ruling working, not a defect.
+
+     THE KIT'S FACE AND THE BUNDLED ONE ARE METRICALLY IDENTICAL. okuro-ds ships
+     eight @font-face rules for "JetBrains Mono" at weights 100-800, each
+     `local()` only — zero `url()` in the whole sheet. Measured at 1366x1024,
+     same detached span, family swapped:
+
+                          bundled variable   kit family name
+       sheet linked
+         .sb-mark              54.609            54.609
+         .bar-label @800       51.813            51.813
+         .swing               135.813           135.813
+         --sh-divider-h   176/305/277/365/354  176/305/277/365/354
+       sheet UNLINKED      identical to the row above, both stacks
+
+     document.fonts also reports `JetBrains Mono 800 loaded`, so the engine's
+     ExtraBold rule really resolved rather than something being synthesised.
+
+     THE BUNDLE STAYS, AND ONLY WHERE IT CAN FIRE — inside the `var()` fallback,
+     ahead of the generic. It used to HEAD the whole stack, which meant no kit
+     could ever change the typeface; a later pass moved it to an append AFTER the
+     `var()`, and that append was dead on arrival.
+
+     ⚠ THE APPEND IS DELETED (R3, 2026-09-17) BECAUSE IT COULD NEVER FIRE.
+     `--font-family-base` is a whole stack and it TERMINATES IN A GENERIC
+     (`…, 'Courier New', monospace`). A generic always matches, so nothing after
+     the var() is ever consulted. Measured with the bundled face loaded, one
+     span, `font-weight:800`:
+
+       "NoSuchFamilyXYZ", …, monospace, "JetBrains Mono Variable"   -> generic
+       "NoSuchFamilyXYZ", "JetBrains Mono Variable", monospace      -> bundled
+
+     So the token asks for the kit, and on a host missing the kit's family it
+     renders the GENERIC tail. Keeping an entry that cannot fire reads as a
+     safety net and is not one, which is the whole reason it goes.
+
+     THE REAL FIX IS ENGINE-SIDE AND IS NOT IN THIS FILE. okuro-ds ships eight
+     @font-face rules for "JetBrains Mono" with `local()` only — zero `url()` in
+     the whole sheet — so a host without the family installed simply has no way
+     to obtain it. Nothing a shell token can say changes that. The engine has to
+     SERVE its faces with `url()`; until it does, a missing kit family falls to
+     the generic and that is the honest behaviour rather than a papered-over one.
+     The owner ruled this split on 2026-09-17 (question 5): the append goes now,
+     the font serving goes to the engine backlog.
+
+     DO NOT USE document.fonts.check FOR ANY OF THIS. It answers "can this be
+     rendered with what is loaded", and every family falls back to a system
+     font, so it is true for anything: measured here,
+     check('800 14px "NoSuchFamily"') returns TRUE. Rendered WIDTH is the
+     instrument; three decimals of agreement is the evidence.
+
+     ONE HYPOTHESIS OF MINE WAS DISPROVED AND IS RECORDED SO NOBODY RE-DERIVES
+     IT. `fc-list` shows "JetBrains Mono ExtraBold" as a separate family whose
+     first family is "JetBrains Mono", so I expected weight 800 to clamp to Bold
+     700 with the sheet unlinked and the @font-face rules therefore absent. It
+     does not: the unlinked measurement above is identical, because fontconfig
+     matches the weight itself. Predicted, tested, wrong.
+
+     The var() fallback is okuro-ds's own `--font-family-base` string verbatim,
+     so an unlinked sheet asks for the reference kit's face rather than a fourth
+     opinion, and the bundled name closes that path. */
+  --sh-font:var(--font-family-base, "JetBrains Mono", ui-monospace, 'SF Mono', 'Cascadia Code', 'Roboto Mono', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', "JetBrains Mono Variable", monospace);
+}
+
+/* ---------------------------------------------------------------------------
+   THE SHELL'S LENGTH TOKENS — registered so the CLAMP arithmetic has a type,
+   NOT so they can interpolate.
+   ---------------------------------------------------------------------------
+   THIS BLOCK USED TO CALL THESE "THE ANIMATED LENGTHS". Two of them are not
+   animated any more: as of 2026-09-17 `--sh-bar-w` and `--sh-gutter-w` FLIP
+   between their two values and the motion sits on the concrete properties that
+   read them (`.bar` flex-basis, `.plane` padding-right, `.top-plate` left and
+   clip-path). The reason is measured and written out in full at the `.app` rule
+   in `shell.css`: WebKitGTK — the engine the desktop app runs on — cannot
+   interpolate a registered custom property at 60 Hz, and the cost does not
+   depend on who reads it. A property registered for a probe and read by NOTHING
+   still took 68 frames/0 dropped down to 31/12. Chromium drops none, which is
+   exactly why a browser-only check could not see it.
+
+   LAW 2 STILL HOLDS, and this is the direction it actually points: read a
+   moving value, or animate it, never both. Exactly ONE of the two now moves.
+   --------------------------------------------------------------------------- */
+
+/* The collapsed bars' width, and therefore the active content's width. FLIPS,
+   does not interpolate — `.bar` eases `flex-basis` between the two values. */
+@property --sh-bar-w{syntax:'<length>';inherits:true;initial-value:48px}
+
+/* `--sh-grow` WAS HERE AND IT IS GONE — 2026-09-18. It was the last registered
+   property this shell still transitioned, and it drove the topic switch. The
+   rail now eases `flex-grow` itself (`.bar` in shell.css), which is a real
+   property with a floored range, so there is no registration and no clamp at
+   the point of use. Memory `c7773912` is why: on the engine the desktop app
+   runs, interpolating a registered custom property costs frames whatever reads
+   it — including a property nothing reads at all.
+
+   The old warning that transitioning flex-basis "measurably stopped the bar
+   shrinking at all on max" was true while `--sh-bar-w` animated the SAME value
+   underneath it. That was the double-animation, not flex-basis. */
+
+/* The gutter drops to 0 when SYSTEM is the active bar (its icon has moved to
+   the left edge of the expanded bar, so there is nothing left to align) and in
+   content-max (no collapsed bars at all). Registered + clamped like every other
+   animated length here, so the curve's dip cannot drive it negative.
+
+   initial-value WAS 14px, WHICH WAS THE RETIRED LITERAL. The gutter became a
+   formula — (winctl-glyph + icon)/2 = 16 — when the glyphs were corrected from
+   Figma's 12px to --sh-icon, and this registration kept the old number. It was
+   harmless in practice because `.app` assigns --sh-gutter-w on every path
+   (shell.css:52), so the initial value is never the one that paints. It was not
+   harmless to READ: a stale number inside a registration looks authoritative,
+   and 14 is exactly the value the formula exists to replace. 16px now. */
+@property --sh-gutter-w{syntax:'<length>';inherits:true;initial-value:16px}

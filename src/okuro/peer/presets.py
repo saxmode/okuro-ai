@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # <!-- AGENT_HEADER
 # role: code
-# purpose: Role-based person profile presets — seeds communication+cognitive shape from the roles/catalog YAMLs.
+# purpose: Role-based person profile presets — seeds communication+cognitive shape from the roles table.
 # index:
 #   imports
 #   _PRESET_CACHE
@@ -16,16 +16,20 @@
 
 When a user adds a person with a role (e.g. "CEO", "Frontend Engineer"), we
 want a sensible starter communication/cognitive profile — not an empty shell.
-The roles/catalog/*.yaml files carry that knowledge under a `person_preset:`
-block. This module loads and resolves them.
+Six roles carry that knowledge in their `person_preset` column. This module
+loads and resolves them.
 
-- `resolve_preset("CEO")` → dict from ceo.yaml, or None
+- `resolve_preset("CEO")` → the ceo role's preset, or None
 - `list_preset_roles()`   → [{role_id, label, domain}, ...] for UI pickers
-- `generate_preset_llm(q)` → fallback via bridge_invoke when no catalog match
+- `generate_preset_llm(q)` → fallback via bridge_invoke when no role matches
 
-The YAML catalog is the source of truth. We read once, cache by role_id,
-and match via (1) exact slug, (2) substring on role_id, (3) substring on
-description. No embedding lookups — the preset set is small and static.
+This used to read the shipped role YAML directly, which made it the one
+RUNTIME reader of a file layer that everything else had already stopped
+consulting. Migration 155 moved the blocks into the `roles` table and deleted
+those files, so the source of truth here is now the same one the registry and
+the resolver use. We read once, cache by role_id, and match via (1) exact
+slug, (2) substring on role_id, (3) substring on description. No embedding
+lookups — the preset set is small and static.
 """
 
 from __future__ import annotations
@@ -34,8 +38,6 @@ import json
 import logging
 import re
 from typing import Any
-
-import yaml
 
 log = logging.getLogger("okuro.peer.presets")
 
@@ -47,55 +49,44 @@ def _slugify(text: str) -> str:
 
 
 def _load_presets() -> dict[str, dict[str, Any]]:
-    """Scan catalog YAMLs and return {role_id: preset_entry}.
+    """Read every role carrying a person_preset and return {role_id: entry}.
 
-    preset_entry shape: {role_id, label, domain, description, person_preset}.
-    Roles without a `person_preset:` block are skipped.
+    entry shape: {role_id, label, domain, description, person_preset}.
+    Roles whose `person_preset` column is NULL or unparseable are skipped.
     """
     global _PRESET_CACHE
     if _PRESET_CACHE is not None:
         return _PRESET_CACHE
 
     out: dict[str, dict[str, Any]] = {}
-    # Both catalog layers via the shared resolver (okuro.roles.layers) —
-    # a personal role in ~/.okuro/roles/catalog contributes its preset
-    # exactly like a shipped one. Shipped comes first; a colliding user
-    # role_id is the seeder's refusal case, so here it is just skipped.
-    from okuro.roles.layers import catalog_dirs
+    try:
+        from okuro.db import get_db
 
-    paths = [
-        p
-        for cdir, _origin in catalog_dirs()
-        if cdir.exists()
-        for p in sorted(cdir.glob("*.yaml"))
-    ]
+        rows = get_db().fetchall(
+            "SELECT role_id, domain, description, person_preset FROM roles "
+            "WHERE person_preset IS NOT NULL ORDER BY role_id"
+        )
+    except Exception as exc:  # noqa: BLE001 — pre-155 store, or no DB at all
+        log.warning("person presets unavailable (%s)", exc)
+        return {}
 
-    for path in paths:
+    for row in rows:
         try:
-            with path.open() as f:
-                data = yaml.safe_load(f) or {}
-        except yaml.YAMLError as exc:
-            log.warning("skipping malformed %s: %s", path.name, exc)
+            preset = json.loads(row["person_preset"])
+        except (TypeError, ValueError) as exc:
+            log.warning("skipping malformed person_preset for %s: %s",
+                        row["role_id"], exc)
             continue
-        preset = data.get("person_preset")
-        if not preset or not isinstance(preset, dict):
+        if not isinstance(preset, dict) or not preset:
             continue
-        role_id = data.get("role_id")
-        if not role_id:
-            continue
-        if role_id in out:
-            log.warning(
-                "preset for role_id %s already loaded from an earlier "
-                "catalog layer — skipping %s", role_id, path,
-            )
-            continue
+        role_id = row["role_id"]
         parts = role_id.split("-")
         label = " ".join(p.upper() if len(p) <= 3 else p.capitalize() for p in parts)
         out[role_id] = {
             "role_id": role_id,
             "label": label,
-            "domain": data.get("domain"),
-            "description": data.get("description"),
+            "domain": row["domain"],
+            "description": row["description"],
             "person_preset": preset,
         }
 
@@ -147,7 +138,7 @@ def resolve_preset(role_query: str) -> dict[str, Any] | None:
     """Find the best-matching preset for a free-text role query.
 
     Returns the full entry ({role_id, label, domain, description, person_preset})
-    or None if no catalog role clears a minimal confidence threshold (0.5).
+    or None if no role clears a minimal confidence threshold (0.5).
 
     Caller is responsible for LLM fallback — see `generate_preset_llm`.
     """

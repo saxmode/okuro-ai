@@ -19,8 +19,14 @@ interface StatusBadgeProps {
 }
 
 /**
- * Tone-coded label. Carries meaning for colorblind users via uppercase
+ * Tone-coded label. Carries meaning for colorblind users via case +
  * tracking + optional dot — never color-only.
+ *
+ * CASE COMES FROM THE KIT (`case-label`, globals.css), not from a literal
+ * `uppercase` — ruled 0d37d05e. The fallback is `uppercase`, so under a kit
+ * that publishes nothing this renders exactly as it did. Fixed in the
+ * PRIMITIVE because every consumer inherits it in one edit; the p3 specs
+ * counted this class of literal at 510 sites across 130 files.
  */
 export function StatusBadge({
   tone = "neutral",
@@ -32,7 +38,7 @@ export function StatusBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 text-3xs font-bold uppercase tracking-wider",
+        "case-label inline-flex items-center gap-1.5 text-3xs font-bold tracking-wider",
         style.text,
         className,
       )}

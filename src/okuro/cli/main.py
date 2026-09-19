@@ -195,6 +195,7 @@ def _register_commands():
     from .cmd_git_guards import setup_git_guards
     from .cmd_worktree import wt
     from .cmd_voice import voice
+    from .cmd_ports import ports
     from .cmd_probe import probe_conventions
     from .cmd_canon import canon
     from .cmd_release import release
@@ -230,6 +231,7 @@ def _register_commands():
     cli.add_command(setup_git_guards)
     cli.add_command(wt)
     cli.add_command(voice)
+    cli.add_command(ports)
     cli.add_command(probe_conventions)
     cli.add_command(canon)
     cli.add_command(release)

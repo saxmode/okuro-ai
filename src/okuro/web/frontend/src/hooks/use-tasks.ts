@@ -1,13 +1,27 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { taskApi, systemApi, recurringApi } from "@/lib/api";
 import { pickFresherSnapshot } from "@/lib/snapshot-seq";
+import { usePaneInterval } from "@/lib/pane-active";
 
-/** List tasks with optional status filter. */
+/**
+ * List tasks with optional status filter.
+ *
+ * PANE-GATED (ebe028f8). Its three consumers are all leaf PAGES — `home.tsx`,
+ * `tasks.tsx` (via this hook) and `health.tsx` (via `useSystemStatus` below) —
+ * so the gate belongs in the hook rather than at each call site: every present
+ * and future consumer inherits it in one place, which is the difference between
+ * a class fix and three instance fixes (DP10).
+ *
+ * TanStack runs a refetch timer PER OBSERVER on a shared query (measured in
+ * `use-snapshot-copoll.test.tsx`), so pausing one observer does not silence
+ * another — which is exactly the semantics wanted here: the query keeps polling
+ * for whoever is on screen and stops for whoever is not.
+ */
 export function useTasks(params?: { status?: string; limit?: number }) {
   return useQuery({
     queryKey: ["tasks", params],
     queryFn: () => taskApi.list(params),
-    refetchInterval: 10_000,
+    refetchInterval: usePaneInterval(10_000),
   });
 }
 
@@ -52,14 +66,21 @@ export function useTaskSnapshot(
    * MEASURED (src/hooks/use-snapshot-copoll.test.tsx): TanStack runs a
    * refetch timer per OBSERVER on a shared query. One paused observer alone
    * → 1 fetch in 500 ms. Add ONE unpaused observer of the same key → 6. So
-   * any unpaused consumer keeps this query polling for every consumer, and
-   * task-detail's `paused: connected` has never taken effect, because
-   * okuro-thinker (shell, always mounted) subscribes unpaused.
+   * any unpaused consumer keeps this query polling for every consumer.
    *
-   * The two are not interchangeable either: task-detail's `connected` is the
-   * per-task /ws/{taskId} socket, which is what delivers snapshot pushes;
-   * okuro-thinker's is /ws/activity, which does not. Pausing the thinker on
-   * ITS flag would be pausing on the wrong signal.
+   * THE SECOND CONSUMER IS GONE, SO THE PAUSE NOW BITES. This note used to end
+   * "task-detail's `paused: connected` has never taken effect, because
+   * okuro-thinker (shell, always mounted) subscribes unpaused". That component
+   * was unmounted at p2 and deleted on 2026-09-17, and `task-detail.tsx:156` is
+   * the ONLY call site left — so the flag now does what it says. The mechanism
+   * above is unchanged, and is why `intervalMs` still exists: the moment a
+   * second, unpaused observer of this key appears, the pause stops biting for
+   * everyone again.
+   *
+   * AND IF ONE DOES, IT MUST NOT PAUSE ON ITS OWN SOCKET. task-detail's
+   * `connected` is the per-task /ws/{taskId} socket, which is what delivers
+   * snapshot pushes. The thinker's was /ws/activity, which does not — pausing
+   * on that flag would have been pausing on the wrong signal.
    */
   opts?: { paused?: boolean; intervalMs?: number },
 ) {
@@ -104,12 +125,12 @@ export function useActivity(
   });
 }
 
-/** System status (task count, uptime, etc.). */
+/** System status (task count, uptime, etc.). Pane-gated — see `useTasks`. */
 export function useSystemStatus() {
   return useQuery({
     queryKey: ["systemStatus"],
     queryFn: () => systemApi.status(),
-    refetchInterval: 10_000,
+    refetchInterval: usePaneInterval(10_000),
   });
 }
 

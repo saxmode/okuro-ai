@@ -40,11 +40,10 @@ def _recommend_promotion(topic: str | None, count: int, project: str | None) -> 
     """Curation advice for the OWNER, never for an agent.
 
     Every branch names an action only the owner can take: editing
-    conventions.yaml, TOOL-PROTOCOL.md, a project CLAUDE.md, the principle
-    set, or the user profile. Three of them are things okuro's own rules
-    forbid an agent from doing at all — TOOL-PROTOCOL.md and CLAUDE.md are
-    the owner's files, and "NEVER create .md spec/architecture files" is in
-    every provider instruction file.
+    conventions.yaml, the tool protocol, a project charter, the principle set,
+    or the user profile. Some of them are things okuro's own rules forbid an
+    agent from doing at all — the generated instruction files are the owner's,
+    and "NEVER create .md spec/architecture files" is in every one of them.
 
     MEASURED 2026-09-09: this text reached a live bootstrap packet, appended to
     thought rows in `## Relevant Thoughts` as a bare imperative —

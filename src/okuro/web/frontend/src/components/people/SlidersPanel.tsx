@@ -141,7 +141,7 @@ export function SlidersPanel({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div className="text-[10px] font-medium uppercase tracking-wider text-fg-subtle">
+        <div className="text-[10px] font-medium case-label tracking-wider text-fg-subtle">
           Sliders
           {role ? (
             <span className="ml-2 font-normal normal-case tracking-normal">
@@ -221,7 +221,7 @@ export function SlidersPanel({
                 <span className="flex items-center gap-1">
                   {isPrior ? (
                     <span
-                      className="rounded-full border border-warning/40 bg-warning/10 px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-warning"
+                      className="rounded-full border border-warning/40 bg-warning-subtle px-1.5 py-0.5 text-[9px] case-label tracking-wider text-warning"
                       title="Role-seeded assumption — not confirmed by the user yet. Click a value to confirm."
                     >
                       prior
@@ -229,7 +229,7 @@ export function SlidersPanel({
                   ) : null}
                   {modified ? (
                     <span
-                      className="rounded-full border border-border bg-surface-subtle px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-fg-subtle"
+                      className="rounded-full border border-border bg-surface-subtle px-1.5 py-0.5 text-[9px] case-label tracking-wider text-fg-subtle"
                       title={`Default for this role: ${def}`}
                     >
                       modified

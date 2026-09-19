@@ -11,7 +11,6 @@ import json
 import yaml
 
 from okuro.db import get_db
-from okuro.embed import embed_one
 from okuro.embed.client import embed_query, to_bytes
 from .registry import list_roles, get_role
 
@@ -66,10 +65,25 @@ _CANDIDATE_OVERFETCH = 4
 
 
 def seed_role_embeddings():
-    """Generate and store embeddings for all registered roles.
+    """Re-derive every role's description from its micro grade, then embed it.
 
-    Reads each role's micro description and stores embedding in vec_roles.
+    Reads each role's micro grade, rebuilds ``roles.description`` from its
+    ``purpose`` + ``expertise``, and writes the vector through
+    ``vectors.ensure_role_vector`` — which is the ONLY thing that writes
+    ``vec_roles``, and the only thing that records ``description_embedded``.
+
+    It used to do that INSERT itself, which made it a fourth embedding writer
+    and, because it never set ``description_embedded``, one whose vectors the
+    staleness backfill could not judge. Nothing in ``src``, ``tests`` or
+    ``scripts`` calls this function today (measured 2026-09-17); it is kept
+    because re-deriving descriptions from the micro grade is a real operation,
+    and rerouted rather than left as a trap for whoever calls it next.
+
+    Returns the number of vectors actually written — not the number attempted,
+    so a dead embed service is visible in the count.
     """
+    from okuro.roles.vectors import ensure_role_vector
+
     roles = list_roles()
     db = get_db()
     count = 0
@@ -98,22 +112,14 @@ def seed_role_embeddings():
         if not description:
             continue
 
-        embedding = embed_one(description)
-        emb_bytes = to_bytes(embedding)
-
         # Update description in roles table
         db.execute(
             "UPDATE roles SET description = ? WHERE role_id = ?",
             (description, role_id),
         )
 
-        # Upsert into vec_roles
-        db.execute("DELETE FROM vec_roles WHERE id = ?", (role_id,))
-        db.execute(
-            "INSERT INTO vec_roles (id, embedding) VALUES (?, ?)",
-            (role_id, emb_bytes),
-        )
-        count += 1
+        if ensure_role_vector(db, role_id, description):
+            count += 1
 
     return count
 
@@ -156,7 +162,7 @@ def match_roles(
 
     # QUERY side: wrap with the instruction prefix for instruction-tuned tiers
     # (Qwen3). Role descriptions in vec_roles are embedded RAW (see
-    # seed_role_embeddings) — the asymmetric pairing the model expects.
+    # vectors.ensure_role_vector) — the asymmetric pairing the model expects.
     embedding = embed_query(task_description)
     emb_bytes = to_bytes(embedding)
 

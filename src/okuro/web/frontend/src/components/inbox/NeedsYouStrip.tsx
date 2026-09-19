@@ -21,11 +21,16 @@ import { inboxApi } from "@/lib/inbox-api";
  * items (used on the task-detail page). `title` / `viewAllTo` let callers
  * relabel and re-point the header. Global usage (home) passes nothing →
  * unchanged behavior.
+ *
+ * `viewAllTo` DEFAULTS TO THE CANONICAL ADDRESS (S8). It was `/inbox`, which
+ * survived only through `LEGACY`. A default is the worst place for a legacy
+ * path: every caller that passes nothing inherits the hop, and a source scan
+ * for `to="/inbox"` does not see a default parameter at all.
  */
 export function NeedsYouStrip({
   project,
   title = "Needs you",
-  viewAllTo = "/inbox",
+  viewAllTo = "/start/inbox",
 }: {
   project?: string;
   title?: string;
@@ -45,7 +50,7 @@ export function NeedsYouStrip({
         <SectionLabel>{title}</SectionLabel>
         <Link
           to={viewAllTo}
-          className="text-2xs uppercase tracking-wider text-tertiary hover:text-fg-muted"
+          className="case-label text-2xs tracking-wider text-tertiary hover:text-fg-muted"
         >
           View all
         </Link>

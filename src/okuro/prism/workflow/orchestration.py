@@ -52,10 +52,12 @@ ROLE_VERIFY = "reviewer"
 # Parameters a run supplies via Task.workflow_params.
 PARAMS = ("artifact", "who")
 
+# The note used to open with "Read ~/.okuro/TOOL-PROTOCOL.md first." Every
+# node bootstraps, and the packet carries the protocol in full, so the file
+# read was a step that bought nothing even before the file was deleted.
 _TOOL_NOTE = (
-    "Read ~/.okuro/TOOL-PROTOCOL.md first. Drive the prism tools yourself — you "
-    "are the reasoning loop, they are your instruments. Do NOT re-implement what "
-    "they do."
+    "Drive the prism tools yourself — you are the reasoning loop, they are "
+    "your instruments. Do NOT re-implement what they do."
 )
 
 

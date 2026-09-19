@@ -160,10 +160,14 @@ def _unregister_mcp(dry_run: bool) -> None:
 # ── instruction files ──────────────────────────────────────────────────
 
 
-def _list_instruction_files(dry_run: bool) -> None:
+def _list_instruction_files(dry_run: bool) -> None:  # noqa: ARG001
     """Instruction files (CLAUDE.md, AGENTS.md, …) may mix okuro content with
     the user's own. Rather than destructively rewriting them, we LIST them so
     the user can review and delete the ones they want gone. Safer default.
+
+    ``dry_run`` is kept in the signature and unused: this function only ever
+    prints now, so the dry run and the real run are the same run. The caller
+    passes it positionally alongside every other step.
     """
     home = Path.home()
     candidates = [
@@ -171,23 +175,19 @@ def _list_instruction_files(dry_run: bool) -> None:
         home / ".codex" / "AGENTS.md",
         home / ".gemini" / "GEMINI.md",
         home / ".cursor" / "rules" / "okuro.mdc",
-        home / ".okuro" / "TOOL-PROTOCOL.md",
     ]
 
-    # TOOL-PROTOCOL.md is pure okuro — safe to auto-delete.
-    tp = home / ".okuro" / "TOOL-PROTOCOL.md"
-    if tp.exists():
-        if dry_run:
-            info(f"Would delete {tp}")
-        else:
-            try:
-                tp.unlink()
-                ok(f"deleted {tp}")
-            except Exception as exc:  # noqa: BLE001
-                warn(f"could not delete {tp}: {exc}")
+    # ~/.okuro/TOOL-PROTOCOL.md was auto-deleted here, being pure okuro. The
+    # file is no longer generated (its doctrine renders into the packet and
+    # into every provider file instead), so an install made before 2026-09-13
+    # can leave one behind. It is listed with the others rather than removed
+    # silently — the same rule that governs every other file in this list.
+    stale_protocol = home / ".okuro" / "TOOL-PROTOCOL.md"
+    if stale_protocol.exists():
+        candidates.append(stale_protocol)
 
     # For CLAUDE.md / AGENTS.md / GEMINI.md — list so user decides.
-    remaining = [p for p in candidates if p != tp and p.exists()]
+    remaining = [p for p in candidates if p.exists()]
     if not remaining:
         info("No provider instruction files found.")
         return

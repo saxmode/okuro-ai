@@ -215,6 +215,25 @@ def ingest_file(path: Path, *, force: bool = False) -> dict:
     project_path: str | None = None
     git_branch: str | None = None
 
+    # WHO STARTED THIS SESSION — through okuro's EXISTING definition, not a
+    # second one. `interaction.turns.session_kind` already owns this question
+    # (consumed by detect.py, turns.py and distill/triage.py, whose docstring
+    # says it delegates "so the store has ONE definition of what a subagent
+    # session is"). It reads the id prefix, which survives ingest intact.
+    #
+    # The transcript also carries `isSidechain`, and an earlier draft of this
+    # column read that instead — a second rule for one fact, free to disagree
+    # with the first with no query able to say which was lying. Measured on
+    # the newest 400 transcripts 2026-09-17: the two agree 395 times out of
+    # the 395 that carry the flag (196 sidechain, 199 not, 5 without the key).
+    # There was nothing to gain by disagreeing with the incumbent.
+    #
+    # It matters: 144 of 282 claude-code sessions since 2026-09-10 are
+    # subagents, so more than half of what any adoption rate calls a session
+    # is one human-facing session's fan-out.
+    from okuro.sense.interaction.turns import session_kind as _kind_of
+    session_kind: str | None = _kind_of(session_id)
+
     for ord_, raw in enumerate(_iter_events(path)):
         project_path = project_path or raw.get("cwd")
         git_branch = git_branch or raw.get("gitBranch")
@@ -251,18 +270,23 @@ def ingest_file(path: Path, *, force: bool = False) -> dict:
             """
             INSERT INTO agent_sessions (
                 session_id, provider, project_path, git_branch,
-                source_path, source_mtime, indexed_at
-            ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+                session_kind, source_path, source_mtime, indexed_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
             ON CONFLICT(session_id) DO UPDATE SET
                 provider       = excluded.provider,
                 project_path   = COALESCE(agent_sessions.project_path, excluded.project_path),
                 git_branch     = COALESCE(agent_sessions.git_branch, excluded.git_branch),
+                -- excluded FIRST: a re-ingest re-reads isSidechain from the
+                -- same file and must be able to correct a NULL left by an
+                -- earlier pass, which every session ingested before this
+                -- column existed has.
+                session_kind   = COALESCE(excluded.session_kind, agent_sessions.session_kind),
                 source_path    = excluded.source_path,
                 source_mtime   = excluded.source_mtime,
                 indexed_at     = datetime('now')
             """,
             (
-                session_id, PROVIDER, project_path, git_branch,
+                session_id, PROVIDER, project_path, git_branch, session_kind,
                 str(path), mtime,
             ),
         )

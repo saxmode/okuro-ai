@@ -42,7 +42,7 @@ OPS_DOC = (
 #: set. An agent asked for "a deck" reached for the nearest matching verb once and
 #: landed the work in the wrong engine; every slides_* description therefore says
 #: which product it is and where prism work belongs. This is disambiguation, NOT a
-#: seal — slides_* is live and legitimately driven by roles/catalog/film-director.
+#: seal — slides_* is live and legitimately driven by the film-director role.
 _DISAMBIG = (
     " — okuro·slides: standalone free-canvas HTML decks at /slides. For a "
     "recipient-tailored, depth-laddered prism deck use the prism_deck_* workflow "

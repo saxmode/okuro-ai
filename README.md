@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <sub><code>ALPHA · v3.0.2</code> &nbsp;·&nbsp; <code>LINUX · MACOS · WINDOWS</code> &nbsp;·&nbsp; <code>APACHE-2.0</code> &nbsp;·&nbsp; <code>CLAUDE CODE · CODEX · GEMINI · CURSOR</code></sub>
+  <sub><code>ALPHA · v3.1.0</code> &nbsp;·&nbsp; <code>LINUX · MACOS · WINDOWS</code> &nbsp;·&nbsp; <code>APACHE-2.0</code> &nbsp;·&nbsp; <code>CLAUDE CODE · CODEX · GEMINI · CURSOR</code></sub>
 </p>
 
 <p align="center">
@@ -234,7 +234,7 @@ Other extras:
 ./venv/bin/okuro uninstall --yes    # non-interactive (CI)
 ```
 
-`uninstall` removes systemd / launchd units, MCP entries from `~/.claude/`, `~/.codex/`, `~/.gemini/`, `~/.cursor/`, `~/.okuro/TOOL-PROTOCOL.md`, and (with confirmation) `~/.okuro/`.
+`uninstall` removes systemd / launchd units, MCP entries from `~/.claude/`, `~/.codex/`, `~/.gemini/`, `~/.cursor/`, and (with confirmation) `~/.okuro/`. Instruction files are listed for review rather than deleted.
 
 Files it does **not** touch automatically — review and clean these by hand if you want a complete removal:
 

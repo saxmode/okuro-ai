@@ -2,7 +2,12 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router";
 import { registerPageAction } from "@/lib/page-context";
 import { startFlowDraw } from "@/lib/flow-stream";
-import { queueSlideGen, getOpenDeckId } from "@/lib/slide-gen-queue";
+import {
+  queueSlideGen,
+  getOpenDeckId,
+  onSlidesLeaf,
+  SLIDES_LEAF,
+} from "@/lib/slide-gen-queue";
 import { api } from "@/lib/api";
 
 /**
@@ -69,10 +74,13 @@ export function ChatCapabilities() {
         const recipient = (params?.recipient as string) || undefined;
         const brand = (params?.brand as string) || undefined;
         queueSlideGen(topic, recipient, mode, brand);
-        if (window.location.pathname.startsWith("/slides")) {
+        // `onSlidesLeaf` and not `startsWith("/slides")`: under the shell the
+        // leaf is `/deliver/slides`, so the old test was false ON the leaf and
+        // the navigate branch went to the address the user was already on.
+        if (onSlidesLeaf()) {
           window.dispatchEvent(new CustomEvent("okuro:slides-generate", { detail: { topic, mode, recipient, brand } }));
         } else {
-          navigate("/slides");
+          navigate(SLIDES_LEAF);
         }
         return true;
       },
@@ -99,7 +107,7 @@ export function ChatCapabilities() {
         const deckId = getOpenDeckId();
         if (!deckId) {
           onActivity?.("no deck open — opening slides");
-          navigate("/slides");
+          navigate(SLIDES_LEAF);
           return false;
         }
         onActivity?.("editing the open deck…");
@@ -107,7 +115,7 @@ export function ChatCapabilities() {
           .then(() => {
             onActivity?.("applied — refreshing canvas");
             window.dispatchEvent(new CustomEvent("okuro:slides-edited", { detail: { deckId } }));
-            if (!window.location.pathname.startsWith("/slides")) navigate("/slides");
+            if (!onSlidesLeaf()) navigate(SLIDES_LEAF);
           })
           .catch((e) => onActivity?.(`edit failed: ${(e as Error).message}`));
         return true;

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { usePaneInterval } from "@/lib/pane-active";
 
 interface BrainData {
   sessions: Array<{
@@ -97,11 +98,27 @@ interface HostData {
   timestamp: string;
 }
 
+// ---------------------------------------------------------------------------
+// F5 — THE FIRST ADOPTER OF `usePaneInterval`, AND IT IS ONE HOOK FOR TWO LEAVES.
+// ---------------------------------------------------------------------------
+// Five panes stay mounted under the shell (Law 3), so these five intervals kept
+// firing from behind a 48px rail. Measured over 16 seconds with the pathname
+// asserted while away: WORK/AGENTS made 7 calls on its own route and 7 more
+// after switching to DELIVER — telemetry x2, gpu x2, host x2, dashboard/brain —
+// and START/NOW made 15 and 15. These are the two leaves this file feeds.
+//
+// `usePaneInterval` returns `false` off-screen, which pauses the INTERVAL and
+// keeps the cache, so coming back shows fresh data rather than a blank pane.
+// Outside the shell it returns the number unchanged — see the default in
+// `lib/pane-active.tsx`, which is what keeps `?embed=1` and the six chrome-free
+// routes behaving exactly as before.
+//
+// The other adoptions belong to their own leaf passes; this one is the proof.
 export function useDashboardBrain() {
   return useQuery({
     queryKey: ["dashboard", "brain"],
     queryFn: () => api<BrainData>("/api/dashboard/brain"),
-    refetchInterval: 15_000,
+    refetchInterval: usePaneInterval(15_000),
   });
 }
 
@@ -111,7 +128,7 @@ export function useBrain() {
   return useQuery({
     queryKey: ["brain", "full"],
     queryFn: () => api<BrainPageData>("/api/brain"),
-    refetchInterval: 30_000,
+    refetchInterval: usePaneInterval(30_000),
   });
 }
 
@@ -119,7 +136,7 @@ export function useDashboardTelemetry() {
   return useQuery({
     queryKey: ["dashboard", "telemetry"],
     queryFn: () => api<TelemetryData>("/api/dashboard/telemetry"),
-    refetchInterval: 8_000,
+    refetchInterval: usePaneInterval(8_000),
   });
 }
 
@@ -127,7 +144,7 @@ export function useDashboardGpu() {
   return useQuery({
     queryKey: ["dashboard", "gpu"],
     queryFn: () => api<GpuData>("/api/gpu"),
-    refetchInterval: 8_000,
+    refetchInterval: usePaneInterval(8_000),
   });
 }
 
@@ -135,6 +152,6 @@ export function useHost() {
   return useQuery({
     queryKey: ["host"],
     queryFn: () => api<HostData>("/api/host"),
-    refetchInterval: 8_000,
+    refetchInterval: usePaneInterval(8_000),
   });
 }

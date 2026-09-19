@@ -615,7 +615,7 @@ def _shadow_declarations(brand: Brand, palette: Palette) -> dict[str, str]:
 # ---------------------------------------------------------------------------
 
 
-def system_declarations(brand: Brand) -> dict[str, str]:
+def system_declarations(brand: Brand, rung: str) -> dict[str, str]:
     """Every consumer name whose value is the same on every ground.
 
     Emitted ONCE, at `:root`, and inherited from there. A size does not change
@@ -631,19 +631,22 @@ def system_declarations(brand: Brand) -> dict[str, str]:
     """
     font = brand.font
     motion = brand.motion
-    # THE BRAND'S OWN DEFAULT RUNG, not a hardcoded one. His ruling, 2026-09-06:
-    # "I want the okuro-ui consume the full rung as designed."
+    # THE CONFIGURED DESKTOP RUNG, HANDED IN. It used to be read off the brand
+    # (`brand.defaults.rung.desktop`) and that field no longer exists: his ruling
+    # of 2026-09-17 moved the rung off the kit and onto the system, one setting
+    # per viewport class, which every kit inherits. The caller resolves it once
+    # -- `emit()` from `ViewportRungs`, which `api._configured_rungs()` reads off
+    # the profile -- so this function cannot disagree with the size loops.
     #
-    # `body` (emit.py:973) and every `.ds-*` class (emit.py:1164) already read
-    # `defaults.rung.desktop`; the two size loops below read a literal "L", and
-    # those are exactly the names okuro's own components consume. On a brand at
-    # any other rung the sheet contradicted itself -- `standard` renders its body
-    # at XL while `--type-body-size` published L.
+    # WHAT DOES NOT CHANGE: the reason these names must carry a rung at all. They
+    # are the names okuro's OWN components consume, and before they followed the
+    # rung the sheet contradicted itself -- the body rendered at one rung while
+    # `--type-body-size` published another.
     #
-    # DESKTOP ONLY, deliberately: emit.py:1283 already re-declares `:root` at
-    # `defaults.rung.mobile` inside the mobile media query, so the second default
-    # is already live and must not be duplicated here.
-    default_rung = brand.defaults.rung.desktop
+    # DESKTOP ONLY, deliberately: `_size_rules` re-declares `:root` at the mobile
+    # rung inside the mobile media query, so the second class is already live and
+    # must not be duplicated here.
+    default_rung = rung
 
     out: dict[str, str] = {
         "--font-family-base": f'"{font.family}", {font.stack}',
@@ -785,7 +788,11 @@ def ground_names(brand: Brand, palette: Palette) -> tuple[str, ...]:
 
 
 def system_names(brand: Brand) -> tuple[str, ...]:
-    return tuple(system_declarations(brand))
+    # THE KEY SET DOES NOT MOVE WITH THE RUNG -- a rung changes what each name is
+    # worth, never which names exist, which is the partition the invariant gate
+    # counts. So this passes the shipped default rather than taking a parameter
+    # no caller could answer differently.
+    return tuple(system_declarations(brand, schema.ViewportRungs().desktop))
 
 
 def consumer_names(brand: Brand, palette: Palette) -> tuple[str, ...]:
@@ -851,16 +858,16 @@ def rung_component_declarations(brand: Brand, rung: str) -> dict[str, str]:
 
     NORMALISED TO THE LADDER'S ANCHOR RUNG, never to the brand's own default.
     His ruling, 2026-09-06: "The rung is an absolute default! it's coming from the
-    main design system and cannot be overwritten by a copy! what can be
-    overwritten, what brand takes what rung as default for mobile and for
-    desktop."
+    main design system and cannot be overwritten by a copy!" -- and since
+    2026-09-17 a copy cannot even state one: the rung is a SYSTEM setting per
+    viewport class (`schema.ViewportRungs`) that every kit inherits.
 
-    THIS LINE USED TO DIVIDE BY `defaults.rung.desktop`, and that made a rung
-    RELATIVE -- the one thing his ruling says it is not. Measured before the fix:
-    `[data-rung="L"]` published `--spacing-xs: 0.5rem` inside okuro-ds and
+    THIS LINE USED TO DIVIDE BY THE BRAND'S OWN DEFAULT RUNG, and that made a
+    rung RELATIVE -- the one thing his ruling says it is not. Measured before the
+    fix: `[data-rung="L"]` published `--spacing-xs: 0.5rem` inside okuro-ds and
     `0.4348rem` inside a brand whose default is XL, so the same named row of the
-    same absolute table painted two different geometries. The brand's default
-    chooses WHICH row it starts on; it may not move the rows.
+    same absolute table painted two different geometries. The configured rung
+    chooses WHICH row the document starts on; it may not move the rows.
 
     The old normalisation was written to make the change "safe to land" -- ratio
     exactly 1 at the brand's default, so nothing moves. What it actually bought
@@ -868,9 +875,58 @@ def rung_component_declarations(brand: Brand, rung: str) -> dict[str, str]:
     that switched its default rung changed no geometry at all, which is exactly
     the symptom he reported when he chose XL and saw nothing move.
     """
-    rungs = brand.sizes.component_rung_factors()
+    rungs = schema.component_rung_factors()
     ratio = rungs[rung.upper()] / rungs[COMPONENT_ANCHOR_RUNG]
-    return {
+    out = {
         f"--spacing-{name}": scale.rem(scale.size(scale.BASE, factor * ratio))
         for name, factor in SPACING_FACTORS.items()
     }
+    out.update(_blur_declarations(brand, ratio))
+    return out
+
+
+def _blur_declarations(brand: Brand, ratio: float) -> dict[str, str]:
+    """THE BACKDROP BLUR, PUBLISHED AS A NAME AND MOVING WITH THE RUNG.
+
+    The owner, 2026-09-16: *"should be defined in the design-system in the rungs
+    as well"*, while specifying a 32px background blur for the shell's title
+    band.
+
+    WHAT WAS WRONG, and it was not the numbers. `kits.py` authors his Figma
+    `6_1 effect-strength` table correctly -- light 16, normal 32, strong 64 --
+    but `emit.py` published the blur on exactly ONE class, `.ds-elevated-blurred`,
+    at the LIGHT intensity. Measured in the served sheet: one
+    `backdrop-filter: blur(16px)` and zero `--blur-*` properties. So a consumer
+    that is not that class could not reach the blur at all, and the one that
+    could got 16 where the design asks for 32. That is the same shape the
+    component table had before this function existed: a class is not a name.
+
+    THE LADDER IS `SHADOW_INTENSITY`, NOT A SECOND ONE. Blur and shadow are two
+    readings of ONE authored intensity, so `--blur-md` and `--shadow-md` must
+    mean the same step or the vocabulary lies. Reusing the map also inherits its
+    ruling verbatim -- *"authoring a fifth intensity would be adding to his
+    authored input to satisfy a consumer's naming, which is backwards"* -- so
+    `xs` and `sm` share `light` here exactly as they do for shadow.
+
+    `--blur-md` IS THEREFORE 32px AT THE ANCHOR RUNG, which is the number the
+    shell's blurred title band needs, reachable by name instead of by adopting a
+    class it is not.
+
+    IN px, NOT rem, AND THAT IS DELIBERATE. A blur radius is an OPTICAL length:
+    it answers to how far light spreads on the glass, not to how large the
+    reader set their type. The shell already carries this reasoning locally at
+    `--sh-plate-blur`, documented as "no name in the vocabulary" -- D1's own
+    exception, which this function closes rather than widens.
+
+    SHADOWS DO NOT MOVE WITH THE RUNG YET, and the asymmetry is stated rather
+    than smoothed: `_shadow_declarations` still resolves against BASE alone, so
+    under a non-anchor rung `--blur-md` scales and `--shadow-md` does not. Making
+    both move is the class fix, and it changes every shadow in the app by the
+    rung ratio -- a visible change nobody has asked for yet. It is a ruling, not
+    a refactor.
+    """
+    out: dict[str, str] = {}
+    for name, intensity in SHADOW_INTENSITY.items():
+        effect = brand.effects.by_name(intensity)
+        out[f"--blur-{name}"] = f"{scale.size(scale.BASE, effect.blur_amount * ratio):g}px"
+    return out

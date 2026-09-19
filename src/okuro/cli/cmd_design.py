@@ -87,4 +87,12 @@ def design_tokens(kit_id):
 
     # The shipped kit carries its own font sources; a user's does not.
     sources = shipped.get(kit_id).font_sources if kit_id in shipped.KITS else None
-    click.echo(emitter.emit(brand, font_sources=sources).css)
+    # THE CONFIGURED RUNGS, because the docstring promises "the same CSS
+    # /engine.css serves" and the rung is now part of what that route resolves.
+    # Emitting at the shipped default here would make this command quietly lie
+    # the moment he sets a rung.
+    from okuro.design_engine.api import _configured_rungs
+
+    click.echo(
+        emitter.emit(brand, font_sources=sources, rungs=_configured_rungs()).css
+    )

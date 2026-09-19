@@ -172,10 +172,10 @@ NEVER_TOKENS = frozenset({"okuro", "northwind", "meridian", "lodestar"}) | _owne
 # ---------------------------------------------------------------------------
 #
 # THE GAP THIS CLOSES, measured 2026-09-09. "ALWAYS load secrets via keyring —
-# NEVER a .env file, NEVER a hardcoded credential" is stated in the CORE packet,
-# in every provider instruction file and in TOOL-PROTOCOL.md, and NOTHING
-# checked it. Of every rule in okuro's cross-surface contradiction matrix it was
-# the only one binding on three surfaces with no gate and no hook anywhere.
+# NEVER a .env file, NEVER a hardcoded credential" is stated in the CORE packet
+# and in every provider instruction file, and NOTHING checked it. Of every rule
+# in okuro's cross-surface contradiction matrix it was the only one binding on
+# every instruction surface with no gate and no hook anywhere.
 #
 # SCOPE already denies a `.env` FILE by path. That is a different thing: a path
 # denylist cannot see `API_KEY = "sk-…"` inside a .py, which is the shape an

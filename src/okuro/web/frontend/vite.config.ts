@@ -50,6 +50,13 @@ export default defineConfig({
     },
   },
   server: {
+    // 3000-3099 is the host's convention for web UIs, and 3071 specifically is
+    // where the redesigned shell has been reviewed since p1 — it was the sibling
+    // app's port, and p2 made the sibling app into this one's frame, so the port
+    // came with it. `strictPort` because a silent fallback to 5173 means the
+    // reviewer opens the port they were told and sees whatever was there before.
+    port: 3071,
+    strictPort: true,
     fs: {
       // Allow importing the prism board kit assets (?raw) from the sibling
       // package dir for the deck v2 shadow-DOM runtime.
@@ -61,6 +68,18 @@ export default defineConfig({
         changeOrigin: true,
       },
       "/health": {
+        target: "http://localhost:13333",
+        changeOrigin: true,
+      },
+      // THE ENGINE SHEET, and without it the dev server is not okuro. index.html
+      // links `/engine.css` (line 52) and it is deliberately NOT under /api,
+      // because a stylesheet fetch cannot attach a bearer — so it needs its own
+      // proxy entry rather than riding the one above. In production it is
+      // same-origin and served by the daemon. Every colour, type size, radius
+      // and motion value in both the shell and the pages resolves through it;
+      // unproxied, dev renders the fallback literals and every measurement
+      // taken against it is a measurement of the fallbacks.
+      "/engine.css": {
         target: "http://localhost:13333",
         changeOrigin: true,
       },

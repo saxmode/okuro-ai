@@ -31,6 +31,21 @@ export interface PulseConfig {
    *  where the pulse should appear on a non-surface background (e.g. the
    *  onboarding shell which already paints its own background). */
   transparent?: boolean
+  /** When true the engine sizes only its BUFFER and never writes
+   *  `canvas.style.width/height`, so a stylesheet owns the element's box.
+   *
+   *  WHY IT EXISTS. The engine's own sizing is inline, and an inline style beats
+   *  any stylesheet — so a host that wants the canvas to follow an ANIMATING box
+   *  cannot express that in CSS while the engine is writing px values into the
+   *  element. The okuro shell's side panel is exactly that host: `.sb-blob`
+   *  transitions its height over 650ms, and a canvas pinned by a stale inline
+   *  width paints at the wrong size for the whole transition (measured 2026-09-17:
+   *  40px wide for a 1100ms window while its box eased 40 -> 204).
+   *
+   *  The buffer keeps its own debounced cadence either way; this option only
+   *  decides WHO owns the element's box. Default false, so the existing consumer
+   *  (`components/pulse/pulse-canvas.tsx`) is untouched. */
+  cssSized?: boolean
 }
 
 interface CortexNode {
@@ -57,6 +72,7 @@ interface CortexState {
 
 interface SimplexInstance {
   seed: number; radiusMul: number
+  /** Centre offset as a MULTIPLE OF `baseR`, never a pixel — see the table. */
   offsetX: number; offsetY: number
   alpha: number; speedMul: number
 }
@@ -305,14 +321,82 @@ export class PulseEngine {
   // Cortex state
   private cortexState: CortexState | null = null
 
-  // Simplex blob instances
+  /**
+   * THE BOX EVERY ABSOLUTE LENGTH IN THIS ENGINE WAS AUTHORED AGAINST.
+   *
+   * The draw carried TWO coordinate systems at once and only one of them
+   * scaled. `baseR` and `spread` are fractions of `min(w,h)`; the instance
+   * offsets below, the glow blurs and the cortex node radii were plain pixels.
+   * At the size the engine was written for that was invisible. At the 40px
+   * collapsed `.sb-blob` it is the whole defect:
+   *
+   *   open 230px       baseR 27.6, offsets <=14 = 0.5R   -> five lobes overlap
+   *   collapsed 40px   baseR  4.8, offsets <=14 = 2.9R   -> five lobes fly apart
+   *
+   * and a 40px glow blur over a 40px box smears each lobe to the clip edge, so
+   * the blob reads as scattered dots rather than a small blob.
+   *
+   * THE FIX IS THE CLASS, NOT THE INSTANCE: every absolute length now passes
+   * through `scale()`, so the drawing is the SAME SHAPE at any box size and only
+   * the diameter moves. Scaling the offsets alone would have left the blur.
+   *
+   * THE INSTANCE OFFSETS LEFT THIS MECHANISM ENTIRELY, one commit later — they
+   * are multiples of `baseR` now, for the reason the instance table gives. What
+   * still passes through here is what is genuinely a LENGTH: the glow blurs and
+   * the cortex node radii.
+   *
+   * 230 is the reference because it is the open `.sb-blob` — normalising against
+   * it means the open state renders byte-identical to what shipped, and only the
+   * sizes that were already wrong change.
+   */
+  private static readonly REF_BOX = 230
+
+  /** An authored-at-230 pixel length, in the box actually being drawn. */
+  private scale(px: number): number {
+    return px * (Math.min(this.w, this.h) / PulseEngine.REF_BOX)
+  }
+
+  /**
+   * THE OFFSETS ARE MULTIPLES OF `baseR` NOW, AND THAT IS A SECOND FIX ON TOP OF
+   * `scale()`, NOT THE SAME ONE.
+   *
+   * `scale()` made the drawing size-independent. It could not make the OVERLAP
+   * right, because overlap is offset measured against RADIUS — and radius also
+   * moves with activity. The owner, 2026-09-16: *"earlier version had much more
+   * overlap"*. The old panel is why: its canvas was the whole sidebar, so
+   * `min(w,h)` was ~340 and the same +-14px offsets came to 0.34 R. In a 230px
+   * `.sb-blob` the identical numbers are 0.50 R, and the lobes drift apart.
+   *
+   *   ratio = offset / baseR       old panel ~0.34 R       230px box 0.50 R
+   *
+   * Written as a ratio the overlap becomes a property of the SHAPE: the same at
+   * 40px and 230px, and the same at idle and at full tilt. The values are the
+   * old panel's own offsets divided by its baseR (40.8 at 340px), so this
+   * RESTORES a look rather than inventing one.
+   */
   private simplexInstances: SimplexInstance[] = [
-    { seed: 0,   radiusMul: 1.0,  offsetX: 0,   offsetY: 0,   alpha: 0.5,  speedMul: 1.0 },
-    { seed: 50,  radiusMul: 0.75, offsetX: 12,  offsetY: -8,  alpha: 0.35, speedMul: 0.7 },
-    { seed: 120, radiusMul: 0.55, offsetX: -8,  offsetY: 10,  alpha: 0.25, speedMul: 1.3 },
-    { seed: 200, radiusMul: 0.88, offsetX: -14, offsetY: -6,  alpha: 0.30, speedMul: 0.85 },
-    { seed: 275, radiusMul: 0.65, offsetX: 10,  offsetY: 14,  alpha: 0.22, speedMul: 1.15 },
+    { seed: 0,   radiusMul: 1.0,  offsetX: 0,      offsetY: 0,      alpha: 0.5,  speedMul: 1.0 },
+    { seed: 50,  radiusMul: 0.75, offsetX: 0.294,  offsetY: -0.196, alpha: 0.35, speedMul: 0.7 },
+    { seed: 120, radiusMul: 0.55, offsetX: -0.196, offsetY: 0.245,  alpha: 0.25, speedMul: 1.3 },
+    { seed: 200, radiusMul: 0.88, offsetX: -0.343, offsetY: -0.147, alpha: 0.30, speedMul: 0.85 },
+    { seed: 275, radiusMul: 0.65, offsetX: 0.245,  offsetY: 0.343,  alpha: 0.22, speedMul: 1.15 },
   ]
+
+  /**
+   * THE RESTING SIZE, AS A NAMED PAIR RATHER THAN TWO LITERALS IN TWO DRAWS.
+   *
+   * `baseR = min(w,h) * (R_FLOOR + intensity * R_SPAN)`. The floor was 0.12 —
+   * about 72px of ink in a 230px box, and the owner: *"the blob is rather small in
+   * default"*. The design's blob fills its box, i.e. the engine near its own
+   * ceiling, so an okuro with nothing running was drawing itself as barely
+   * present.
+   *
+   * 0.24 doubles the idle blob and still leaves the span READABLE as growth:
+   * idle baseR 55px in the open box, full tilt 87px. Compressing the range into
+   * the top would have traded one invisible state for another.
+   */
+  private static readonly R_FLOOR = 0.24
+  private static readonly R_SPAN = 0.14
 
   // Visualization modes — SIMPLEX is the only shipped visual.
   private visModes = ['SIMPLEX'] as const
@@ -330,6 +414,7 @@ export class PulseEngine {
   private statusHoldTimer: ReturnType<typeof setTimeout> | null = null
   private onStatusText: PulseConfig['onStatusText']
   private transparent = false
+  private cssSized = false
   private onModeChange: PulseConfig['onModeChange']
 
   // Activity stream dedup
@@ -359,6 +444,7 @@ export class PulseEngine {
     this.onStatusText = config.onStatusText
     this.onModeChange = config.onModeChange
     this.transparent = config.transparent ?? false
+    this.cssSized = config.cssSized ?? false
 
     // Wheel zoom — always toward/away from the canvas center, regardless of
     // pointer position. Earlier the origin tracked the cursor, but that made
@@ -396,6 +482,22 @@ export class PulseEngine {
     }
   }
 
+  /**
+   * THE GEOMETRY MOVES WITH THE BUFFER, NEVER AHEAD OF IT.
+   *
+   * `this.w/this.h` used to be assigned here, OUTSIDE the debounce, while the
+   * buffer was allocated 200ms later. Every frame in between, the engine drew
+   * at the new size into the old buffer — and `baseR = min(w,h) * (...)`, so on
+   * a 204 -> 40 collapse it drew a 40px blob into the top-left corner of a 204px
+   * buffer. Whether that was visible depended only on how the host scaled the
+   * canvas; in the okuro side panel, with the element pinned to its box by CSS,
+   * it painted the blob at a fifth of its size in the top-left of the box.
+   *
+   * So both assignments moved INSIDE the timer: the size the engine draws at is
+   * now always the size of the buffer it draws into. `newW/newH` are captured in
+   * the closure rather than re-read, which is what "the last observation wins"
+   * already meant.
+   */
   resize(): void {
     const parent = this.canvas.parentElement
     if (!parent) return
@@ -403,30 +505,42 @@ export class PulseEngine {
     const newH = parent.clientHeight
     if (newW < 1 || newH < 1) return
 
-    this.w = newW
-    this.h = newH
-
     if (this.resizeTimer !== null) clearTimeout(this.resizeTimer)
     this.resizeTimer = setTimeout(() => {
-      this.canvas.width = this.w * this.dpr
-      this.canvas.height = this.h * this.dpr
-      this.canvas.style.width = this.w + 'px'
-      this.canvas.style.height = this.h + 'px'
-      this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0)
+      this.w = newW
+      this.h = newH
+      this.applySize()
     }, 200)
   }
 
-  /** Immediately size the canvas buffer (no debounce) — call on mount. */
+  /** Immediately size the canvas buffer (no debounce) — call on mount, and
+   *  whenever the host knows the box has stopped moving (a `transitionend`). */
   sizeImmediate(): void {
     const parent = this.canvas.parentElement
     if (!parent) return
-    this.w = parent.clientWidth
-    this.h = parent.clientHeight
-    if (this.w < 1 || this.h < 1) return
+    const w = parent.clientWidth
+    const h = parent.clientHeight
+    if (w < 1 || h < 1) return
+    if (this.resizeTimer !== null) {
+      // A pending debounce would otherwise land on top of this with a stale
+      // observation and undo it.
+      clearTimeout(this.resizeTimer)
+      this.resizeTimer = null
+    }
+    this.w = w
+    this.h = h
+    this.applySize()
+  }
+
+  /** The buffer, the context transform, and — unless a stylesheet owns it —
+   *  the element's box. One place, so the two callers cannot drift. */
+  private applySize(): void {
     this.canvas.width = this.w * this.dpr
     this.canvas.height = this.h * this.dpr
-    this.canvas.style.width = this.w + 'px'
-    this.canvas.style.height = this.h + 'px'
+    if (!this.cssSized) {
+      this.canvas.style.width = this.w + 'px'
+      this.canvas.style.height = this.h + 'px'
+    }
     this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0)
   }
 
@@ -562,15 +676,15 @@ export class PulseEngine {
     const h = this.h
     const cx = w / 2
     const cy = h / 2
-    const baseR = Math.min(w, h) * (0.12 + this.actSmooth * 0.22)
+    const baseR = Math.min(w, h) * (PulseEngine.R_FLOOR + this.actSmooth * PulseEngine.R_SPAN)
     const a = this.actSmooth
     const N = 10
     const t = this.t
 
     const layerDefs = [
-      { blur: 40, alpha: 0.06 + a * 0.04, scale: 1.3 },
-      { blur: 25, alpha: 0.1 + a * 0.06, scale: 1.15 },
-      { blur: 12, alpha: 0.15 + a * 0.08, scale: 1.05 },
+      { blur: this.scale(40), alpha: 0.06 + a * 0.04, scale: 1.3 },
+      { blur: this.scale(25), alpha: 0.1 + a * 0.06, scale: 1.15 },
+      { blur: this.scale(12), alpha: 0.15 + a * 0.08, scale: 1.05 },
       { blur: 0, alpha: 0.7 + a * 0.3, scale: 1.0 },
     ]
 
@@ -591,8 +705,8 @@ export class PulseEngine {
 
     for (let ii = 0; ii < this.simplexInstances.length; ii++) {
       const inst = this.simplexInstances[ii]!
-      const icx = cx + inst.offsetX
-      const icy = cy + inst.offsetY
+      const icx = cx + baseR * inst.offsetX
+      const icy = cy + baseR * inst.offsetY
       const R = baseR * inst.radiusMul
       const breathe = 1 + 0.08 * Math.sin(t * 0.8 + inst.seed)
       const amp = 0.15 + a * 1.2
@@ -707,7 +821,7 @@ export class PulseEngine {
           const px = fromN.x + (toN.x - fromN.x) * pt
           const py = fromN.y + (toN.y - fromN.y) * pt
           cortex +=
-            `<circle cx="${px.toFixed(2)}" cy="${py.toFixed(2)}" r="2" ` +
+            `<circle cx="${px.toFixed(2)}" cy="${py.toFixed(2)}" r="${this.scale(2).toFixed(2)}" ` +
             `fill="${G}${(0.8 * edgeFade).toFixed(3)})"/>`
         }
       }
@@ -719,7 +833,7 @@ export class PulseEngine {
         if (n.isCenter) continue
         if (n.fadeIn < 0.01) continue
         const ba = (0.1 + n.brightness * 0.9) * n.fadeIn
-        const drawR = n.r
+        const drawR = this.scale(n.r)
         cortex +=
           `<circle cx="${n.x.toFixed(2)}" cy="${n.y.toFixed(2)}" ` +
           `r="${drawR.toFixed(2)}" fill="${G}${ba.toFixed(3)})"/>`
@@ -733,11 +847,12 @@ export class PulseEngine {
       }
 
       // Labels (skip center node, idx 0 — matches cortexDraw loop start at 1)
-      for (let i = 1; i < s.nodes.length; i++) {
+      const svgLabelPx = this.scale(9)
+      for (let i = 1; svgLabelPx >= 6 && i < s.nodes.length; i++) {
         const n = s.nodes[i]!
         if (!n.label || n.labelAlpha < 0.02 || n.fadeIn < 0.1) continue
         const labelAlpha = (n.labelAlpha * n.fadeIn * 0.7).toFixed(3)
-        const lx = (n.x + n.r + 4).toFixed(2)
+        const lx = (n.x + this.scale(n.r + 4)).toFixed(2)
         const ly = n.y.toFixed(2)
         const safeLabel = n.label
           .replace(/&/g, '&amp;')
@@ -746,7 +861,7 @@ export class PulseEngine {
         cortex +=
           `<text x="${lx}" y="${ly}" fill="${tokens.accent}" ` +
           `fill-opacity="${labelAlpha}" font-family="JetBrains Mono, monospace" ` +
-          `font-size="9" dominant-baseline="middle">${safeLabel}</text>`
+          `font-size="${svgLabelPx.toFixed(1)}" dominant-baseline="middle">${safeLabel}</text>`
       }
     }
 
@@ -979,7 +1094,7 @@ export class PulseEngine {
         const toN = edge.pulses[p]!.dir > 0 ? nb : na
         const px = fromN.x + (toN.x - fromN.x) * pt
         const py = fromN.y + (toN.y - fromN.y) * pt
-        ctx.beginPath(); ctx.arc(px, py, 2, 0, Math.PI * 2)
+        ctx.beginPath(); ctx.arc(px, py, this.scale(2), 0, Math.PI * 2)
         ctx.fillStyle = G + (0.8 * edgeFade).toFixed(3) + ')'; ctx.fill()
       }
     }
@@ -991,7 +1106,10 @@ export class PulseEngine {
       if (n.isCenter) continue
       if (n.fadeIn < 0.01) continue
       const ba = (0.1 + n.brightness * 0.9) * n.fadeIn
-      const drawR = n.r
+      // `n.r` is 1.5-2.5 AT `REF_BOX`. Unscaled, 51 nodes at 1.5-2.5px each land
+      // inside a 12px spread in the collapsed box — a solid smudge, and the other
+      // half of what read as "the blob is squeezed".
+      const drawR = this.scale(n.r)
       ctx.beginPath(); ctx.arc(n.x, n.y, drawR, 0, Math.PI * 2)
       ctx.fillStyle = G + ba.toFixed(3) + ')'; ctx.fill()
 
@@ -1003,16 +1121,22 @@ export class PulseEngine {
       }
     }
 
-    // File labels on nodes
-    ctx.font = '9px JetBrains Mono, monospace'
-    ctx.textAlign = 'left'
-    ctx.textBaseline = 'middle'
-    for (let i = 1; i < s.nodes.length; i++) {
-      const n = s.nodes[i]!
-      if (!n.label || n.labelAlpha < 0.02 || n.fadeIn < 0.1) continue
-      ctx.globalAlpha = n.labelAlpha * n.fadeIn * 0.7
-      ctx.fillStyle = tokens.accent
-      ctx.fillText(n.label, n.x + n.r + 4, n.y)
+    // File labels on nodes. TYPE DOES NOT SCALE DOWN INDEFINITELY — below 6px a
+    // label is texture, not information, so the whole pass is skipped rather
+    // than drawn illegibly. That is the one place where "scale everything" is
+    // the wrong answer: the other lengths are shape, this one is reading.
+    const labelPx = this.scale(9)
+    if (labelPx >= 6) {
+      ctx.font = labelPx.toFixed(1) + 'px JetBrains Mono, monospace'
+      ctx.textAlign = 'left'
+      ctx.textBaseline = 'middle'
+      for (let i = 1; i < s.nodes.length; i++) {
+        const n = s.nodes[i]!
+        if (!n.label || n.labelAlpha < 0.02 || n.fadeIn < 0.1) continue
+        ctx.globalAlpha = n.labelAlpha * n.fadeIn * 0.7
+        ctx.fillStyle = tokens.accent
+        ctx.fillText(n.label, n.x + this.scale(n.r + 4), n.y)
+      }
     }
     ctx.globalAlpha = 1
   }
@@ -1021,7 +1145,7 @@ export class PulseEngine {
 
   private simplexBlobDraw(ctx: CanvasRenderingContext2D, t: number): void {
     const cx = this.w / 2, cy = this.h / 2
-    const baseR = Math.min(this.w, this.h) * (0.12 + this.actSmooth * 0.22)
+    const baseR = Math.min(this.w, this.h) * (PulseEngine.R_FLOOR + this.actSmooth * PulseEngine.R_SPAN)
     const a = this.actSmooth
     const N = 10
 
@@ -1037,8 +1161,8 @@ export class PulseEngine {
 
     for (let ii = 0; ii < this.simplexInstances.length; ii++) {
       const inst = this.simplexInstances[ii]!
-      const icx = cx + inst.offsetX
-      const icy = cy + inst.offsetY
+      const icx = cx + baseR * inst.offsetX
+      const icy = cy + baseR * inst.offsetY
       const R = baseR * inst.radiusMul
       const breathe = 1 + 0.08 * Math.sin(t * 0.8 + inst.seed)
       // Intensity → more deformation (star-shaped), NOT more speed
@@ -1084,11 +1208,13 @@ export class PulseEngine {
         continue
       }
 
-      // Glow layers
+      // Glow layers. The blurs are authored AT `REF_BOX`: a 40px blur is a sixth
+      // of the open box and a WHOLE 40px collapsed box, which is why the small
+      // blob smeared instead of shrinking.
       const layers = [
-        { blur: 40, alpha: (0.06 + a * 0.04) * inst.alpha, scale: 1.3 },
-        { blur: 25, alpha: (0.1 + a * 0.06) * inst.alpha, scale: 1.15 },
-        { blur: 12, alpha: (0.15 + a * 0.08) * inst.alpha, scale: 1.05 },
+        { blur: this.scale(40), alpha: (0.06 + a * 0.04) * inst.alpha, scale: 1.3 },
+        { blur: this.scale(25), alpha: (0.1 + a * 0.06) * inst.alpha, scale: 1.15 },
+        { blur: this.scale(12), alpha: (0.15 + a * 0.08) * inst.alpha, scale: 1.05 },
         { blur: 0, alpha: (0.7 + a * 0.3) * inst.alpha, scale: 1.0 },
       ]
 

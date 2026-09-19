@@ -215,20 +215,45 @@ def _conversation_dbs(root: Path | None = None) -> list[Path]:
     return sorted(p for p in base.glob("*.db") if p.is_file())
 
 
-def ingest_file(db_path: Path, conn) -> dict:
-    """Ingest one conversation DB into the trace store. Idempotent on mtime."""
+def ingest_file(db_path: Path, *, force: bool = False) -> dict:
+    """Ingest one conversation DB into the trace store. Idempotent on mtime.
+
+    THE WRITER LOCK IS TAKEN ONCE, AROUND THE THREE WRITES AT THE END, AND
+    NOWHERE ELSE. Everything above it — the mtime check, opening the source
+    DB, and decoding every protobuf step — runs unlocked, because none of it
+    writes. This is the shape the three sibling ingesters have had since the
+    store shipped; antigravity was the one that read its source *inside* the
+    caller's transaction, so a walk held the lock across 143 MB of protobuf
+    decoding that never needed it.
+
+    The mtime row is read BY COLUMN NAME. ``SQLiteDB._make_conn`` installs
+    ``_dict_factory`` on every connection, so ``fetchone()`` returns a dict
+    and a positional ``[0]`` raises ``KeyError(0)`` — whose ``str()`` is the
+    bare ``"0"`` that this module logged 1,700 times an hour for seven weeks.
+    The three sibling ingesters all use ``.get("source_mtime")``; this one
+    did not.
+    """
+    from okuro.db import get_db
+
+    db = get_db()
     session_id = db_path.stem
     try:
         mtime = db_path.stat().st_mtime
     except OSError:
         return {"session_id": session_id, "skipped": "stat failed"}
 
-    existing = conn.execute(
-        "SELECT source_mtime FROM agent_session_sources WHERE source_path = ?",
-        (str(db_path),),
-    ).fetchone()
-    if existing and existing[0] is not None and abs(existing[0] - mtime) < 1e-6:
-        return {"session_id": session_id, "skipped": "unchanged"}
+    if not force:
+        # A read, so it takes no writer lock. The old walk held one for the
+        # whole pass, which meant an all-unchanged daemon run — the common
+        # case, every 10 minutes — blocked every other writer while doing
+        # nothing but 265 SELECTs.
+        existing = db.fetchone(
+            "SELECT source_mtime FROM agent_session_sources WHERE source_path = ?",
+            (str(db_path),),
+        )
+        recorded = existing.get("source_mtime") if existing else None
+        if recorded is not None and abs(recorded - mtime) < 1e-6:
+            return {"session_id": session_id, "skipped": "unchanged"}
 
     try:
         src = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
@@ -278,8 +303,16 @@ def ingest_file(db_path: Path, conn) -> dict:
     if not rows:
         return {"session_id": session_id, "skipped": "no steps"}
 
-    conn.execute(
-        """
+    # ONE transaction per source file, opened only now that the decode is
+    # done. The three statements below stay atomic together, and that
+    # grouping is the safety property the walk relies on: the
+    # agent_session_sources row is the commit marker, so a file is either
+    # fully ingested AND recorded, or neither. A run interrupted mid-walk
+    # therefore leaves no half-written file — only files not yet reached,
+    # which the next pass picks up exactly as it would a new one.
+    with db.write() as conn:
+        conn.execute(
+            """
         INSERT INTO agent_sessions
             (session_id, provider, project_path, git_branch, first_ts, last_ts,
              message_count, user_count, assistant_count, tokens_in, tokens_out,
@@ -294,12 +327,12 @@ def ingest_file(db_path: Path, conn) -> dict:
             source_mtime    = excluded.source_mtime,
             indexed_at      = datetime('now')
         """,
-        (session_id, PROVIDER, first_ts, last_ts, len(rows),
-         counts["user"], counts["assistant"], str(db_path), mtime),
-    )
-    armed_executemany(
-        conn,
-        """
+            (session_id, PROVIDER, first_ts, last_ts, len(rows),
+             counts["user"], counts["assistant"], str(db_path), mtime),
+        )
+        armed_executemany(
+            conn,
+            """
         INSERT INTO agent_events
             (uuid, session_id, parent_uuid, ord, type, role, timestamp, model,
              text, content_json, tool_name, tokens_in, tokens_out)
@@ -308,17 +341,17 @@ def ingest_file(db_path: Path, conn) -> dict:
             type = excluded.type, role = excluded.role,
             timestamp = excluded.timestamp, text = excluded.text
         """,
-        rows,
-    )
-    conn.execute(
-        """
+            rows,
+        )
+        conn.execute(
+            """
         INSERT INTO agent_session_sources (source_path, session_id, source_mtime, indexed_at)
         VALUES (?, ?, ?, datetime('now'))
         ON CONFLICT(source_path) DO UPDATE SET
             source_mtime = excluded.source_mtime, indexed_at = datetime('now')
         """,
-        (str(db_path), session_id, mtime),
-    )
+            (str(db_path), session_id, mtime),
+        )
 
     return {
         "session_id": session_id,
@@ -327,38 +360,56 @@ def ingest_file(db_path: Path, conn) -> dict:
     }
 
 
-def ingest_antigravity(root: Path | None = None) -> dict:
+def ingest_antigravity(root: Path | None = None, *, force: bool = False) -> dict:
     """Walk every conversation DB and ingest it. Safe to run repeatedly.
 
     ``unknown_step_types`` is surfaced deliberately: the step-type map is
     empirical, so an agy release that adds or renumbers types must show up as
     a reported number rather than as quietly mistyped events.
-    """
-    from okuro.db import get_db
 
-    db = get_db()
+    ``force`` re-reads a conversation whose mtime the store already holds —
+    the ingester contract every sibling implements, and the only way a
+    conversation that was captured mid-flight ever gets its later turns.
+
+    ``errors`` is counted SEPARATELY from ``skipped``, and that separation is
+    the point. Both used to land in ``skipped``, so a walk that crashed on
+    every one of 265 files returned the same summary as a walk where every
+    file was already up to date. The daemon reads this dict, not the log —
+    a run that fails totally must not be able to look healthy in it.
+    """
     files = _conversation_dbs(root)
     if not files:
-        return {"provider": PROVIDER, "files": 0, "sessions": 0, "events": 0}
+        return {
+            "provider": PROVIDER, "files": 0, "sessions": 0, "events": 0,
+            "skipped": 0, "errors": 0, "unknown_step_types": [],
+        }
 
-    sessions = events = skipped = 0
+    sessions = events = skipped = errors = 0
     unknown: set[int] = set()
 
-    with db.write():
-        conn = db.conn
-        for path in files:
-            try:
-                result = ingest_file(path, conn)
-            except Exception as exc:            # one bad DB must not stop the walk
-                log.warning("antigravity: %s failed (%s)", path.name, exc)
-                skipped += 1
-                continue
-            if result.get("skipped"):
-                skipped += 1
-                continue
-            sessions += 1
-            events += result.get("events", 0)
-            unknown.update(result.get("unknown_step_types") or [])
+    # NO TRANSACTION HERE. Each file opens and commits its own, inside
+    # ingest_file. The walk used to run entirely inside one `db.write()`,
+    # which made the writer-lock hold scale with the size of the corpus
+    # rather than with the size of a file — and held it across the protobuf
+    # decode of every source DB, which needs no lock at all.
+    for path in files:
+        try:
+            result = ingest_file(path, force=force)
+        except Exception:                   # one bad DB must not stop the walk
+            # log.exception, not warning("%s", exc): a bare %s on a
+            # KeyError prints its key and nothing else, which is how this
+            # walk reported "failed (0)" for seven weeks without naming
+            # the line that raised. The three sibling ingesters already
+            # log the traceback here.
+            log.exception("antigravity: ingest failed for %s", path)
+            errors += 1
+            continue
+        if result.get("skipped"):
+            skipped += 1
+            continue
+        sessions += 1
+        events += result.get("events", 0)
+        unknown.update(result.get("unknown_step_types") or [])
 
     return {
         "provider": PROVIDER,
@@ -366,5 +417,6 @@ def ingest_antigravity(root: Path | None = None) -> dict:
         "sessions": sessions,
         "events": events,
         "skipped": skipped,
+        "errors": errors,
         "unknown_step_types": sorted(unknown),
     }

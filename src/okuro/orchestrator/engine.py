@@ -5541,12 +5541,30 @@ def wait_for_decision(phase_id: int, gate, task: Task, config: Config) -> bool:
     """
     global shutdown_requested
 
+    # S2 — the subject is the artifact this decision is made AGAINST. It
+    # rides in the event so any external resolver (web UI, dashboard,
+    # another agent) can show the user the same basis the engine hashed,
+    # and can re-check it before offering an approve button.
+    from okuro.orchestrator.gate_subject import (
+        basis_moved as _basis_moved,
+        is_basis_refusal as _is_basis_refusal,
+        subject_title,
+    )
+
+    subject_id = getattr(gate, "subject_artifact_id", "") or ""
+    subject_sha = getattr(gate, "subject_sha256", "") or ""
+    subject_name = subject_title(subject_id) if subject_id else ""
+    # Set by the autopilot branch below when it was the basis that refused.
+    basis_refusal = ""
+
     # Always emit the event so the web UI / log consumers can react.
     append_log(task.id, {
         "type": "await_user_decision",
         "phase_id": phase_id,
         "gate_id": gate.id,
         "prompt": gate.prompt,
+        "subject_artifact_id": subject_id,
+        "subject_sha256": getattr(gate, "subject_sha256", "") or "",
         "options": [
             {"id": o.id, "label": o.label, "recommended": bool(o.recommended)}
             for o in gate.options
@@ -5567,6 +5585,12 @@ def wait_for_decision(phase_id: int, gate, task: Task, config: Config) -> bool:
     update_task_status(task, config.tasks_dir)
 
     print(f"\n[GATE] phase {phase_id} — {gate.prompt}")
+    if subject_id:
+        # Named before the options on purpose: the first thing a reader
+        # needs is WHAT they are deciding about, and a gate whose basis
+        # is unnamed is how an approval ends up attached to text nobody
+        # read. Title first, id second — the id is for fetching it.
+        print(f"  basis: {subject_name or '(untitled artifact)'} [{subject_id}]")
     for idx, opt in enumerate(gate.options, 1):
         marker = " (recommended)" if opt.recommended else ""
         print(f"  {idx}. [{opt.id}] {opt.label}{marker}")
@@ -5597,23 +5621,38 @@ def wait_for_decision(phase_id: int, gate, task: Task, config: Config) -> bool:
                 update_task_status(task, config.tasks_dir)
                 print(f"[SKIPPED] gate {gate.id} — phase will proceed without ADR")
                 return True
+            # The try covers the PARSE and nothing else. It used to wrap the
+            # resolve as well, so a refusal — the basis moved, the store
+            # would not answer — raised ValueError and printed "invalid
+            # selection", forever, at whatever the user typed. A typo and
+            # news about the world are different things and must not share
+            # a message.
             try:
                 idx = int(raw) - 1
-                if 0 <= idx < len(gate.options):
-                    option = gate.options[idx]
-                    rationale = input(
-                        "[DECIDE] rationale (optional, enter to skip): "
-                    ).strip()
-                    resolve_decision_gate(
-                        task.id, phase_id, option.id, rationale, config.tasks_dir,
-                    )
-                    task.status = "active"
-                    update_task_status(task, config.tasks_dir)
-                    print(f"[LOCKED] ADR for gate {gate.id} → {option.label}")
-                    return False
             except ValueError:
-                pass
-            print("[?] invalid selection — try again")
+                print("[?] invalid selection — try again")
+                continue
+            if not 0 <= idx < len(gate.options):
+                print("[?] invalid selection — try again")
+                continue
+
+            option = gate.options[idx]
+            rationale = input(
+                "[DECIDE] rationale (optional, enter to skip): "
+            ).strip()
+            try:
+                resolve_decision_gate(
+                    task.id, phase_id, option.id, rationale, config.tasks_dir,
+                )
+            except ValueError as exc:
+                # Said in full, then ask again: the option list is still
+                # valid, and the user may want to skip instead.
+                print(f"[REFUSED] {exc}")
+                continue
+            task.status = "active"
+            update_task_status(task, config.tasks_dir)
+            print(f"[LOCKED] ADR for gate {gate.id} → {option.label}")
+            return False
         return True
 
     # F2 autopilot — answer the gate from the profile instead of parking. The
@@ -5650,7 +5689,28 @@ def wait_for_decision(phase_id: int, gate, task: Task, config: Config) -> bool:
             print(f"[AUTOPILOT] gate {gate.id} → {_chosen} (phase {phase_id})")
             return False
     except Exception as exc:
-        logger.warning("autopilot decision_gate resolve failed: %r", exc)
+        # A REFUSED BASIS IS NOT A FAILED AUTOPILOT. Both used to land in
+        # this one warning and then park the gate as if the run had merely
+        # declined to auto-answer — the single fact a human needs to see
+        # before deciding, logged at warning level and discarded. It now
+        # rides into the park payload below and gets its own event, so the
+        # UI, an MCP poller and the log all say the same thing. Every other
+        # exception keeps the old behaviour exactly.
+        if _is_basis_refusal(exc):
+            basis_refusal = str(exc)
+            append_log(task.id, {
+                "type": "await_user_decision_basis_moved",
+                "phase_id": phase_id,
+                "gate_id": gate.id,
+                "subject_artifact_id": subject_id,
+                "subject_sha256": getattr(gate, "subject_sha256", "") or "",
+                "reason": basis_refusal,
+            }, config.tasks_dir)
+            logger.warning(
+                "decision_gate %s: autopilot refused — %s", gate.id, basis_refusal,
+            )
+        else:
+            logger.warning("autopilot decision_gate resolve failed: %r", exc)
 
     # Headless: poll plan.yaml for the gate to leave "pending".
     print(
@@ -5660,10 +5720,21 @@ def wait_for_decision(phase_id: int, gate, task: Task, config: Config) -> bool:
     try:
         from okuro.orchestrator.state import set_awaiting as _set_awaiting
         from okuro.orchestrator.gate_messages import humanize_gate as _hg
+        # Computed HERE, at park time, and carried in the payload — not
+        # left for each surface to work out. A resolver that cannot see
+        # whether the basis still holds will offer an approve button for a
+        # decision the resolver will refuse, which is the worst of both.
+        _moved = bool(basis_refusal) or (
+            _basis_moved(subject_id, subject_sha) if subject_id else False
+        )
         _gm = _hg("decision_gate", "", {
             "phase_id": phase_id,
             "prompt": gate.prompt,
             "raw_reason": f"gate {gate.id}",
+            "subject_artifact_id": subject_id,
+            "subject_title": subject_name,
+            "basis_moved": _moved,
+            "basis_refusal": basis_refusal,
         })
         _set_awaiting(
             task, config.tasks_dir,
@@ -5675,6 +5746,12 @@ def wait_for_decision(phase_id: int, gate, task: Task, config: Config) -> bool:
                 "phase_id": phase_id,
                 "presentation": _gm.to_presentation(),
                 "prompt": gate.prompt,
+                # The basis, for every resolver that is not a terminal.
+                "subject_artifact_id": subject_id,
+                "subject_sha256": subject_sha,
+                "subject_title": subject_name,
+                "basis_moved": _moved,
+                "basis_refusal": basis_refusal,
                 "options": [
                     {
                         "id": o.id,
@@ -6493,8 +6570,8 @@ def _generate_continuation_suggestions(task: Task, config: Config):
     Delegates to ``orchestrator.suggestions.generate_continuation_suggestions``
     so the on-demand ``POST /api/tasks/{id}/suggest`` endpoint produces the
     same output shape with the same prompt. Role prompt + output schema
-    live in ``src/okuro/roles/catalog/workforce-reviewer.yaml`` and are
-    editable without a code change.
+    live in the ``workforce-reviewer`` role row and are editable without a
+    code change.
     """
     try:
         import yaml

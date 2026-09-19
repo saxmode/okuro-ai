@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "okuro"
-version = "3.0.2"
+version = "3.1.0"
 description = "Okuro — personal AI agent infrastructure"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -124,6 +124,24 @@ embed-rocm  = ["sentence-transformers>=2.7", "torch>=2.1"]  # --index-url https:
 embed-cpu   = ["sentence-transformers>=2.7", "torch>=2.1"]  # --index-url https://download.pytorch.org/whl/cpu
 embed-apple = ["sentence-transformers>=2.7", "torch>=2.1"]  # MPS built-in on macOS arm64
 embed-cpu-fast = ["onnxruntime>=1.18", "optimum>=1.16"]     # ONNX int8 (pair with embed-cpu for CPU-only boxes that want speed)
+# THE DESKTOP RENDERER, AND WHY IT IS AN EXTRA RATHER THAN A CORE DEP.
+# ~650 MB of wheels, of which 204 MB is Chromium itself. A headless install
+# never opens a window (web_launcher.has_display gates the launch), so making
+# this core would tax every server for a renderer it cannot use. install.sh
+# asks at step [6/11] and DEFAULTS TO YES, so the installer decides — not the
+# user's desktop environment, which is what chose the engine before.
+#
+# PySide6, NEVER PyQt6: PySide6 is LGPLv3 (Qt Company), PyQt6 is GPLv3
+# (Riverbank) and would infect okuro's public repo. pywebview reaches both
+# through qtpy and branches on PYQT6/PYSIDE6 (webview/platforms/qt.py:14), so
+# only the licence decides which one belongs here.
+#
+# NEVER PyQt5-WebEngine: Qt 5.15 ships Chromium 87, which has neither
+# `container-type` nor `:has()`. shell.css uses both, 6x and 7x.
+#
+# Addons is required and Essentials is not enough — QtWebEngine lives in
+# Addons. Both are named explicitly so a resolver cannot drop one.
+desktop     = ["PySide6-Essentials>=6.8", "PySide6-Addons>=6.8", "qtpy>=2.4"]
 browser     = ["playwright>=1.58"]                          # URL scraper, visual evaluation, output review
 tui         = ["textual>=0.50"]                             # terminal UIs — not used in core, optional
 voice       = ["faster-whisper>=1.0"]                       # local CPU STT (faster-whisper int8) for okuro-notes dictation — no GPU, no cloud
@@ -180,8 +198,22 @@ exclude = [
 ]
 # The build hook writes the embedding model here; listing it as an artifact
 # overrides .gitignore so the files get packaged into the wheel.
+#
+# NAMED, NOT GLOBBED — and that is the whole point of this entry.
+# `models/**` shipped whatever happened to be in that directory on the BUILD
+# machine. Measured 2026-09-19 on a wheel built here: 288 MB of
+# gte-modernbert-base (correct, the low tier) AND 129 MB of
+# bge-small-en-v1.5, which hatch_build stopped vendoring before 2026-06 and
+# which no code can reach — embed/client.py:93 and embed/server.py:84 both
+# resolve `models/<TIERS[tier].bundled_dirname>`, and the registry holds only
+# gte-modernbert-base and Qwen3-Embedding-0.6B.
+#
+# Nothing deleted it, so it rode along in every wheel built from a developer's
+# tree. Naming the directory means a leftover can never ship again, whatever
+# is lying around locally. Adding a tier means adding its line here, which is
+# the reminder the glob silently removed.
 artifacts = [
-    "src/okuro/embed/models/**",
+    "src/okuro/embed/models/gte-modernbert-base/**",
 ]
 
 [tool.hatch.build.targets.wheel.hooks.custom]

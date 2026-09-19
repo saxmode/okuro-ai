@@ -17,6 +17,8 @@ import {
 } from "./measure";
 import { renderRich } from "./rich-text";
 import { chartSvg } from "./chart-svg";
+import { deckAccent, elementInk } from "./deck-theme";
+import { withAlpha } from "@/lib/color";
 
 /**
  * element-body — the ONE renderer for Phase C component primitives (list, …),
@@ -47,8 +49,25 @@ export function ElementInner({ el, surface }: { el: SlideElement; surface?: stri
 // (never a heavy border — data is the loud thing). Numeric cells align on
 // tabular figures. Hugs its content height.
 
-const TABLE_HEADER_BG = "rgba(143,240,164,0.14)"; // okuro accent tint
-const TABLE_SEP = "rgba(255,255,255,0.10)";
+/* THE TINT AND THE HAIRLINE ASK THE ELEMENT'S OWN INK, NOT okuro.
+   They were `rgba(143,240,164,0.14)` -- okuro's retired green -- and
+   `rgba(255,255,255,0.10)`, a white hairline that is invisible on a light
+   deck. Both are okuro's brand imposed on a recipient's content, which is the
+   thing R4 forbids, seen from the other side.
+
+   Deriving them from the text colour is correct on ANY ground by construction:
+   the ink is legible on that ground by assumption, so a 14 % wash of it reads
+   as a tint and a 10 % wash reads as a hairline, whether the deck is white,
+   black or brand-coloured. No deck parameter is needed, so the engine's
+   signatures and its 17 test files are untouched. */
+const TABLE_HEADER_ALPHA = 0.14;
+const TABLE_SEP_ALPHA = 0.1;
+function tableHeaderBg(el: SlideElement): string {
+  return withAlpha(elementInk(el), TABLE_HEADER_ALPHA);
+}
+function tableSep(el: SlideElement): string {
+  return withAlpha(elementInk(el), TABLE_SEP_ALPHA);
+}
 
 function TableBody({ el }: { el: SlideElement }): ReactNode {
   const cols = tableColumnCount(el);
@@ -58,7 +77,7 @@ function TableBody({ el }: { el: SlideElement }): ReactNode {
   const fs = tableFontSize(el);
   const cell: CSSProperties = {
     padding: `${TABLE_CELL_PAD_Y}px ${TABLE_CELL_PAD_X}px`,
-    borderBottom: `1px solid ${TABLE_SEP}`,
+    borderBottom: `1px solid ${tableSep(el)}`,
     fontVariantNumeric: "tabular-nums",
     minWidth: 0,
     overflowWrap: "anywhere",
@@ -67,7 +86,7 @@ function TableBody({ el }: { el: SlideElement }): ReactNode {
     <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, 1fr)`, width: "100%", fontSize: fs }}>
       {header &&
         columns.map((c, i) => (
-          <div key={`h${i}`} style={{ ...cell, fontWeight: 700, background: TABLE_HEADER_BG }}>
+          <div key={`h${i}`} style={{ ...cell, fontWeight: 700, background: tableHeaderBg(el) }}>
             {renderRich(c)}
           </div>
         ))}
@@ -95,9 +114,11 @@ function ChartBody({ el, surface }: { el: SlideElement; surface?: string }): Rea
 // A rule (composite render, fixed geometry — NOT a hug kind). The bar is
 // centred in the element box so the box can be a comfortable click target.
 
-const ACCENT = "#8ff0a4";
+/* An `accent: true` rule took okuro's green. The deck's accent is the kit's
+   when the deck has not been branded, and the brand's once it has -- either
+   way it is never a third party's. */
 export function dividerColor(el: SlideElement): string {
-  return el.accent ? ACCENT : el.color ?? "#39463d";
+  return el.accent ? deckAccent() : elementInk(el);
 }
 function dividerThickness(el: SlideElement): number {
   return Math.max(1, el.thickness ?? 2);
@@ -116,15 +137,26 @@ function DividerBody({ el }: { el: SlideElement }): ReactNode {
   );
 }
 
-// Colour + arrow for a KPI delta direction. Plain hexes (mirrors the status
-// palette used across the editor) so the export HTML path can reuse them.
-const DELTA: Record<DeltaDir, { color: string; arrow: string }> = {
-  up: { color: "#22c55e", arrow: "▲" },
-  down: { color: "#ef4444", arrow: "▼" },
-  flat: { color: "#9ca3af", arrow: "▬" },
-};
-function deltaStyle(dir?: DeltaDir): { color: string; arrow: string } {
-  return DELTA[dir ?? "flat"];
+/* Colour + arrow for a KPI delta direction. The hues came from Tailwind's
+   default palette, which okuro-ds does not ship; the kit names below resolve to
+   concrete values, which is what the export HTML path needs (it cannot reach
+   /engine.css). `flat` is not a status, so it takes the element's own ink at
+   half strength rather than inventing a grey. */
+const DELTA_ARROW: Record<DeltaDir, string> = { up: "▲", down: "▼", flat: "▬" };
+function deltaStyle(dir?: DeltaDir, el?: SlideElement): { color: string; arrow: string } {
+  const d = dir ?? "flat";
+  const color =
+    d === "up"
+      ? kitStatus("--color-status-success", "#11d425")
+      : d === "down"
+        ? kitStatus("--color-status-error", "#f92f77")
+        : withAlpha(el ? elementInk(el) : "#888888", 0.6);
+  return { color, arrow: DELTA_ARROW[d] };
+}
+function kitStatus(name: string, lastResort: string): string {
+  if (typeof document === "undefined") return lastResort;
+  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return v || lastResort;
 }
 
 // ── list ─────────────────────────────────────────────────────────────────────
@@ -168,7 +200,7 @@ function KpiBody({ el }: { el: SlideElement }): ReactNode {
   const subSize = kpiSubSize(el);
   const gap = kpiGap(el);
   const cross = el.align === "center" ? "center" : el.align === "right" ? "flex-end" : "flex-start";
-  const d = deltaStyle(el.deltaDir);
+  const d = deltaStyle(el.deltaDir, el);
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: cross, gap, width: "100%" }}>
       <div style={{ fontSize: valueSize, fontWeight: el.fontWeight ?? 700, lineHeight: 1.05 }}>
@@ -252,7 +284,7 @@ export function elementBodyHtml(el: SlideElement, surface?: string): string {
     const subSize = kpiSubSize(el);
     const gap = kpiGap(el);
     const cross = el.align === "center" ? "center" : el.align === "right" ? "flex-end" : "flex-start";
-    const d = deltaStyle(el.deltaDir);
+    const d = deltaStyle(el.deltaDir, el);
     const label = el.label ? `<span style="font-size:${subSize}px;opacity:0.72;">${esc(el.label)}</span>` : "";
     const delta = el.delta
       ? `<span style="font-size:${subSize}px;font-weight:600;color:${d.color};white-space:nowrap;">${d.arrow} ${esc(el.delta)}</span>`
@@ -305,11 +337,11 @@ export function elementBodyHtml(el: SlideElement, surface?: string): string {
     const rows = el.rows ?? [];
     const header = tableHasHeader(el);
     const fs = tableFontSize(el);
-    const cellCss = `padding:${TABLE_CELL_PAD_Y}px ${TABLE_CELL_PAD_X}px;border-bottom:1px solid ${TABLE_SEP};font-variant-numeric:tabular-nums;min-width:0;overflow-wrap:anywhere;`;
+    const cellCss = `padding:${TABLE_CELL_PAD_Y}px ${TABLE_CELL_PAD_X}px;border-bottom:1px solid ${tableSep(el)};font-variant-numeric:tabular-nums;min-width:0;overflow-wrap:anywhere;`;
     const cells: string[] = [];
     if (header) {
       for (let i = 0; i < cols; i++) {
-        cells.push(`<div style="${cellCss}font-weight:700;background:${TABLE_HEADER_BG};">${inlineHtml(columns[i] ?? "")}</div>`);
+        cells.push(`<div style="${cellCss}font-weight:700;background:${tableHeaderBg(el)};">${inlineHtml(columns[i] ?? "")}</div>`);
       }
     }
     for (const row of rows) {

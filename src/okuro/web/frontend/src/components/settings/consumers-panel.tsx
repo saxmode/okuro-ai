@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { usePaneInterval } from "@/lib/pane-active";
 import { Loader2, RefreshCw, AlertTriangle } from "lucide-react";
 import { onboardingApi } from "@/lib/api";
 import type { ConsumerStatus, UnmanagedRegistration } from "@/types/api";
@@ -15,15 +16,15 @@ type PillTone = "ok" | "warn" | "muted" | "bad";
 function Pill({ tone, children }: { tone: PillTone; children: React.ReactNode }) {
   const cls =
     tone === "ok"
-      ? "text-accent border-accent/40"
+      ? "text-accent border-border"
       : tone === "warn"
-        ? "text-warning border-warning/40"
+        ? "text-warning border-border"
         : tone === "bad"
-          ? "text-error border-error/40"
+          ? "text-error border-border"
           : "text-tertiary border-border";
   return (
     <span
-      className={`inline-flex items-center rounded px-2 py-0.5 text-2xs uppercase tracking-wider border ${cls}`}
+      className={`case-label inline-flex items-center rounded px-2 py-0.5 text-2xs tracking-wider border ${cls}`}
     >
       {children}
     </span>
@@ -130,14 +131,14 @@ function ConsumerCard({
 function UnmanagedWarnings({ items }: { items: UnmanagedRegistration[] }) {
   if (items.length === 0) return null;
   return (
-    <div className="rounded border border-warning/30 bg-warning/5 p-3 space-y-2">
+    <div className="rounded border border-border bg-warning-subtle p-3 space-y-2">
       <div className="flex items-center gap-2 text-2xs font-semibold text-warning">
         <AlertTriangle className="h-3.5 w-3.5" />
         Registrations okuro does not manage
       </div>
       <ul className="space-y-2">
         {items.map((u, i) => (
-          <li key={i} className="text-2xs text-warning/90">
+          <li key={i} className="text-2xs text-warning">
             <div>
               <code className="font-mono">{u.server}</code> in{" "}
               <code className="font-mono">{u.path}</code>{" "}
@@ -156,7 +157,10 @@ export function ConsumersPanel() {
   const q = useQuery({
     queryKey: ["onboarding", "consumers"],
     queryFn: onboardingApi.consumers,
-    refetchInterval: 15_000,
+        // L4 / T9 — Law 3 keeps all five topic panes mounted, so an unguarded
+    // interval polls from four topics away. MEASURED off-screen before the
+    // guard; see the pass report for the A/B.
+    refetchInterval: usePaneInterval(15_000),
   });
 
   const deploy = useMutation({

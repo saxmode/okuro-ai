@@ -422,21 +422,53 @@ def _build_gate_message(kind: str, cause: str, ctx: dict | None = None) -> GateM
         # prompt. The question itself IS what the user must answer, so it is
         # kept; it is normalised, not truncated mid-word.
         prompt = _summary_line(str(ctx.get("prompt", "") or ""), 240)
+        # S2 — the artifact this decision is made AGAINST. The TITLE goes in
+        # the explanation because it is what the question is about; the id
+        # stays in technical_details with the rest of the jargon this module
+        # exists to quarantine.
+        subject_name = str(ctx.get("subject_title", "") or "").strip()
+        subject_id = str(ctx.get("subject_artifact_id", "") or "").strip()
+        moved = bool(ctx.get("basis_moved"))
+        basis_line = ""
+        if subject_id:
+            named = subject_name or "an artifact"
+            basis_line = (
+                f"\n\nThis decision is about “{named}”, which has CHANGED "
+                f"since the question was asked — the answer would be "
+                f"refused until the gate is posed again, or skipped."
+                if moved
+                else f"\n\nThis decision is about “{named}”. Read it first."
+            )
+        explanation = (
+            f"{prompt}\n\nThis is a choice the run cannot make for you."
+            if prompt
+            else "The task reached a choice only you can make."
+        ) + basis_line
         return GateMessage(
-            headline=f"{step_label(phase)} needs a decision from you",
-            explanation=(
-                f"{prompt}\n\nThis is a choice the run cannot make for you."
-                if prompt
-                else "The task reached a choice only you can make."
+            headline=(
+                f"{step_label(phase)} needs a decision — but what it is about has changed"
+                if moved
+                else f"{step_label(phase)} needs a decision from you"
             ),
-            action="Pick an option below to continue.",
+            explanation=explanation,
+            action=(
+                "Re-pose the gate against the current version, or skip it."
+                if moved
+                else "Pick an option below to continue."
+            ),
             options=list(ctx.get("options", []) or []),
             # recommended deliberately left unset here: decision_gate builds
             # its own richer per-option structure (id/label/pros/cons/
             # recommended, straight from the typed DecisionGate options) in
             # engine.py's payload, independent of this flat options list —
             # the real recommendation lives there, not here.
-            technical_details=raw,
+            technical_details="\n".join(
+                p for p in (
+                    raw,
+                    f"subject artifact: {subject_id}" if subject_id else "",
+                    str(ctx.get("basis_refusal", "") or ""),
+                ) if p
+            ),
         )
 
     if kind == "subtask_approval":

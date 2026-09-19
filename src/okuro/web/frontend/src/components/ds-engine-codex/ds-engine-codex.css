@@ -1,4 +1,13 @@
-[data-page="ds-engine-codex"] {
+/* THE TOKENS ARE SHARED WITH THE PUBLISHED NAV, and that is a consequence of
+   the R5 split rather than a preference. `.dsc-local-nav` is now PORTALLED into
+   the plate (`PageTitle.tsx`), which is a sibling of `.plane` and therefore
+   OUTSIDE this page's subtree — a token declared only on `[data-page=…]` would
+   simply not reach it, and every `color-mix(… currentColor …)` below would
+   resolve against the shell's ink instead of the page's. So the declarations
+   sit on both, and the four properties that describe the PAGE's own ground stay
+   on the page alone, in the rule underneath. */
+[data-page="ds-engine-codex"],
+.dsc-local-nav {
   --dsc-rail: 384px;
   --dsc-max: 1120px;
   --dsc-bg: var(--color-background-base);
@@ -9,30 +18,62 @@
   --dsc-rule: color-mix(in srgb, currentColor 14%, transparent);
   --dsc-rule-strong: color-mix(in srgb, currentColor 28%, transparent);
   --dsc-muted: color-mix(in srgb, currentColor 62%, transparent);
+  /* Named here because a shared authoring component asks for them BY TYPE
+     (components/design-authoring/vocabulary.ts) rather than hoping a variable
+     exists. Same rule as every line above: no colour is typed, each resolves
+     from something the engine emitted or from this page's own currentColor. */
+  --dsc-surface-2: color-mix(in srgb, var(--dsc-fg) 4%, transparent);
+  --dsc-r-control: 6px;
+  --dsc-measure: 660px;
+  /* The provenance panel's width. Wave 3 — this page's own number, handed to a
+     shared component that never decides its own size. */
+  --dsc-inspector: 400px;
+}
+
+/* THE PAGE'S OWN GROUND — not the nav's any more. */
+[data-page="ds-engine-codex"] {
   min-height: 100vh;
   color: var(--dsc-fg);
   background: var(--dsc-bg);
   scroll-behavior: smooth;
 }
 
+/* THE LOCAL NAV IS NO LONGER PAGE CHROME — R5, the owner 2026-09-17.
+   ==================================================================
+   It used to be a `position: sticky` header at the top of the pane, which put
+   this leaf's own bar under the shell's plate: `.c-panes` carries `z-index: 0`,
+   so a sticky inside it pins BEHIND the plate whatever rank it claims, and this
+   one claimed 30. Every other leaf publishes its bar into the plate instead;
+   DESIGN was the last one drawing its own.
+
+   SO THE WHOLE CHROME GOES, not just the stickiness: `position`, `z-index`,
+   `top`, `min-height`, `padding`, the rule under it, the ground and the blur
+   were all this element standing in for a surface. The plate IS that surface
+   now and supplies every one of them. What is left is the row itself.
+
+   THE CONFIGURATION RAIL KEEPS ITS FOUR STICKY PIECES, and that is the SPLIT
+   rather than an exception: the rail is a workbench that scrolls its own
+   column, so pinning its head and its action row is page behaviour that the
+   plate has no opinion about. Only the leaf-wide top bar was the shell's job. */
 .dsc-local-nav {
-  position: sticky;
-  z-index: 30;
-  top: 0;
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  display: flex;
   align-items: center;
-  min-height: 56px;
-  padding: 0 24px 0 52px;
-  border-bottom: 1px solid var(--dsc-rule);
-  background: color-mix(in srgb, var(--dsc-bg) 88%, transparent);
-  backdrop-filter: blur(18px) saturate(1.25);
+  gap: 16px;
+  /* EXPLICIT, BECAUSE currentColor NO LONGER COMES FROM THE PAGE. Portalled
+     into the plate, this element inherits the shell's ink; `--dsc-rule` and
+     `--dsc-muted` above are `color-mix(… currentColor …)`, so without this the
+     nav's own rule and its inactive links would be mixed from a colour the page
+     never chose. */
+  color: var(--dsc-fg);
 }
 
 .dsc-wordmark { display: inline-flex; align-items: center; gap: 8px; width: max-content; color: inherit; text-decoration: none; }
 .dsc-wordmark i { display: block; width: 1px; height: 16px; background: var(--dsc-rule-strong); }
-.dsc-local-nav nav { display: flex; align-items: center; gap: 4px; padding: 4px; border: 1px solid var(--dsc-rule); border-radius: 999px; }
-.dsc-local-nav nav a { padding: 6px 14px; border-radius: 999px; color: var(--dsc-muted); text-decoration: none; transition: color 160ms ease, background 160ms ease; }
+/* SAME FORMULA, SAME SWEEP. A pill inside a pill still owes the distance:
+   999 - 4 - 1 = 994, and at this radius the two are visually identical — which
+   is exactly why a literal survives here unnoticed until something measures. */
+.dsc-local-nav nav { --dsc-nav-r: 999px; --dsc-nav-pad: 4px; --dsc-nav-border: 1px; display: flex; align-items: center; gap: 4px; padding: var(--dsc-nav-pad); border: var(--dsc-nav-border) solid var(--dsc-rule); border-radius: var(--dsc-nav-r); }
+.dsc-local-nav nav a { padding: 6px 14px; border-radius: max(0px, calc(var(--dsc-nav-r) - var(--dsc-nav-pad) - var(--dsc-nav-border))); color: var(--dsc-muted); text-decoration: none; transition: color 160ms ease, background 160ms ease; }
 .dsc-local-nav nav a[data-active] { color: var(--dsc-on-accent); background: var(--dsc-accent); }
 .dsc-release { justify-self: end; display: flex; align-items: center; gap: 8px; color: var(--dsc-muted); }
 .dsc-release > span { width: 6px; height: 6px; border-radius: 50%; background: var(--color-status-success); box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-status-success) 14%, transparent); }
@@ -63,8 +104,31 @@
 .dsc-section-heading > p { margin: 0; color: var(--dsc-muted); }
 
 .dsc-system-table { border-top: 1px solid var(--dsc-rule-strong); }
-.dsc-system-table > button { display: grid; width: 100%; grid-template-columns: 48px 48px minmax(0, 1fr) 120px 96px; gap: 16px; align-items: center; min-height: 88px; padding: 12px 16px; border: 0; border-bottom: 1px solid var(--dsc-rule); color: inherit; background: transparent; text-align: left; cursor: pointer; transition: background 160ms ease; }
-.dsc-system-table > button:hover, .dsc-system-table > button[data-selected] { background: color-mix(in srgb, var(--dsc-fg) 4%, transparent); }
+/* WAVE 5 — A ROW IS NO LONGER ONE BUTTON. Duplicate and Delete live in the row,
+   and a button cannot contain a button: the open control keeps the grid it
+   always had and the row becomes the box that holds it plus its actions. The
+   hairline moved from the button to the row for the same reason. */
+.dsc-system-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; border-bottom: 1px solid var(--dsc-rule); }
+.dsc-system-row > button { display: grid; width: 100%; grid-template-columns: 48px 48px minmax(0, 1fr) 120px 96px; gap: 16px; align-items: center; min-height: 88px; padding: 12px 16px; border: 0; color: inherit; background: transparent; text-align: left; cursor: pointer; transition: background 160ms ease; }
+/* `data-selected` STAYS ON THE OPEN BUTTON — test_codex_verdict reads it off
+   the element carrying `data-kit-row`, so the row asks the button rather than
+   carrying a second copy of the same fact. */
+.dsc-system-row:hover, .dsc-system-row:has(> button[data-selected]) { background: color-mix(in srgb, var(--dsc-fg) 4%, transparent); }
+.dsc-system-actions { display: flex; align-items: center; gap: 8px; padding-right: 16px; }
+/* DELETE ARMED — the second press. Colour is never the only channel: the label
+   changes from "Delete" to "Really?" at the same time. */
+.dsc-system-actions [data-action="delete-confirm"] { color: var(--color-status-error); border-color: var(--color-status-error); }
+.dsc-header-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 16px; }
+
+/* WAVE 5 — WHERE "SHOW ME" JUST SENT THE READER (todo d049a0fe).
+   The page publishes `data-show-target` on the stage it scrolled to; this is
+   the only place that decides what being sent for looks like. It is a ring
+   rather than a colour swap, because the stage's ground is the thing under
+   inspection and must not be touched by the act of pointing at it. */
+[data-show-target] { outline: 2px solid var(--dsc-accent); outline-offset: 4px; }
+@media (prefers-reduced-motion: no-preference) {
+  [data-show-target] { transition: outline-color 200ms ease; }
+}
 .dsc-system-index { color: var(--dsc-muted); font-variant-numeric: tabular-nums; }
 .dsc-system-swatch { width: 36px; height: 36px; border: 1px solid var(--dsc-rule); border-radius: 50%; box-shadow: inset 0 0 0 4px color-mix(in srgb, var(--dsc-bg) 18%, transparent); }
 .dsc-system-name { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
@@ -73,11 +137,45 @@
 .dsc-system-state { justify-self: end; display: flex; align-items: center; gap: 6px; }
 .dsc-system-state svg { width: 14px; height: 14px; color: var(--color-status-success); }
 
+/* THE TOOLBAR'S CHILDREN MUST BE ABLE TO SHRINK, and that is what
+   `min-width: 0` below buys. A flex item's default `min-width: auto` refuses to
+   go under its content width, so this row did not clip and did not scroll --
+   with `overflow: visible` it SPILLED, and what it spilled under is the sticky
+   configuration rail.
+
+   MEASURED 2026-09-17, viewport 1600x1100, after the viewport rung became a
+   system setting: the box was 511px and the content 648px, overhanging its
+   column by 137px. The last control, the downscale toggle, landed at
+   x 1213..1247 with the rail starting at 1228 -- its centre sat 2px inside the
+   rail, so `page.click` was intercepted by a `<summary>` and two browser gates
+   timed out after 30s each. With the children shrinkable the content is 526px
+   and the toggle ends at x 1138, clear of the rail.
+
+   WHY NOT `flex-wrap: wrap` ON THIS ROW, which was the first fix and is the
+   obvious one. It works, and it puts the first child in the toolbar's top-left
+   CORNER -- where `test_every_nested_corner_on_the_page_is_the_formulas_corner`
+   correctly reported a violation: this row's authored 12px corner is SMALLER
+   than the segmented group's 16px, so no inset can satisfy
+   `inner = max(0, outer - distance)`. Before the wrap the child was vertically
+   centred in a 175px row, so the pair was never a corner pair and the formula
+   never applied. Shrinking keeps it one line and keeps that true.
+
+   WHY IT SURFACED NOW AND IS NOT A RUNG BUG. This page's chrome reads the
+   emitted sheet, which is the point of it. The kit it opens used to render at
+   rung L and now follows the configured rung, one step up, so every label in
+   this row got wider. The row was always one rung from spilling; nothing let it
+   give way. A 15px residual overflow remains and is harmless -- it stays inside
+   the column and 90px clear of the rail. */
 .dsc-demo-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 56px; padding: 8px; border: 1px solid var(--dsc-rule); border-bottom: 0; border-radius: 12px 12px 0 0; background: color-mix(in srgb, var(--dsc-fg) 2%, transparent); }
-.dsc-rung-picker { display: flex; gap: 2px; }
+.dsc-rung-picker { display: flex; flex-wrap: wrap; gap: 2px; min-width: 0; }
+.dsc-demo-toolbar > * { min-width: 0; }
 .dsc-rung-picker button, .dsc-scale-toggle { min-width: 34px; height: 30px; padding: 0 9px; border: 0; border-radius: 6px; color: var(--dsc-muted); background: transparent; cursor: pointer; }
 .dsc-rung-picker button[data-active], .dsc-scale-toggle[data-active] { color: var(--dsc-on-accent); background: var(--dsc-accent); }
-.dsc-system-stage { min-height: 640px; border: 1px solid var(--dsc-rule); border-radius: 0 0 12px 12px; overflow: hidden; background: var(--dsc-bg); }
+/* `position: relative` BECAUSE THE INSPECTOR LIVES IN HERE — wave 3. It is
+   absolutely positioned at the height of the gesture on the canvas's right
+   edge, so this is the box it is positioned against. `overflow: hidden` stays:
+   the panel is clamped to the pane's own height and scrolls inside itself. */
+.dsc-system-stage { position: relative; min-height: 640px; border: 1px solid var(--dsc-rule); border-radius: 0 0 12px 12px; overflow: hidden; background: var(--dsc-bg); }
 .dsc-native-demo { min-height: 640px; padding: clamp(28px, 5vw, 64px); background: var(--color-background-base); color: var(--color-foreground-primary); }
 .dsc-native-demo-head { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding-bottom: 18px; border-bottom: 1px solid var(--color-borders-default); }
 .dsc-native-demo-head > :last-child { justify-self: end; }
@@ -94,6 +192,70 @@
 .dsc-native-switch-row > div { display: grid; gap: 2px; }
 .dsc-native-switch-row small { color: color-mix(in srgb, currentColor 58%, transparent); }
 .dsc-native-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.dsc-ground-chips { display: flex; flex-wrap: wrap; gap: 2px; }
+.dsc-ground-chip { height: 30px; padding: 0 10px; border: 0; border-radius: 6px; color: var(--dsc-muted); background: transparent; cursor: pointer; }
+.dsc-ground-chip[aria-pressed="true"] { color: var(--dsc-on-accent); background: var(--dsc-accent); }
+/* ── THE LIVE INHERITANCE PROOF, IN THIS PAGE'S VOCABULARY ──────────────────
+   Until 2026-09-13 this block reached into `/design-engine`'s `chrome.css` and
+   rendered in `.ce-*`, which is the one direction his rule forbids (memory
+   df6e21cb). The shared component now takes class names from its HOST, and
+   these are ours. Structure and spacing are px, like every `.dsc-*` rule above;
+   every SIZE is an engine class handed in by `vocabulary.ts`, so nothing here
+   re-authors a number the engine already publishes. */
+.dsc-nesting { margin-top: 56px; padding-top: 40px; border-top: 1px solid var(--dsc-rule-strong); }
+.dsc-nest-scene { display: flex; flex-direction: column; gap: 32px; }
+.dsc-nest-intro { display: block; }
+.dsc-nest-stack { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.dsc-nest-stack-tight { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.dsc-nest-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.dsc-nest-intro h2 { margin: 6px 0 0; }
+.dsc-nest-intro p { margin: 12px 0 0; }
+.dsc-nest-scene h3 { margin: 0; }
+.dsc-nest-scene p { margin: 0; }
+.dsc-dim { color: var(--dsc-muted); }
+.dsc-nest-surface { border: 1px solid var(--dsc-rule); border-radius: 8px; background: var(--dsc-surface-2); }
+.dsc-nest-table { width: 100%; border-collapse: collapse; }
+.dsc-nest-table th, .dsc-nest-table td { padding: 11px 12px; border-top: 1px solid var(--dsc-rule); text-align: left; vertical-align: top; }
+.dsc-nest-table thead th { color: var(--dsc-muted); }
+.dsc-nest-table tbody td { color: var(--dsc-muted); }
+.dsc-nest-scroller { max-height: 168px; overflow: auto; }
+/* The two columns this proof was always authored for: the inbox and the
+   engine's read-back beside it. */
+.dsc-nest-stage { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 380px); gap: 32px; align-items: start; }
+.dsc-nest-control { height: 32px; padding: 0 8px; border: 1px solid var(--dsc-rule-strong); border-radius: var(--dsc-r-control); color: inherit; background: var(--dsc-bg); }
+.dsc-nest-primary { display: inline-flex; align-items: center; min-height: 40px; padding: 0 16px; border: 0; border-radius: var(--dsc-r-control); color: var(--dsc-on-accent); background: var(--dsc-accent); cursor: pointer; }
+
+/* WAVE 5 — the rhythm BETWEEN groups, which is the one the essentials sheet is
+   authored against. `.dsc-nest-stack` is the rhythm INSIDE one group; halving
+   the boundary would have been the silent way to get this wrong. */
+.dsc-groups { display: flex; flex-direction: column; gap: 32px; min-width: 0; }
+.dsc-groups > * + * { padding-top: 32px; border-top: 1px solid var(--dsc-rule); }
+/* THE HELP SLOT IS A PUBLISHED ATTRIBUTE, not a class — the same mechanism
+   `[data-severity]` uses. The shared component publishes it; each page's own
+   sheet answers. Scoped to this page so it can never reach another surface. */
+[data-page="ds-engine-codex"] [data-help] { display: block; margin-top: 4px; color: var(--dsc-muted); }
+[data-page="ds-engine-codex"] [data-help][data-state="error"] { color: var(--color-status-error); }
+
+/* R3 (8546865f) — THESE ASK THE PANE, NOT THE WINDOW.
+   ---------------------------------------------------------------------------
+   Both blocks were `@media`, and `@media` reads the viewport. Measured at
+   window 1366 with the panel open: `matchMedia('(min-width: 48rem)')` true
+   while the pane is 751.63px, so the 900px rule — which is EXACTLY the right
+   layout for a 754px container, the rail becoming a bottom sheet behind a
+   floating trigger — never fired. Consequences, both measured:
+
+     content column     370px (754 - 384 rail), hero display type clipped 129px
+     preview frames     two of four rendered 2px wide
+     mobile trigger     display:none at BOTH measured widths
+
+   DESIGN is the cleanest proof of the class SERVICES also belongs to: a page
+   that already ships the correct narrow-container layout renders the wide one,
+   because CSS had no way to ask how wide its pane is. `.c-panes > .pane` is a
+   named `inline-size` container (`shell.css:971`), so `@container pane` is
+   that way, and the rungs keep the px numbers they were written with. */
+@container pane (max-width: 1180px) {
+  .dsc-nest-stage { grid-template-columns: 1fr; }
+}
 .dsc-logic-strip { display: grid; grid-template-columns: repeat(5, 1fr); margin-top: 24px; border-top: 1px solid var(--dsc-rule-strong); }
 .dsc-logic-strip > div { display: grid; grid-template-columns: 30px 1fr; padding: 16px 12px; border-right: 1px solid var(--dsc-rule); }
 .dsc-logic-strip > div:last-child { border-right: 0; }
@@ -137,6 +299,9 @@
 .dsc-component-title { display: flex; justify-content: space-between; gap: 24px; align-items: start; padding-bottom: 32px; }
 .dsc-component-title h3 { margin: 8px 0; }
 .dsc-component-title p { max-width: 560px; margin: 0; color: var(--dsc-muted); }
+/* The whole component set, in its own preview document. Bounded so the
+   frame scrolls rather than the page: the scene is ~7000px tall. */
+.dsc-components-canvas { height: 78vh; min-height: 560px; margin-bottom: 56px; border: 1px solid var(--dsc-rule); border-radius: 12px; overflow: hidden; background: var(--dsc-bg); }
 .dsc-specimen { border: 1px solid var(--dsc-rule); border-radius: 10px; overflow: hidden; }
 .dsc-specimen-toolbar { display: flex; justify-content: space-between; padding: 11px 14px; border-bottom: 1px solid var(--dsc-rule); color: var(--dsc-muted); }
 .dsc-specimen-stage { display: grid; place-items: center; min-height: 300px; padding: 40px; background-image: linear-gradient(45deg, color-mix(in srgb, var(--dsc-fg) 2%, transparent) 25%, transparent 25%), linear-gradient(-45deg, color-mix(in srgb, var(--dsc-fg) 2%, transparent) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, color-mix(in srgb, var(--dsc-fg) 2%, transparent) 75%), linear-gradient(-45deg, transparent 75%, color-mix(in srgb, var(--dsc-fg) 2%, transparent) 75%); background-position: 0 0, 0 8px, 8px -8px, -8px 0; background-size: 16px 16px; }
@@ -165,7 +330,31 @@
 .dsc-inheritance-table thead th { color: var(--dsc-muted); }
 .dsc-inheritance-table td:nth-child(2), .dsc-inheritance-table td:nth-child(3) { color: var(--dsc-muted); }
 
-.dsc-config { position: sticky; top: 56px; height: calc(100vh - 56px); min-width: 0; overflow: auto; background: color-mix(in srgb, var(--dsc-bg) 98%, var(--dsc-fg)); }
+/* THE RAIL STICKS TO ITS SCROLLPORT, NOT TO THE VIEWPORT.
+   ---------------------------------------------------------------------------
+   It read `top: 56px; height: calc(100vh - 56px)`, written when this page was a
+   full-document route: the scrollport WAS the viewport and 56px was the page's
+   own top bar. Under the shell the scroller is `.content`, which is already
+   positioned `top: var(--sh-strip-h); bottom: 0` — so its height IS
+   `100vh - var(--sh-strip-h)` and its top edge is already past the strip. The
+   56px was therefore counted twice and the rail always ended past the pane.
+   Measured before, both widths: bottom 1223.2 against a 1024 viewport and
+   1199.2 against 1000 — about 199px of the rail's own scroller unreachable at
+   the scroll extremes.
+   `top: 0` pins it to the scrollport's top edge. The height is the scrollport's
+   own MINUS its top padding, because a sticky `top: 0` pins to the CONTENT-box
+   top and the ring's `--sh-s-48` sits above that — measured: with the
+   scrollport height alone the stuck overshoot was still 55.2px, which is that
+   token exactly. Both terms are shell tokens rather than pinned coordinates
+   (5a374667: record the invariant, not the number). */
+/* THE `--sh-strip-h` FALLBACK IS 64, NOT 56. The token moved on 2026-09-16 and
+   this literal did not follow it, so the one path that reads a fallback — no
+   tokens.css at all — asked for a strip 8px shorter than the one the shell
+   draws. Measured in Chromium 153 on this page: `--sh-strip-h` is `8rem` and
+   the root is 8px/rem, so 64. The other three fallbacks in this file were
+   checked in the same pass and all agree with their tokens
+   (--sh-s-48 48, --sh-s-32 32, --sh-winctl-glyph 16, --sh-s-16 16). */
+.dsc-config { position: sticky; top: 0; height: calc(100vh - var(--sh-strip-h, 64px) - var(--sh-s-48, 48px)); min-width: 0; overflow: auto; background: color-mix(in srgb, var(--dsc-bg) 98%, var(--dsc-fg)); }
 .dsc-config-head { position: sticky; z-index: 2; top: 0; display: flex; justify-content: space-between; align-items: center; min-height: 68px; padding: 12px 20px; border-bottom: 1px solid var(--dsc-rule); background: color-mix(in srgb, var(--dsc-bg) 94%, transparent); backdrop-filter: blur(16px); }
 .dsc-config-head > div { display: flex; flex-direction: column; gap: 2px; }
 .dsc-config-head > div span { color: var(--dsc-muted); }
@@ -180,7 +369,9 @@
 .dsc-config-active strong { color: var(--dsc-fg); }
 .dsc-config-active svg { width: 14px; flex: 0 0 auto; }
 .dsc-health { display: flex; align-items: center; gap: 7px; color: var(--dsc-muted); }
-.dsc-health i { width: 6px; height: 6px; border-radius: 50%; background: var(--color-status-success); }
+/* THE DOT WEARS THE VERDICT. `--dsc-severity` is set by the
+   `[data-verdict]` rules above, from the same answer the band states. */
+.dsc-health i { width: 6px; height: 6px; border-radius: 50%; background: var(--dsc-severity, var(--color-status-success)); }
 .dsc-health button { display: none; width: 30px; height: 30px; place-items: center; border: 0; border-radius: 6px; color: inherit; background: transparent; }
 .dsc-health button svg { width: 15px; }
 .dsc-error { display: flex; gap: 10px; margin: 16px 20px 0; padding: 12px; border: 1px solid color-mix(in srgb, var(--destructive) 32%, transparent); border-radius: 8px; color: var(--destructive); background: color-mix(in srgb, var(--destructive) 8%, transparent); }
@@ -204,25 +395,97 @@
 .dsc-color-field input[type="color"] { width: 34px; height: 34px; padding: 3px; border: 1px solid var(--dsc-rule-strong); border-radius: 6px; background: transparent; cursor: pointer; }
 .dsc-panel-switch { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
 .dsc-panel-switch > span { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
-.dsc-panel-segments { display: grid; grid-template-columns: 1fr 1fr; padding: 3px; border: 1px solid var(--dsc-rule); border-radius: 7px; }
-.dsc-panel-segments button { height: 29px; border: 0; border-radius: 5px; color: var(--dsc-muted); background: transparent; cursor: pointer; }
+/* THE NESTED CORNER IS AN EXPRESSION, NEVER A LITERAL — P0 q3,
+   `inner = max(0, outer - distance)`. Found on DESIGN in wave 5 by the sweep
+   `test_showcase::test_every_nested_corner_on_the_page_is_the_formulas_corner`,
+   which measures BOTH documents and had only ever measured the old page's.
+   7px outer with 3px padding + 1px border = 4px distance, so the inner corner
+   is 3, not 5. Written as the arithmetic so it stays right when either moves. */
+.dsc-panel-segments { --dsc-seg-r: 7px; --dsc-seg-pad: 3px; --dsc-seg-border: 1px; display: grid; grid-template-columns: 1fr 1fr; padding: var(--dsc-seg-pad); border: var(--dsc-seg-border) solid var(--dsc-rule); border-radius: var(--dsc-seg-r); }
+.dsc-panel-segments button { height: 29px; border: 0; border-radius: max(0px, calc(var(--dsc-seg-r) - var(--dsc-seg-pad) - var(--dsc-seg-border))); color: var(--dsc-muted); background: transparent; cursor: pointer; }
 .dsc-panel-segments button[data-active] { color: var(--dsc-on-accent); background: var(--dsc-accent); }
 .dsc-panel-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .dsc-panel-triple { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-.dsc-resolved-poles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.dsc-shade-field { display: grid; gap: 7px; padding: 9px; border: 1px solid var(--dsc-rule); border-radius: 7px; color: var(--dsc-muted); }
-.dsc-shade-head { display: grid; grid-template-columns: 22px 1fr auto; align-items: center; gap: 7px; }
-.dsc-shade-head i { width: 22px; height: 22px; border-radius: 50%; }
-.dsc-shade-head b, .dsc-shade-head output { color: var(--dsc-fg); }
-.dsc-shade-field input[type="range"] { width: 100%; accent-color: var(--color-accent); }
-.dsc-shade-field button { padding: 4px 0 0; border: 0; color: var(--dsc-muted); background: none; text-align: left; text-decoration: underline; cursor: pointer; }
+/* ---------------------------------------------------------------------------
+ * THE VERDICT — wave 3, matrix rows 29 and 31.
+ *
+ * This rail printed a COUNT (`2 findings`) beside a green dot. A number is not
+ * a judgement: it does not say how bad, about what, or what to do. The band
+ * below is the shared `components/design-authoring/verdict.tsx` wearing this
+ * page's chrome, and it states one sentence, one glyph and one action.
+ *
+ * SEVERITY IS ANSWERED HERE, NOT IN THE COMPONENT. The block publishes
+ * `data-severity`; these four rules give `--dsc-severity` the ENGINE's own
+ * status tokens — the same three the field-flag dots already wear — so nothing
+ * about a tone is typed inside a shared file. Colour is never the only channel:
+ * the glyph travels with the component.
+ * ------------------------------------------------------------------------ */
+
+.dsc-verdict { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 8px 20px; border-bottom: 1px solid var(--dsc-rule); }
+.dsc-verdict > span:nth-child(2) { flex: 1 1 auto; min-width: 0; color: var(--dsc-fg); }
+.dsc-verdict [data-verdict-action] { flex: none; }
+
+/* SCOPED TO THIS PAGE, like every other rule in this file. `data-severity` is
+   an attribute a shared component publishes wherever it is mounted, so an
+   unscoped rule here would hand this page's tones to every other surface in the
+   app that ever grows one. */
+[data-page="ds-engine-codex"] [data-severity="must-fix"] { --dsc-severity: var(--color-status-error); }
+[data-page="ds-engine-codex"] [data-severity="decide"] { --dsc-severity: var(--color-status-warning); }
+[data-page="ds-engine-codex"] [data-severity="note"] { --dsc-severity: var(--dsc-muted); }
+[data-page="ds-engine-codex"] [data-verdict="pass"],
+[data-page="ds-engine-codex"] [data-health-verdict="pass"] { --dsc-severity: var(--color-status-success); }
+[data-page="ds-engine-codex"] [data-health-verdict="must-fix"] { --dsc-severity: var(--color-status-error); }
+[data-page="ds-engine-codex"] [data-health-verdict="decide"] { --dsc-severity: var(--color-status-warning); }
+[data-page="ds-engine-codex"] [data-health-verdict="note"] { --dsc-severity: var(--dsc-muted); }
+
 .dsc-field-flags { display: grid; gap: 6px; margin: 7px 0 0; padding: 0; list-style: none; }
 .dsc-field-flags li { display: grid; grid-template-columns: 7px 1fr; gap: 8px; align-items: start; color: var(--dsc-muted); }
 .dsc-field-flags i { width: 7px; height: 7px; margin-top: 6px; border-radius: 50%; }
 .dsc-field-flags b { color: var(--dsc-fg); }
-.dsc-resolved-poles span { display: grid; grid-template-columns: 22px 1fr; align-items: center; gap: 3px 7px; padding: 9px; border: 1px solid var(--dsc-rule); border-radius: 7px; color: var(--dsc-muted); }
-.dsc-resolved-poles i { grid-row: span 2; width: 22px; height: 22px; border-radius: 50%; }
-.dsc-resolved-poles b { color: var(--dsc-fg); }
+
+/* ---------------------------------------------------------------------------
+ * WAVE 2 — the authored fields that arrived from the shared authoring folder.
+ *
+ * `.dsc-shade-field`, `.dsc-shade-head` and `.dsc-resolved-poles` are GONE with
+ * the `ShadeField` they dressed: one brand-colour block serves both rails now
+ * and it wears the roles below. Nothing here types a colour; every value comes
+ * from this page's own `--dsc-*` tokens, which resolve to engine names at the
+ * top of this file.
+ * ------------------------------------------------------------------------ */
+
+/* A low-emphasis button: a remove ×, a back-to-the-proposal link. */
+.dsc-quiet { min-height: 24px; min-width: 24px; padding: 0 6px; border: 1px solid transparent; border-radius: var(--dsc-r-control); color: var(--dsc-muted); background: transparent; cursor: pointer; }
+.dsc-quiet:hover { color: var(--dsc-fg); border-color: var(--dsc-rule-strong); }
+
+/* A resolved colour, as a square. An INSET ring rather than an outer border, so
+   a pale value still reads as a shape and the box stays exactly 24 x 24. */
+.dsc-swatch { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 24px; height: 24px; border-radius: 4px; box-shadow: inset 0 0 0 1px var(--dsc-rule-strong); }
+
+/* The findings slot under one pole: the calm sentence, then whatever the engine
+   has to say about that slot. */
+.dsc-pole-help { display: grid; gap: 4px; }
+.dsc-pole-help > small { color: var(--dsc-muted); }
+
+/* One signal: the authored colour, and the ink override that belongs to its
+   ROLE directly beneath it. */
+.dsc-signal-role { display: grid; gap: 8px; }
+.dsc-signal-role [data-signal-foreground] { padding-left: 2px; }
+.dsc-signal-role [data-signal-foreground] [data-ink] { height: auto; min-height: 28px; padding: 3px 8px; gap: 6px; }
+
+/* The additional-colours editor: a colour input and a free label per row. */
+.dsc-nest-control[type="color"] { padding: 2px; cursor: pointer; }
+
+/* The four border weights, side by side — one ladder, not four decisions. */
+.dsc-panel-quad [data-section="border-weights"] { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+[data-factor-field] input { height: 30px; }
+
+/* The shade slider's thumb: 16px of ink inside a 24px target.
+   Two rules that look like they conflict and do not — every interactive element
+   is at least 24 x 24, AND the thumb reads as a 16px dot. `background-clip:
+   content-box` behind a 4px transparent border gives both: the BOX is 24, the
+   PAINT is 16, and `getComputedStyle().backgroundColor` still reports the ink
+   so its contrast against the track can be measured. */
+[data-page="ds-engine-codex"] [role="slider"] { width: 24px; height: 24px; border-radius: 12px; border: 4px solid transparent; background: var(--dsc-fg); background-clip: content-box; box-shadow: 0 1px 2px rgba(0, 0, 0, .45); }
 .dsc-type-subsection { display: grid; gap: 10px; padding-top: 2px; }
 .dsc-type-subsection + .dsc-type-subsection { padding-top: 16px; border-top: 1px solid var(--dsc-rule); }
 .dsc-type-subsection-head { display: grid; gap: 2px; }
@@ -255,7 +518,24 @@
 .dsc-state h1 { margin: 12px 0; }
 .dsc-state p { max-width: 520px; margin: 0 auto; color: var(--muted-foreground); }
 
-@media (max-width: 1180px) {
+/* R3 (8546865f) — THESE ASK THE PANE, NOT THE WINDOW.
+   ---------------------------------------------------------------------------
+   Both blocks were `@media`, and `@media` reads the viewport. Measured at
+   window 1366 with the panel open: `matchMedia('(min-width: 48rem)')` true
+   while the pane is 751.63px, so the 900px rule — which is EXACTLY the right
+   layout for a 754px container, the rail becoming a bottom sheet behind a
+   floating trigger — never fired. Consequences, both measured:
+
+     content column     370px (754 - 384 rail), hero display type clipped 129px
+     preview frames     two of four rendered 2px wide
+     mobile trigger     display:none at BOTH measured widths
+
+   DESIGN is the cleanest proof of the class SERVICES also belongs to: a page
+   that already ships the correct narrow-container layout renders the wide one,
+   because CSS had no way to ask how wide its pane is. `.c-panes > .pane` is a
+   named `inline-size` container (`shell.css:971`), so `@container pane` is
+   that way, and the rungs keep the px numbers they were written with. */
+@container pane (max-width: 1180px) {
   [data-page="ds-engine-codex"] { --dsc-rail: 336px; }
   .dsc-section-heading { grid-template-columns: 1fr; gap: 16px; }
   .dsc-component-layout { grid-template-columns: 150px minmax(0, 1fr); gap: 28px; }
@@ -264,7 +544,16 @@
   .dsc-atlas-block { grid-template-columns: 1fr; gap: 20px; }
 }
 
-@media (max-width: 900px) {
+@container pane (max-width: 900px) {
+  /* THESE THREE NO LONGER REACH THE NAV — it is portalled into the plate by the
+     R5 split, and the plate is a sibling of `.plane`, outside the `pane`
+     container this query names. Measured at window 1366, where this query IS
+     matching (it is what turns `.dsc-config` into the fixed drawer below): the
+     published nav computes `order: 0`, `margin: 0px`, and `.dsc-release` is
+     `display: flex`, i.e. none of the three applies. They are kept rather than
+     deleted because removing rules is not this slice's job, and they are
+     labelled rather than left because an unlabelled dead rule is the same
+     false specification S2 was opened for. */
   .dsc-local-nav { grid-template-columns: 1fr auto; }
   .dsc-local-nav nav { order: 3; grid-column: 1 / -1; margin: 8px 0; justify-self: stretch; justify-content: center; }
   .dsc-release { display: none; }
@@ -274,14 +563,27 @@
   .dsc-config[data-mobile-open] { transform: translateY(0); }
   .dsc-config-head { position: sticky; border-radius: 14px 14px 0 0; }
   .dsc-health button { display: grid; }
-  .dsc-config-mobile-trigger { position: fixed; z-index: 55; right: 18px; bottom: 18px; display: flex; align-items: center; gap: 8px; min-height: 42px; padding: 0 14px; border: 1px solid var(--dsc-rule-strong); border-radius: 999px; color: var(--color-accent-foreground); background: var(--color-accent); box-shadow: 0 12px 36px rgba(0,0,0,.28); font: inherit; }
+  /* THE TRIGGER CLEARS THE SHELL'S CORNER PLATE, and it only had to once the
+     container query made it visible at all. MEASURED at window 1366 with
+     `right: 18px`: the trigger's box was 1158-1336 x 964-1006 and the shell's
+     `.genact` is 1270.4-1360 x 952.8-1024, so the trigger covered 65.6 of the
+     plate's 89.6px — and at `z-index: 55` against the plate's 5 it WON, which
+     means the shell's feedback and add-task container was 73 % unclickable on
+     this leaf. The trigger itself hit-tested fine, which is why nothing about
+     it looked wrong.
+     The offset is the shell's own corner formula (`shell.css:1342`, where the
+     feedback panel stacks past the same plate) plus one gap, so it moves with
+     the kit instead of with a number. */
+  .dsc-config-mobile-trigger { position: fixed; z-index: 55;
+    right: calc(var(--sh-s-32, 32px) + var(--sh-winctl-glyph, 16px) + var(--sh-s-32, 32px) + var(--sh-s-16, 16px));
+    bottom: 18px; display: flex; align-items: center; gap: 8px; min-height: 42px; padding: 0 14px; border: 1px solid var(--dsc-rule-strong); border-radius: 999px; color: var(--color-accent-foreground); background: var(--color-accent); box-shadow: 0 12px 36px rgba(0,0,0,.28); font: inherit; }
   .dsc-config-mobile-trigger svg { width: 15px; }
   .dsc-config-mobile-trigger span { display: grid; width: 18px; height: 18px; place-items: center; border-radius: 50%; background: color-mix(in srgb, currentColor 14%, transparent); }
   .dsc-page:has(.dsc-config[data-mobile-open]) .dsc-config-mobile-trigger { opacity: 0; pointer-events: none; }
   .dsc-hero { min-height: 680px; }
 }
 
-@media (max-width: 640px) {
+@container pane (max-width: 640px) {
   .dsc-local-nav { padding: 8px 16px; }
   .dsc-local-nav nav { overflow-x: auto; justify-content: flex-start; }
   .dsc-hero { min-height: 640px; padding: 72px 20px 32px; }
@@ -290,7 +592,9 @@
   .dsc-proofline { grid-template-columns: 1fr 1fr; row-gap: 24px; }
   .dsc-proofline > div:nth-child(3) { padding-left: 0; border-left: 0; }
   .dsc-systems, .dsc-demo, .dsc-components { padding: 72px 20px 80px; }
-  .dsc-system-table > button { grid-template-columns: 28px 38px 1fr auto; gap: 10px; }
+  .dsc-system-row { grid-template-columns: 1fr; }
+  .dsc-system-row > button { grid-template-columns: 28px 38px 1fr auto; gap: 10px; }
+  .dsc-system-actions { padding: 0 16px 12px; }
   .dsc-system-origin { display: none; }
   .dsc-system-state { grid-column: 4; }
   .dsc-demo-toolbar { align-items: stretch; flex-direction: column; }
@@ -317,5 +621,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   [data-page="ds-engine-codex"] { scroll-behavior: auto; }
-  .dsc-system-table > button, .dsc-local-nav nav a { transition: none; }
+  .dsc-system-row > button, .dsc-local-nav nav a { transition: none; }
 }

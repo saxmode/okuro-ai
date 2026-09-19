@@ -83,7 +83,7 @@ export function CreateRoleDialog({
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="role-id" className="text-2xs uppercase tracking-wider text-tertiary">
+            <Label htmlFor="role-id" className="text-2xs case-label tracking-wider text-tertiary">
               Role ID
             </Label>
             <Input
@@ -96,7 +96,7 @@ export function CreateRoleDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="role-domain" className="text-2xs uppercase tracking-wider text-tertiary">
+            <Label htmlFor="role-domain" className="text-2xs case-label tracking-wider text-tertiary">
               Domain
             </Label>
             <Input
@@ -115,7 +115,7 @@ export function CreateRoleDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="role-desc" className="text-2xs uppercase tracking-wider text-tertiary">
+            <Label htmlFor="role-desc" className="text-2xs case-label tracking-wider text-tertiary">
               Description
             </Label>
             <Textarea
@@ -130,7 +130,7 @@ export function CreateRoleDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-2xs uppercase tracking-wider text-tertiary">Tier</Label>
+              <Label className="text-2xs case-label tracking-wider text-tertiary">Tier</Label>
               <Select value={tier} onValueChange={setTier}>
                 <SelectTrigger className="bg-surface">
                   <SelectValue />
@@ -143,7 +143,7 @@ export function CreateRoleDialog({
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-2xs uppercase tracking-wider text-tertiary">Model</Label>
+              <Label className="text-2xs case-label tracking-wider text-tertiary">Model</Label>
               <Select value={model} onValueChange={setModel}>
                 <SelectTrigger className="bg-surface">
                   <SelectValue />

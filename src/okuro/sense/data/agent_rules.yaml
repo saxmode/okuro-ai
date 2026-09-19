@@ -30,6 +30,14 @@ close_out:
   groups:
     - title: "Before you start"
       items:
+        # MOVED HERE 2026-09-18 from two authored copies that disagreed in
+        # wording: providers/template.py's `## Session Protocol` ("If bootstrap
+        # returns an `## Intake` section") and sections.build_during_work's
+        # `### Context Check` ("If this bootstrap packet includes an **Intake**
+        # section"). One rule, two surfaces, two sentences — and neither copy
+        # reached the surface the other one was on. Stated once here it renders
+        # into the packet and all four provider files.
+        - "If your bootstrap packet carries an `## Intake` section, put its P0 questions to the user before starting work — unless they say \"just go\", which you respect immediately."
         - "ALWAYS research first — understand the domain, existing code, and conventions before writing anything."
         - "NEVER edit code you have not read."
     - title: "While working"
@@ -42,6 +50,13 @@ close_out:
         - "Commit after 2+ files or any user-facing change — NEVER batch to session end; sessions crash."
         - "NEVER `git add -A`/`git add .` — name specific files; one logical change per commit."
         - "NEVER create .md spec/architecture/ADR/README files — decisions -> write_memory, progress -> log_progress, ideas -> capture_thought. Architecture lives in code."
+        # MOVED HERE 2026-09-18 from providers/template.py's authored
+        # `## Session Protocol`, where it was the one line of that block with
+        # no equivalent anywhere else — so the CORE packet, which is the only
+        # copy a Claude Code Agent-tool subagent gets, never carried it at all.
+        # A rule about surviving compaction that is itself lost to compaction
+        # is the failure it exists to prevent.
+        - "If your context is nearing its limit, or a system message says compaction just happened, call `write_memory()` + `log_progress()` BEFORE continuing — compaction is lossy and only what you saved survives it."
     - title: "Before you finish"
       items:
         - "write_memory — persist anything non-obvious you discovered."
@@ -88,9 +103,9 @@ tool_routing:
   # +32pp top-1" are the evidence that justified BUILDING this rule — figures
   # for whoever maintains it. Quoted at the agent they invite the cost-benefit
   # judgement the rule does not offer, and 0.28 is a number an agent can weigh
-  # against its own confidence. This one `why:` renders into the CORE packet,
-  # TOOL-PROTOCOL.md and all four provider instruction files, so the benchmark
-  # was reaching six surfaces from one line.
+  # against its own confidence. This one `why:` renders into the CORE packet
+  # and all four provider instruction files, so the benchmark was reaching
+  # every emitted surface from one line.
   #
   # WHAT SURVIVES: the size claim, which is a fact about what the route returns,
   # and the `project=` instruction, which is an action.
@@ -254,6 +269,18 @@ tool_routing:
         group: "System state — NEVER shell out for these"
         columns: [want, call, instead_of]
   groups:
+    # MOVED HERE 2026-09-18 from a string literal in providers/template.py,
+    # where it sat between the routing table and the deliverables block and
+    # therefore reached the four provider files and NOTHING else. The CORE
+    # packet — the only copy a Claude Code Agent-tool subagent receives, since
+    # CLAUDE.md is not propagated into that path — never carried it, so the
+    # agents least able to check their own scope were the ones never told that
+    # an empty scoped result proves nothing. Same class as the seven
+    # `agent_doctrine` blocks and the same fix: render, do not copy.
+    - title: "Orientation"
+      body: |
+        `cortex_scope()` first when you do not know what is indexed; `cortex_navigate(path, direction)` to walk related files.
+        An empty scoped search result is NOT proof code is absent — check the scope, then use `cortex_search_code`, which walks ALL roots and needs no scope.
     - title: "Secrets"
       items:
         - "ALWAYS `keyring_get(name)` — NEVER a .env file, NEVER a literal in code."
@@ -264,3 +291,84 @@ tool_routing:
         - "Non-obvious decision -> `write_memory(topic='decision', ...)`"
         - "User idea -> `capture_thought(content, category='idea')`"
         - "Correcting a memory -> `write_memory(supersedes='<handle>', ...)`"
+
+# ---------------------------------------------------------------------------
+# WORKING DOCTRINE — the seven blocks that used to reach exactly one surface.
+# ---------------------------------------------------------------------------
+#
+# WHERE THESE CAME FROM. Until 2026-09-13 every block below lived in
+# `_TOOL_PROTOCOL_TAIL`, a Python string constant in bootstrap/sections.py
+# written to ~/.okuro/TOOL-PROTOCOL.md and to nothing else. Measured that day:
+# the CORE packet carried none of them, and of the four generated provider
+# instruction files only ~/.claude/CLAUDE.md even named the file — so three of
+# four providers had never seen the GPU-lease rule, the shell-usage rule, the
+# orientation table or either workflow.
+#
+# CLASS: contract-with-non-consuming-consumers, the same class
+# tests/sense/test_instruction_surfaces_contract.py was written for and closed
+# for `tool_routing` only. Moving the text here closes it for the tail as well:
+# one definition, rendered by render_rule into the packet section and into
+# every provider file, with a test asserting each block lands on each surface
+# exactly once.
+#
+# WHY A SEPARATE RULE AND NOT MORE `tool_routing` ACTIONS. A `tool_routing`
+# action is compiled into a gate; these blocks are procedures and resource
+# rules with nothing for a matcher to bind to. Literal `rows:` are forbidden on
+# `tool_routing` for exactly that reason and permitted here.
+agent_doctrine:
+  heading: "Working Doctrine — resources, shell, workflow, subagents"
+  tables:
+    - title: "Resources"
+      header: ["Situation", "Do this", "Not this"]
+      rows:
+        - ["Before GPU work", "acquire a lease via the GPU broker", "Use GPU without lease"]
+        - ["Need to call another LLM", "`bridge_invoke(prompt, capability?)`", "Direct subprocess"]
+    - title: "Starting a task"
+      header: ["Situation", "Do this"]
+      rows:
+        - ["Starting a task", "`brain_advise(task_hint)` for LLM-powered briefing"]
+        - ["Discover project context", "`project_status(slug)` — one read: phase plan, progress, inventory, staleness"]
+        - ["User states a rule (NEVER/ALWAYS)", "`write_memory(topic=\"convention\", content, confidence=0.9)`"]
+        - ["User shares an idea", "`capture_thought(content, category=\"idea\")`"]
+        - ["Hit a meaningful milestone", "`log_progress(project, status, summary)`"]
+        - ["Task meets adoption triggers (2+ files, or domain judgment, or expertise verb, or explicit role ask)", "`roles_match(task)` then `roles_get(id)` — adopt the returned role as binding operating context"]
+  groups:
+    - title: "Shell Usage"
+      body: |
+        Use the shell ONLY for runtime state no MCP tool covers — a tool-specific
+        `sqlite3` database, a project's own status CLI. Everything an MCP tool covers
+        goes through that tool: codebase search → cortex, GPU/docker/port state →
+        sysinfo, secrets → keyring.
+    - title: "Workflow: Starting a New Task"
+      body: |
+        1. `brain_advise(task_hint)` — get focused briefing from local LLM
+        2. `roles_match(task)` — if the task meets adoption triggers (≥2 files or 20+ min, domain judgment, expertise verb, or explicit role ask), adopt via `roles_get(id)` before producing output. Skip for one-line answers, single mechanical edits, lookups.
+        3. `cortex_route(concept)` — orient in codebase
+        4. `cortex_read_header` → `cortex_read_section` — understand relevant files
+        5. Work — edit, test, verify
+        6. `log_progress(project, status, summary)` — record what you did
+        7. `session_report(feedback)` — rate tools you used before ending
+    - title: "Workflow: Ending a Session"
+      body: |
+        Call `session_report()` with feedback on tools you used:
+        ```
+        session_report(feedback=[
+          {tool_name: "cortex_search", used: true, useful: true},
+          {tool_name: "sysinfo_gpu_status", used: false, bypass_reason: "not needed for this task"}
+        ])
+        ```
+    # REWRITTEN 2026-09-13, and the rewrite is the point of the migration.
+    # This block used to read "When spawning a subagent, include in its prompt:
+    # `read ~/.okuro/TOOL-PROTOCOL.md`" — a pointer to a file that no longer
+    # exists, propagated by the file itself plus template.py, dispatcher.py
+    # (twice) and prism/workflow/orchestration.py. The protocol now arrives
+    # through the gated bootstrap every subagent already makes, so a brief that
+    # names a file to read is stating a step that is both redundant and, since
+    # the deletion, wrong.
+    - title: "Spawning Subagents"
+      body: |
+        Every subagent bootstraps itself and receives this protocol in full —
+        the second call is gated. A brief names the WORK: repo path, branch,
+        deliverable tool, close-out calls. Never a file to read.
+      items:
+        - "Don't use worktree isolation for tasks that produce user-facing files — outputs get stranded on temp branches"

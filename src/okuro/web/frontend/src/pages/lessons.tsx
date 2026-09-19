@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ChevronRight,
@@ -15,7 +15,6 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SectionLabel } from "@/components/ui/section-label";
 import { toast } from "@/components/ui/toast";
-import { PageHeader } from "@/components/shell/page-header";
 import {
   Dialog,
   DialogContent,
@@ -25,7 +24,12 @@ import {
 } from "@/components/ui/dialog";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { Segmented } from "@/components/ui/segmented";
+import { countLabel, totalOrUnknown } from "@/lib/capped-count";
+import { sectionSlugs } from "@/shell/views/sections";
+import type { LeafViewProps } from "@/shell/views/registry";
 import { formatAge } from "@/lib/format";
+import { useSectionTitle } from "@/shell/components/PageTitle";
 
 /**
  * /lessons — the human half of the self-improvement loop.
@@ -139,7 +143,8 @@ function RoutingBadge({ routing }: { routing: Routing }) {
       {routing.label}
       {!routing.known_surface && (
         <span
-          className="opacity-70"
+          /* an ink tier as alpha (6ba4d789) — the kit names the dim tier */
+          className="text-fg-muted"
           title="This surface is not in the classifier's map — routed to the code side by the fail-closed default."
         >
           ?
@@ -316,57 +321,77 @@ function LessonRow({
  * candidates are why you came. Fetching them eagerly would spend the request
  * and the scroll on the two sections that are not the job.
  */
-function CollapsedQueue({
+/**
+ * ONE QUEUE, THE SELECTED ONE — Q-L1, recommendation A.
+ *
+ * It was a COLLAPSED DISCLOSURE with its own `useState(false)`, so all three
+ * queues shared one scroll column: reaching "what is in force" meant scrolling
+ * past 100 pending decisions in a 13,864px pane, and `?view=active` resolved to
+ * index 1 while nothing read it.
+ *
+ * THE LAZINESS IS KEPT AND THAT IS THE POINT. The query was `enabled: open`;
+ * it is now `enabled: selected`, so exactly one queue ever fetches — the good
+ * behaviour p3 warned a rebuild would drop, preserved by moving the flag rather
+ * than replacing the mechanism.
+ */
+function Queue({
   status,
-  title,
   description,
+  selected,
+  cap,
+  busy,
+  onApprove,
+  onReject,
 }: {
   status: LessonStatus;
-  title: string;
   description: string;
+  selected: boolean;
+  cap: number;
+  busy: boolean;
+  onApprove: (l: Lesson) => void;
+  onReject: (l: Lesson) => void;
 }) {
-  const [open, setOpen] = useState(false);
   const { data, isLoading } = useQuery({
     queryKey: ["lessons", status],
     queryFn: () => lessonsApi.list(status),
-    enabled: open,
+    enabled: selected,
   });
   const lessons = data?.lessons ?? [];
+  if (!selected) return null;
 
   return (
     <section className="flex flex-col gap-3">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className="flex w-fit items-center gap-1.5 text-left focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
-      >
-        <ChevronRight
-          size={12}
-          className={cn(
-            "text-fg-subtle transition-transform duration-200",
-            open && "rotate-90",
-          )}
-        />
-        <SectionLabel as="div">{title}</SectionLabel>
-        {open && isLoading && (
-          <Loader2 className="size-3 animate-spin text-tertiary" />
-        )}
-        {open && !isLoading && (
-          <span className="text-xs text-tertiary">({lessons.length})</span>
-        )}
-      </button>
+      {/* R7 (372ccdb2) — `(100)` WAS `limit=100` PRINTED AS A COUNT, and the
+          store held 492 candidates when p3 measured it. The label now says
+          what it shows and a dash for the total it cannot know. */}
+      <SectionLabel as="h2">
+        {isLoading
+          ? "Loading…"
+          : countLabel(lessons.length, totalOrUnknown(lessons, cap), "lessons")}
+      </SectionLabel>
 
-      {open && !isLoading && (
-        lessons.length === 0 ? (
-          <p className="text-xs text-tertiary">{description}</p>
-        ) : (
-          <div className="flex flex-col divide-y divide-border rounded-lg border border-border">
-            {lessons.map((l) => (
-              <LessonRow key={l.id} lesson={l} busy={false} />
-            ))}
-          </div>
-        )
+      {isLoading ? (
+        <div className="flex justify-center py-16 text-tertiary">
+          <Loader2 className="size-5 animate-spin" />
+        </div>
+      ) : lessons.length === 0 ? (
+        <EmptyState
+          icon={<Lightbulb className="size-6" />}
+          title="Nothing here"
+          description={description}
+        />
+      ) : (
+        <div className="flex flex-col divide-y divide-border rounded-lg border border-border">
+          {lessons.map((l) => (
+            <LessonRow
+              key={l.id}
+              lesson={l}
+              busy={busy}
+              onApprove={onApprove}
+              onReject={onReject}
+            />
+          ))}
+        </div>
       )}
     </section>
   );
@@ -374,16 +399,40 @@ function CollapsedQueue({
 
 // ── Page ─────────────────────────────────────────────────────────────
 
-export function LessonsPage() {
+/** The `limit` every queue is fetched under (`lessonsApi.list`). */
+const LESSON_CAP = 100;
+
+/** The three queues, in the section list's own order. */
+const QUEUE_OF_SLUG: Record<string, LessonStatus> = {
+  candidate: "candidate",
+  active: "active",
+  retired: "retired",
+};
+const LESSON_SLUGS = sectionSlugs("know", "lessons");
+const SECTION_OF = (status: LessonStatus): number =>
+  Math.max(0, LESSON_SLUGS.indexOf(status));
+const QUEUE_AT = (index: number): LessonStatus =>
+  QUEUE_OF_SLUG[LESSON_SLUGS[index] ?? "candidate"] ?? "candidate";
+
+export function LessonsPage({ view, onSelectView }: Partial<LeafViewProps> = {}) {
   const qc = useQueryClient();
   const [approving, setApproving] = useState<Lesson | null>(null);
   const [rejecting, setRejecting] = useState<Lesson | null>(null);
-
-  const { data, isLoading } = useQuery({
-    queryKey: ["lessons", "candidate"],
-    queryFn: () => lessonsApi.list("candidate"),
-  });
-  const candidates = data?.lessons ?? [];
+  /**
+   * THE QUEUE IS A SECTION — Q-L1 recommendation A. The declared names
+   * (CANDIDATE, ACTIVE, RETIRED) were already right; only the mechanism was
+   * missing, so `LEAF_SECTIONS` needs no edit. CANDIDATE stays section 0, so
+   * the bare `/know/lessons` still opens the decision queue.
+   */
+  const [localSection, setLocalSection] = useState(0);
+  const current = view ?? localSection;
+  const queue = QUEUE_AT(current);
+  const selectQueue = (next: LessonStatus) => {
+    const index = SECTION_OF(next);
+    if (index === current) return;
+    if (onSelectView) onSelectView(index);
+    else setLocalSection(index);
+  };
 
   // Every decision moves a row between queues, so all three are invalidated —
   // an approved lesson that still shows as a candidate is the page lying about
@@ -414,55 +463,65 @@ export function LessonsPage() {
 
   const busy = approveMut.isPending || rejectMut.isPending;
 
+  /* THE QUEUE SWITCHER IS ON THE PLATE — the leaf's one filter control.
+     `selectQueue` closes over `onSelectView`, so the prop is a dep even
+     though it does not appear in the JSX. */
+  const header = useMemo(
+    () => ({
+      actions: (
+        <Segmented<LessonStatus>
+          ariaLabel="Lesson queue"
+          value={queue}
+          onChange={selectQueue}
+          options={[
+            { label: "Awaiting your decision", value: "candidate" },
+            { label: "In force", value: "active" },
+            { label: "Retired", value: "retired" },
+          ]}
+        />
+      ),
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [queue, onSelectView],
+  );
+  useSectionTitle(header);
+
   return (
     <div className="page-shell space-y-8">
-      <PageHeader
-        title="Lessons"
-        subtitle="Defects mined from your own sessions. None is in force until you approve it."
+      {/* R1 (86b8f1f0) — the shell renders `<h1 class="c-title">Lessons</h1>`
+          above this pane. The subtitle stays as the lead, and it is the one
+          sentence that says what approval MEANS on this leaf. */}
+      <p className="type-small text-fg-muted">
+        Defects mined from your own sessions. None is in force until you approve
+        it.
+      </p>
+
+      <Queue
+        status="candidate"
+        description="Mining writes candidates weekly. If you expected some, check distill.mining_enabled and tier-1 coverage."
+        selected={queue === "candidate"}
+        cap={LESSON_CAP}
+        busy={busy}
+        onApprove={setApproving}
+        onReject={setRejecting}
       />
-
-      <section className="flex flex-col gap-3">
-        <div className="flex items-center gap-2">
-          <SectionLabel as="h2">Awaiting your decision</SectionLabel>
-          {!isLoading && (
-            <span className="text-xs text-tertiary">({candidates.length})</span>
-          )}
-        </div>
-
-        {isLoading ? (
-          <div className="flex justify-center py-16 text-tertiary">
-            <Loader2 className="size-5 animate-spin" />
-          </div>
-        ) : candidates.length === 0 ? (
-          <EmptyState
-            icon={<Lightbulb className="size-6" />}
-            title="Nothing awaiting review"
-            description="Mining writes candidates weekly. If you expected some, check distill.mining_enabled and tier-1 coverage."
-          />
-        ) : (
-          <div className="flex flex-col divide-y divide-border rounded-lg border border-border">
-            {candidates.map((l) => (
-              <LessonRow
-                key={l.id}
-                lesson={l}
-                busy={busy}
-                onApprove={setApproving}
-                onReject={setRejecting}
-              />
-            ))}
-          </div>
-        )}
-      </section>
-
-      <CollapsedQueue
+      <Queue
         status="active"
-        title="In force"
         description="No lesson has been activated yet."
+        selected={queue === "active"}
+        cap={LESSON_CAP}
+        busy={busy}
+        onApprove={setApproving}
+        onReject={setRejecting}
       />
-      <CollapsedQueue
+      <Queue
         status="retired"
-        title="Retired"
         description="Nothing has been rejected or retired on evidence."
+        selected={queue === "retired"}
+        cap={LESSON_CAP}
+        busy={busy}
+        onApprove={setApproving}
+        onReject={setRejecting}
       />
 
       <ApproveDialog
@@ -543,7 +602,7 @@ function ApproveDialog({
             <label className="flex flex-col gap-1 text-sm">
               <span className="text-tertiary">
                 Who is approving?{" "}
-                <span className="opacity-60">A person, not a daemon.</span>
+                <span className="text-fg-muted">A person, not a daemon.</span>
               </span>
               <input
                 className={FIELD}
@@ -627,7 +686,7 @@ function RejectDialog({
             </label>
             <label className="flex flex-col gap-1 text-sm">
               <span className="text-tertiary">
-                Who is rejecting? <span className="opacity-60">(optional)</span>
+                Who is rejecting? <span className="text-fg-muted">(optional)</span>
               </span>
               <input
                 className={FIELD}

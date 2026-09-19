@@ -66,7 +66,7 @@ export function FacetSidebar({
               onClick={() =>
                 onChange({ ...filters, [c.field]: undefined } as FilterState)
               }
-              className="flex items-center gap-1 rounded-sm border border-accent bg-accent-subtle px-1.5 py-0.5 text-2xs uppercase tracking-wider text-accent hover:bg-accent/30"
+              className="flex items-center gap-1 rounded-sm border border-accent bg-accent-subtle px-1.5 py-0.5 text-2xs case-label tracking-wider text-accent hover:bg-accent/30"
             >
               <span className="font-mono">{c.field}:</span>
               <span className="font-medium">{c.value}</span>
@@ -76,7 +76,7 @@ export function FacetSidebar({
         </div>
       )}
 
-      <div className="text-2xs uppercase tracking-wider text-tertiary">
+      <div className="text-2xs case-label tracking-wider text-tertiary">
         Showing <span className="font-mono text-fg-muted">{totalCount}</span>
       </div>
 
@@ -160,7 +160,7 @@ function FacetSection({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-1 text-2xs uppercase tracking-wider text-tertiary hover:text-fg-muted"
+        className="flex w-full items-center gap-1 text-2xs case-label tracking-wider text-tertiary hover:text-fg-muted"
       >
         <Chevron className="h-3 w-3" />
         <span>{title}</span>
@@ -190,7 +190,7 @@ function FacetSection({
             );
           })}
           {items.length > 14 && (
-            <li className="px-1.5 text-2xs uppercase tracking-wider text-tertiary">
+            <li className="px-1.5 text-2xs case-label tracking-wider text-tertiary">
               +{items.length - 14} more
             </li>
           )}
@@ -238,7 +238,7 @@ function ConfidenceFacet({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-1 text-2xs uppercase tracking-wider text-tertiary hover:text-fg-muted"
+        className="flex w-full items-center gap-1 text-2xs case-label tracking-wider text-tertiary hover:text-fg-muted"
       >
         <Chevron className="h-3 w-3" />
         <span>Confidence</span>

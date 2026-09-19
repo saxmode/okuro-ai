@@ -67,10 +67,18 @@ export async function withToken(url: string): Promise<string> {
 }
 
 export const mediaApi = {
-  list: (limit = 25, channel = "podcast") =>
-    api<{ media: MediaItem[] }>(
-      `/api/media?limit=${limit}&channel=${encodeURIComponent(channel)}`,
-    ),
+  /**
+   * Recent audio deliveries, newest first — ALL channels.
+   *
+   * The `channel` argument is gone rather than defaulted. The endpoint states
+   * that it "is accepted for back-compat but no longer filters the list"
+   * (`orchestrator/api/media.py:307`), so a parameter here could only ever
+   * mislead a reader into believing a filter exists — and it did: the p3 spec
+   * built a question on it. Measured: `?channel=podcast` and `?channel=tts`
+   * return the same rows.
+   */
+  list: (limit = 25) =>
+    api<{ media: MediaItem[] }>(`/api/media?limit=${limit}`),
 
   create: (payload: MediaRequest) =>
     api<MediaCreateResult>("/api/media", {

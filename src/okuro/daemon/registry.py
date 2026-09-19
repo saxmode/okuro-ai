@@ -218,12 +218,34 @@ BUILTIN_TASKS: list[DaemonTask] = [
     ),
     DaemonTask(
         id="model-suggestions",
-        description="Research box-fit OSS models against the user's goals and file them as proactive suggestions",
+        description="Walk every wanted model category (text, text-abliterated, image, image-nsfw, video, video-nsfw, music, vision, 3d, embedding), gate each for quality, write the lineage relation to what is installed and the placement fit, and file the interesting ones as proactive suggestions",
         cron="0 4 * * 1",  # Monday 04:00
         handler="okuro.ai_models.suggest:run_suggestions",
         timeout_seconds=600,
         kind=KIND_LLM,
         tier=TIER_STANDARD,
+    ),
+    # Hot stores every day, cold stores on Monday — the handler decides which
+    # by the store's configured tier, so the cadence does not need two tasks.
+    # Identity mode runs for NEW units only: a unit's fingerprint does not
+    # change, and re-reading terabytes weekly to confirm that would be the most
+    # expensive no-op in the system. The LIVE dir-stat walk is on demand (the
+    # inventory page and `okuro models inventory --refresh stat`), not here.
+    # A host with no `ai_models.model_stores` convention makes this a no-op.
+    DaemonTask(
+        id="model-store-scan",
+        description="Inventory the configured model stores at unit granularity (hot daily, cold Mondays), re-derive the consumer map from code, then parse lineage and compute the idle placement fit for new units",
+        cron="30 4 * * *",  # 04:30, after the Monday 04:00 discovery scan
+        handler="okuro.ai_models.store_scan:scan_task",
+        timeout_seconds=1800,
+        kind=KIND_SCRIPT,  # os.stat + sha256 of 2 MiB per unit, no model call
+        # ONE task, not four. The consumer scan, the lineage parse and the
+        # fit pass all run inside scan_task, in that order, after the store
+        # walk. Each depends on the one before it: a consumer reference
+        # resolves against model_units, lineage parses the units the walk just
+        # added, and fit reads the params and quant lineage wrote. Separate
+        # tasks could interleave in any order and would report freshly-arrived
+        # models as dead refs, or place a model whose size is not parsed yet.
     ),
     DaemonTask(
         id="refresh",

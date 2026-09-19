@@ -68,8 +68,7 @@ def deploy_surface(
             takes ``$OKURO_MCP_TRANSPORT``, else stdio.
 
     Returns:
-        ``{provider: {...}}`` plus ``_mcp_error`` / ``_tool_protocol`` /
-        ``_scope`` keys. MCP results and adapter results merge under the same
+        ``{provider: {...}}`` plus ``_mcp_error`` / ``_scope`` keys. MCP results and adapter results merge under the same
         provider key where the names coincide, so ``results["claude"]`` carries
         both its ``mcp`` counts and its ``instructions``/``hooks`` paths. Names
         that exist on only one side (``claude_desktop`` has no adapter;
@@ -119,11 +118,8 @@ def deploy_surface(
         except Exception as exc:  # noqa: BLE001
             r["error"] = str(exc)
 
-    # 3. Provider-independent TOOL-PROTOCOL.md.
-    try:
-        from okuro.sense.bootstrap.sections import generate_tool_protocol
-        results["_tool_protocol"] = {"path": generate_tool_protocol()}
-    except Exception as exc:  # noqa: BLE001
-        results["_tool_protocol"] = {"error": str(exc)}
-
+    # A third step wrote ~/.okuro/TOOL-PROTOCOL.md here and called it
+    # provider-independent. Only ~/.claude/CLAUDE.md ever pointed at it, so the
+    # doctrine it alone carried reached one provider. It now renders into every
+    # file step 2 writes, which is why there is nothing left to deploy here.
     return results

@@ -1,25 +1,28 @@
 import { Link } from "react-router";
-import { Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTasks, useSystemStatus } from "@/hooks/use-tasks";
 import { useDashboardBrain } from "@/hooks/use-dashboard";
 import { usePulseData, type LiveAgent } from "@/hooks/use-activity-stream";
 import { formatAge, shortId, displayAgent } from "@/lib/format";
 import type { TaskSummary } from "@/types/api";
-import { Button } from "@/components/ui/button";
 import { SectionLabel } from "@/components/ui/section-label";
 import { EmptyState } from "@/components/ui/empty-state";
-import { CreateDialog } from "@/components/task/create-dialog";
 import { WelcomePanel } from "@/components/dashboard/welcome-panel";
-import { PageHeader } from "@/components/shell/page-header";
 import { NeedsYouStrip } from "@/components/inbox/NeedsYouStrip";
 import { parseApiDate } from "@/lib/format";
 
 const LAST_VISIT_KEY = "okuro-last-visit";
 
+/**
+ * `path` IS GONE (S8). It was stamped as `"/"`, which stopped being this
+ * leaf's address when it became `/start/now`, and nothing has ever read the
+ * field — the deltas below are computed from `counts` alone. A key that
+ * outlives its last reader is the shape three post-p10 defects had, and a key
+ * that outlives its last reader while ALSO holding a stale address is worse:
+ * the first thing to read it would read a wrong answer.
+ */
 interface LastVisit {
   at: string;
-  path?: string;
   counts?: {
     memory: number;
     progress: number;
@@ -57,7 +60,6 @@ export function HomePage() {
   const { data: tasksData } = useTasks({ limit: 20 });
   const { data: brain } = useDashboardBrain();
   const { activeRoles, liveAgents, activity, connected } = usePulseData();
-  const [createOpen, setCreateOpen] = useState(false);
   const [previousVisit] = useState(() => loadLastVisit());
 
   // Persist this visit after first paint so `previousVisit` reflects the
@@ -66,7 +68,6 @@ export function HomePage() {
     if (!brain) return;
     saveLastVisit({
       at: new Date().toISOString(),
-      path: "/",
       counts: {
         memory: brain.memory.length,
         progress: brain.progress.length,
@@ -117,9 +118,35 @@ export function HomePage() {
         connected={connected}
       />
 
-      <div className="grid gap-6 lg:grid-cols-5">
-        {/* Live agents zone (2/5) */}
-        <section className="lg:col-span-2 space-y-3">
+      {/* R3 / S3 — THE TWO ZONES ARE PANE-AWARE, and they used to be neither.
+          `lg:grid-cols-5` is a WINDOW query, and under the engine's 8px root
+          `lg:` is 512px, so it was true in every state the shell can produce —
+          the grid was always five columns whether the pane was 728px or
+          1514px. Measured consequence at 1366 with the panel open: the strip
+          got `col-span-3` of a 728px pane = 426px, its compact row's title
+          cell 125.5px, and the first title rendered as one letter.
+
+          `@4xl:` is the PANE query the shell provides (`.pane` is a query
+          container named `pane`), and `--container-4xl` is 112rem = 896px under
+          the 8px root — the same rung the inbox row uses for its salience bar,
+          deliberately, so the two leaves flip together. Below it the zones
+          stack and each gets the full pane; above it they sit side by side as
+          before. This does NOT close the open Tailwind-breakpoint todo: that
+          one re-anchors `--breakpoint-*` for the WINDOW and stays open. */}
+      <div className="grid gap-6 @4xl:grid-cols-5">
+        {/* Live agents zone (2/5 once the pane is wide enough) */}
+        {/* `min-w-0` ON BOTH GRID ITEMS, and it is load-bearing rather than
+            defensive. A grid track is `minmax(auto, 1fr)`, so its MINIMUM is
+            the item's min-content width — and the live-agent row carries an
+            agent's `current_task_hint`, which is an arbitrary sentence. With
+            the zones stacked at 1366 that pushed the track to 1072px inside a
+            728px pane: `.pane` scrollWidth 1072 vs clientWidth 728, a
+            horizontal overflow, which the container contract forbids outright.
+            Measured, then fixed, then re-measured at 728 == 728. The `truncate`
+            already on the hint cannot help — a truncating span is still
+            `min-width:auto` to its own parent, so the clamp has to be on the
+            item the TRACK sizes. */}
+        <section className="min-w-0 @4xl:col-span-2 space-y-3">
           <SectionLabel>Live agents</SectionLabel>
           {agentsRunning === 0 ? (
             <EmptyState
@@ -143,7 +170,7 @@ export function HomePage() {
         {/* Needs-you zone (3/5) — top gated inbox items, surfaced inline.
             Replaces the legacy What-needs-you / Signals / Digest zones
             (Phase 4). The standalone /inbox page remains the full view. */}
-        <div className="lg:col-span-3">
+        <div className="min-w-0 @4xl:col-span-3">
           <NeedsYouStrip />
         </div>
       </div>
@@ -154,16 +181,6 @@ export function HomePage() {
         sinceCounts={sinceCounts}
         recentTasks={recentTasks}
       />
-
-      {/* Create FAB */}
-      <Button
-        onClick={() => setCreateOpen(true)}
-        aria-label="Create new task"
-        className="fixed bottom-6 right-6 z-20 h-12 w-12 rounded-full p-0 shadow-lg"
-      >
-        <Plus className="h-5 w-5" aria-hidden="true" />
-      </Button>
-      <CreateDialog open={createOpen} onOpenChange={setCreateOpen} />
 
       {/* System status band — low-ink, for answering "is anything broken?" */}
       {status && (
@@ -181,6 +198,20 @@ export function HomePage() {
   );
 }
 
+/**
+ * R1 (86b8f1f0) — WHAT IS LEFT OF THIS AFTER THE TITLE WENT.
+ *
+ * It used to be a `PageHeader`: `<h1>Now</h1>` plus a live sentence. The shell
+ * renders `<h1 class="c-title">Now</h1>` above this pane, and on NOW the
+ * duplication was literal — START's topic sentence is "Start with okuro now"
+ * and the leaf is "NOW". So the h1 is gone and only the sentence remains.
+ *
+ * The SENTENCE IS NOT A SUBTITLE and that is why it survived the cut: it is
+ * assembled from four live counts and degrades to "Connecting to orchestrator…"
+ * while the socket is down, so it is the page's only statement of whether
+ * anything is running. A title removal that took it with it would have deleted
+ * content, not chrome.
+ */
 function NarrativeHeader({
   agentsRunning,
   callsPerMin,
@@ -195,7 +226,7 @@ function NarrativeHeader({
   connected: boolean;
 }) {
   if (!connected) {
-    return <PageHeader title="Now" subtitle="Connecting to orchestrator…" />;
+    return <p className="type-small text-fg-muted">Connecting to orchestrator…</p>;
   }
 
   const fragments: string[] = [];
@@ -214,7 +245,7 @@ function NarrativeHeader({
       staleThoughts === 1 ? "1 stale thought" : `${staleThoughts} stale thoughts`,
     );
 
-  return <PageHeader title="Now" subtitle={fragments.join(" · ")} />;
+  return <p className="type-small text-fg-muted">{fragments.join(" · ")}</p>;
 }
 
 function LiveAgentRow({
@@ -301,7 +332,14 @@ function ResumeAnchor({
         {lastTask && (
           <div>
             Last task:{" "}
-            <Link to={`/work/${lastTask.id}`} className="text-accent hover:underline">
+            {/* `/work/tasks/{id}`, not `/work/{id}` (S8). The short form
+                resolves only through the two-segment WORK special case in
+                `routes.ts:462` — the one rule that file's own comment calls a
+                judgement call, and the most fragile of the seven legacy links
+                this leaf carried. A template literal is invisible to a source
+                scan, so the gate for THIS one is a rendered-href assertion in
+                home.test.tsx. */}
+            <Link to={`/work/tasks/${lastTask.id}`} className="text-accent hover:underline">
               {shortId(lastTask.id)}
             </Link>{" "}
             — {lastTask.description.slice(0, 80)}{" "}

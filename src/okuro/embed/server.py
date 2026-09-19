@@ -348,7 +348,17 @@ def create_app():
     @app.get("/health")
     async def health():
         loaded = _model is not None
+        # WHO is answering. The 2026-09-16 incident: a SECOND install's embed
+        # service held 13334 and answered this install's queries with 768-dim
+        # vectors against a 1024-dim column. The dimensions below were always
+        # right — about the wrong service. Identity is what tells them apart.
+        try:
+            from okuro.system.install_identity import IDENTITY_KEY, install_identity
+            identity = {IDENTITY_KEY: install_identity("okuro-embed")}
+        except Exception:
+            identity = {}
         return {
+            **identity,
             "status": "ok" if loaded else "loading",
             "model": _model_name,
             "tier": _TIER_SPEC.tier,
@@ -386,9 +396,17 @@ def main():
 
     host = os.environ.get("OKURO_EMBED_HOST", "127.0.0.1")
     port = embed_port()
-    uvicorn.run(
-        create_app(),
-        host=host,
-        port=port,
-        log_level="warning",
-    )
+    try:
+        uvicorn.run(
+            create_app(),
+            host=host,
+            port=port,
+            log_level="warning",
+        )
+    except OSError as exc:
+        # BIND FAILURE — name the holder before exiting. See
+        # okuro.system.install_identity for why a bare errno was not enough.
+        from okuro.system.install_identity import SERVICE_EMBED, bind_failure_line
+
+        logger.error("%s", bind_failure_line(SERVICE_EMBED, port, exc))
+        raise

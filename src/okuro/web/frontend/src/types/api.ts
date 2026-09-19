@@ -185,6 +185,16 @@ export interface SnapshotPhase {
     id: string;
     status: string;
     prompt: string;
+    /**
+     * S2 — the artifact this decision is made against, its hash when the
+     * gate was posed, and whether resolving would be refused right now.
+     * `basis_moved` is computed server-side for PENDING gates only; a
+     * resolved gate's basis is history and always reports false.
+     */
+    subject_artifact_id: string;
+    subject_sha256: string;
+    subject_title: string;
+    basis_moved: boolean;
   } | null;
 }
 
@@ -636,6 +646,360 @@ export interface RoleInfo {
   last_maintained?: string | null;
   stale?: boolean;
   knowledge_count?: number;
+  // Five-segment fit, compact shape (scores + counts, no defect strings).
+  // The defects live on GET /api/roles/{id}/fit — see RoleFitDetail.
+  fit?: RoleFitSummary | { error: string };
+}
+
+/** The five fit segments, in render order. */
+export type FitSegment =
+  | "structure"
+  | "tiers"
+  | "size"
+  | "knowledge"
+  | "hygiene";
+
+/**
+ * `null` means the segment had NOTHING to measure — a role with no lean and no
+ * micro has no sizing to judge. It is never a pass, renders as N/A, and is
+ * left out of every mean.
+ */
+export type FitScores = Record<FitSegment, number | null>;
+
+/** What puts a knowledge row in the numerator. Today the store can only
+ *  answer "the row claims a source_url", hence the honest bucket name. */
+export type SourcedDefinition = "url_claimed" | "fetch_verified";
+
+export interface KnowledgeBuckets {
+  total: number;
+  /** Sourced under the active definition. Under url_claimed this is a CLAIM. */
+  claimed: number;
+  filler: number;
+  /** Not filler, not sourced — the grey band. Never counted as sourced. */
+  unverified: number;
+  /** Confidence 0: superseded or soft-deleted. Counted, named, never scored. */
+  suppressed: number;
+  /** The ratio's denominator: active, non-filler rows. */
+  scored_rows: number;
+  sourced_label: string;
+}
+
+export interface RoleFitSummary {
+  rubric_version: string;
+  sourced_definition: SourcedDefinition;
+  scores: FitScores;
+  overall: number | null;
+  worst: FitSegment | null;
+  worst_score: number | null;
+  defect_counts: Record<FitSegment, number>;
+  knowledge: KnowledgeBuckets;
+  /** FULL body length. Reported, never scored — FULL is on-demand only (Q6). */
+  references_chars: number;
+}
+
+export interface RoleFitDetail {
+  role_id: string;
+  domain: string;
+  rubric_version: string;
+  sourced_definition: SourcedDefinition;
+  computed_at: string;
+  scores: FitScores;
+  overall: number | null;
+  worst: FitSegment | null;
+  worst_score: number | null;
+  budgets: Record<string, number>;
+  segments: {
+    structure: {
+      score: number | null;
+      per_grade: Record<string, number>;
+      missing: Record<string, string[]>;
+      advisory: Record<string, string[]>;
+      defects: string[];
+      notes: string[];
+      ok: boolean;
+    };
+    tiers: {
+      score: number;
+      present: string[];
+      empty: string[];
+      defects: string[];
+    };
+    size: {
+      score: number | null;
+      per_grade: Record<string, number>;
+      chars: Record<string, number>;
+      budgets: Record<string, number>;
+      references_chars: number;
+      full_scored: false;
+      defects: string[];
+      notes: string[];
+    };
+    knowledge: KnowledgeBuckets & {
+      score: number;
+      sourced_definition: SourcedDefinition;
+      ratio: number;
+      recency_factor: number;
+      newest_claimed_at: string | null;
+      defects: string[];
+    };
+    hygiene: {
+      score: number;
+      /** Reported, NOT scored: roles.tier never reaches model routing. */
+      tier_ok: boolean;
+      tier_scored: false;
+      schedule_ok: boolean;
+      legacy_ok: boolean;
+      legacy_hits: { grade: string; string: string; count: number }[];
+      legacy_hit_total: number;
+      legacy_factor: number;
+      defects: string[];
+      advisory: string[];
+    };
+  };
+}
+
+export interface FleetFitMonth {
+  month: string;
+  total: number;
+  claimed: number;
+  filler: number;
+  unverified: number;
+  suppressed: number;
+  /** claimed + unverified — the ratio's denominator, filler excluded. */
+  scored_rows: number;
+  /** scored_rows + filler: everything the sweep wrote and did not suppress. */
+  active_rows: number;
+  /** Of the findings written, the share that cited a source. */
+  ratio: number;
+  /** Of what the sweep wrote, the share that was a finding at all. This is
+   *  the one that collapses: 0.97 in April 2026 against 0.22 in July. */
+  findings_ratio: number;
+  sourced_label: string;
+}
+
+export interface FleetFit {
+  roles: number;
+  rubric_version: string;
+  sourced_definition: SourcedDefinition;
+  sourced_label: string;
+  overall_mean: number | null;
+  segments: Record<
+    FitSegment,
+    {
+      mean: number | null;
+      min: number | null;
+      max: number | null;
+      perfect: number;
+      zero: number;
+      /** How many roles this segment could actually measure. */
+      scored: number;
+      not_applicable: number;
+    }
+  >;
+  worst_segment_counts: Partial<Record<FitSegment, number>>;
+  worst_roles: {
+    role_id: string;
+    worst: FitSegment | null;
+    worst_score: number | null;
+    overall: number | null;
+    scores: FitScores;
+  }[];
+  knowledge_by_month: FleetFitMonth[];
+  roles_scored: {
+    role_id: string;
+    domain: string;
+    scores: FitScores;
+    overall: number | null;
+    worst: FitSegment | null;
+    worst_score: number | null;
+  }[];
+}
+
+/**
+ * THE STRUCTURE SOURCE REGISTRY.
+ *
+ * `alarms` is the list amendment A4 names, and each entry is a distinct
+ * diagnosis rather than one red light: a 404, a 200 that no longer carries the
+ * anchor sentence, a redirect off the registered host, a body that lost half
+ * its length, a hash that has not moved past its staleness window.
+ *
+ * `never_polled` is deliberately its own field and NOT `alarms.length === 0`.
+ * A registry nothing has ever fetched would otherwise render nine healthy
+ * green rows, which is the exact misreading the field exists to prevent.
+ */
+export type KnownStructureSourceAlarm =
+  | "http_status"
+  | "anchor_missing"
+  | "cross_host_redirect"
+  | "length_collapse"
+  | "stale_unchanged"
+  | "no_stored_body"
+  | "poll_failed"
+  | "poll_timeout";
+
+/**
+ * The backend owns this vocabulary and adds to it — three of the eight above
+ * arrived in one review round. A closed union would make the next addition a
+ * compile error here and, worse, an unlabelled blank cell for anyone running
+ * an older build against a newer API. So the wire type is widened: the known
+ * names get a label and an explanation, and anything else renders as itself.
+ */
+export type StructureSourceAlarm = KnownStructureSourceAlarm | (string & {});
+
+export interface StructureSource {
+  id: string;
+  name: string;
+  url: string;
+  vendor: string | null;
+  kind: "spec" | "docs" | "paper" | "changelog";
+  check_method: "etag" | "last_modified" | "content_hash";
+  anchor_text: string | null;
+  stale_after_months: number | null;
+  last_status: number | null;
+  last_checked_at: string | null;
+  enabled: boolean;
+  last_run_id: string | null;
+  last_observed_at: string | null;
+  last_changed: boolean;
+  alarms: StructureSourceAlarm[];
+  never_polled: boolean;
+}
+
+export interface StructureSourceList {
+  sources: StructureSource[];
+  count: number;
+  enabled: number;
+  alarmed: string[];
+  never_polled: string[];
+}
+
+/** What POST /api/roles/structure-research answers with: the run it just
+ *  polled, and the task it spawned against what actually moved. */
+export interface StructureResearchRun {
+  run_id: string;
+  task_id: string | null;
+  status: "running" | "failed";
+  error: string | null;
+  started_at: string;
+  polled: number;
+  changed: string[];
+  alarmed: string[];
+}
+
+/**
+ * THE ACTION CONTAINER — the backlog of changes to what a role IS.
+ *
+ * Distinct from role KNOWLEDGE, which is what a role knows. A knowledge sweep
+ * writes `role_knowledge`; a structural action changes a `roles` column or a
+ * gate in the designer, and it only ever does so after a human approved it.
+ */
+export type StructureActionState =
+  | "proposed"
+  | "researched"
+  | "planned"
+  | "critiqued"
+  | "approved"
+  | "implemented"
+  | "verified"
+  /** The write was reversed from this action's own snapshot. Terminal. */
+  | "restored"
+  | "rejected"
+  | "superseded";
+
+export type StructureActionKind = "finding" | "source_health";
+
+export interface StructureActionEvent {
+  id: string;
+  action_id: string;
+  from_state: string | null;
+  to_state: string;
+  actor: string | null;
+  reason: string | null;
+  at: string;
+}
+
+export interface StructureAction {
+  id: string;
+  kind: StructureActionKind;
+  state: StructureActionState;
+  title: string;
+  source_id: string | null;
+  run_id: string | null;
+  fetch_id: string | null;
+  evidence_url: string | null;
+  quoted_sentence: string | null;
+  quote_verified: boolean;
+  okuro_element: string | null;
+  /** Explicit ids, never a count — the write path refuses a number. */
+  affected_role_ids: string[];
+  rubric_version: string | null;
+  source_hash_at_proposal: string | null;
+  research_artifact_id: string | null;
+  plan_artifact_id: string | null;
+  critique_artifact_id: string | null;
+  diff_artifact_id: string | null;
+  migration_id: string | null;
+  todo_id: string | null;
+  /** Why the row is where it is, when where it is was not somebody's
+   *  choice — a refused approval moves it back and says so here. */
+  last_refusal: string | null;
+  created_by: string | null;
+  created_at: string | null;
+  decided_by: string | null;
+  decided_at: string | null;
+  superseded_by: string | null;
+  updated_at: string | null;
+  events?: StructureActionEvent[];
+}
+
+/**
+ * What `implement` answers with: the row, plus the three things the row
+ * cannot carry — where the snapshot went, which migration file was written,
+ * and which roles were written straight into the store.
+ */
+export interface StructureActionImplemented extends StructureAction {
+  snapshot: string;
+  /** The generated migration's FILENAME, unnumbered, or null when every
+   *  affected role was written in the database. Whoever commits it numbers
+   *  it; `verify` matches the ledger on the stem. */
+  migration: string | null;
+  /** Where that file was LEFT — the outbox, never a checkout. */
+  migration_outbox_path: string | null;
+  database_writes: string[];
+  /** Per role, the exact columns that were written. `restore` reverses this
+   *  set rather than a hard-coded one. */
+  written_columns: Record<string, string[]>;
+  evidence_artifact_id: string;
+}
+
+/**
+ * What `verify` answers with. `refused` present means the write happened and
+ * the measurement declined to call it an improvement — a result, not an
+ * error, which is why this comes back 200 with the row still `implemented`.
+ */
+export interface StructureActionVerified extends StructureAction {
+  refused?: string;
+  /** The roles actually re-scored. Empty when the call was refused — for a
+   *  pending migration, nothing was measured. */
+  verified_roles: string[];
+  /** The ledger name of the applied migration, or null while it is still a
+   *  file in the outbox. */
+  migration_applied?: string | null;
+}
+
+export interface StructureActionList {
+  actions: StructureAction[];
+  count: number;
+  /**
+   * Counts under the SAME filters the rows honour. Every state is present,
+   * including the ones at zero — a missing key and a zero are different
+   * claims, and a grouped panel renders the first as an absent group.
+   */
+  by_state_filtered: Record<StructureActionState, number>;
+  /** The registry-wide picture, which is the useful second number under a filter. */
+  by_state_total: Record<StructureActionState, number>;
+  filters: { state: string | null; kind: string | null };
+  states: StructureActionState[];
 }
 
 export interface RoleKnowledgeStats {

@@ -125,8 +125,13 @@ def get_tools() -> list[Tool]:
                 "routing question), 'composition' (WHERE THE BYTES ARE: events "
                 "and size by event type x lifecycle tier x age bucket, plus the "
                 "text-vs-content_json split — the retention instrument; pass "
-                "all_history=true, the 7-day default measures intake instead). "
-                "Every result is time-bounded (default 7 "
+                "all_history=true, the 7-day default measures intake instead), "
+                "'instruction_cohort' (THE DENOMINATOR FIX: sessions grouped by "
+                "the instruction bundle live at their start, split by "
+                "session_kind, with an explicit null cohort for sessions the "
+                "ledger cannot attribute — use this instead of tool_adoption "
+                "whenever the window can straddle an instruction change, which "
+                "is any window over 5 minutes). Every result is time-bounded (default 7 "
                 "days; set all_history=true to scan ~950k events) and row-capped, "
                 "and says so via 'capped'. Read-only. NOTE for signature work: "
                 "raw text matching overcounts, because an agent READING a hook's "
@@ -139,7 +144,7 @@ def get_tools() -> list[Tool]:
                 "properties": {
                     "mode": {
                         "type": "string",
-                        "enum": ["tool_counts", "tool_adoption", "session_tools", "after_signature", "composition"],
+                        "enum": ["tool_counts", "tool_adoption", "session_tools", "after_signature", "composition", "instruction_cohort"],
                         "description": "Which aggregation to run",
                     },
                     "tool": {"type": "string", "description": "Exact tool name, e.g. 'Bash' or 'mcp__okuro__cortex_search'"},
@@ -158,6 +163,8 @@ def get_tools() -> list[Tool]:
                     "exclude_source_echo": {"type": "boolean", "default": True, "description": "after_signature: drop matches whose parent tool opened the gate's own source"},
                     "extra_echo_hints": {"type": "array", "items": {"type": "string"}, "description": "after_signature: additional parent-text substrings that mark an echo"},
                     "max_anchors": {"type": "integer", "default": 200, "maximum": 1000, "description": "after_signature: cap on matched events examined"},
+                    "match_bare": {"type": "boolean", "default": False, "description": "tool_adoption: match the tool by its BARE name, so mcp__okuro__bootstrap and codex's bare 'bootstrap' count as one tool. Required for any cross-provider comparison — an exact name answers for one provider and returns a confident zero for the rest"},
+                    "session_kind": {"type": "string", "description": "instruction_cohort: restrict to interactive | agent | imported, or the literal 'null' for sessions whose transcript carried no marker"},
                     "limit": {"type": "integer", "default": 20, "description": "Rows returned (capped per mode)"},
                 },
                 "required": ["mode"],
@@ -335,6 +342,7 @@ async def handle_tool(name: str, arguments: dict) -> list[TextContent]:
             return _text(stats.tool_adoption(
                 tool=arguments.get("tool"),
                 tool_prefix=arguments.get("tool_prefix"),
+                match_bare=bool(arguments.get("match_bare", False)),
                 **common,
             ))
         if mode == "session_tools":
@@ -362,27 +370,30 @@ async def handle_tool(name: str, arguments: dict) -> list[TextContent]:
                 limit=arguments.get("limit"),
                 **common,
             ))
+        if mode == "instruction_cohort":
+            # `since_days` defaults to 7 for every other mode; a cohort needs a
+            # wider view or it reports one version and calls it a comparison.
+            cohort = dict(common)
+            if arguments.get("since_days") is None:
+                cohort["since_days"] = 30
+            return _text(stats.instruction_cohort(
+                tool=arguments.get("tool"),
+                session_kind=arguments.get("session_kind"),
+                limit=arguments.get("limit"),
+                **cohort,
+            ))
         return _text({"error": f"unknown mode '{mode}'", "modes": [
             "tool_counts", "tool_adoption", "session_tools", "after_signature",
-            "composition",
+            "composition", "instruction_cohort",
         ]})
 
     if name == "trace_index":
         force = bool(arguments.get("force", False))
-        # ingest_all() doesn't accept force=, so when the caller asked for
-        # force we drive each per-provider ingester directly. Otherwise
-        # delegate to ingest_all() so future providers automatically light up
-        # without touching this code.
-        if force:
-            from okuro.trace.claude_code import ingest as ingest_cc
-            from okuro.trace.codex import ingest as ingest_codex
-            from okuro.trace.gemini import ingest as ingest_gemini
-            return _text({
-                "claude-code": ingest_cc(force=True),
-                "codex": ingest_codex(force=True),
-                "gemini": ingest_gemini(force=True),
-            })
+        # Both passes go through ingest_all(), which owns the provider list.
+        # The forced pass used to enumerate providers here instead, and that
+        # copy had never been updated with antigravity — so trace_index(
+        # force=True) skipped the only provider that needed forcing.
         from okuro.trace import ingest_all
-        return _text(ingest_all())
+        return _text(ingest_all(force=force))
 
     raise ValueError(f"trace: unknown tool '{name}'")

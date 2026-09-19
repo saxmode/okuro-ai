@@ -15,7 +15,7 @@ single biggest reason a board deck reads memorable rather than merely correct.
 Runs once over the WHOLE tree — it is the one non-parallel stage, since a beat
 must advance the same story across topics.
 
-Mirrors the ``prism-scenario-weaver`` charter (roles/catalog).
+Mirrors the ``prism-scenario-weaver`` charter (the roles table).
 """
 
 from __future__ import annotations

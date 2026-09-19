@@ -68,7 +68,7 @@ export function MemoryPanel({
               key={i}
               type="button"
               onClick={() => setActive(m)}
-              className="block w-full border-b border-border-subtle px-1 py-2.5 text-left text-xs transition-fast last:border-b-0 hover:bg-surface-elevated/60"
+              className="block w-full border-b border-border-subtle px-1 py-2.5 text-left text-xs transition-fast last:border-b-0 hover:bg-surface-subtle"
             >
               <div className="flex items-center gap-3">
                 <span

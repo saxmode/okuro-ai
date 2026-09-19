@@ -98,3 +98,29 @@ case "$MODE" in
     corepack) ( cd "$FE" && corepack pnpm install --frozen-lockfile && corepack pnpm build && corepack pnpm build:export && corepack pnpm build:export-deck ) ;;
     *) echo "build-frontend: unknown pnpm mode '$MODE'" >&2; exit 1 ;;
 esac
+
+# ── pin the dist to the commit that built it ──────────────────────────
+# scripts/update.sh reads this file to decide whether dist is stale
+# (update.sh: "dist commit-pin mismatch"). It USED to be written by
+# update.sh's own wrapper, which meant install.sh — the OTHER caller of this
+# script — built a dist with no pin, and the next update rebuilt it for
+# nothing. CLASS: a post-condition of the build implemented at one call site
+# instead of in the build. This file already declares itself the single source
+# of truth for producing a dist; the fact describing that dist belongs here
+# too, so every caller gets it.
+#
+# AFTER the build, never before: vite runs with emptyOutDir (vite.config.ts:36)
+# and would wipe a pin written first.
+#
+# `../dist` mirrors vite.config.ts:35 exactly — derived from $FE rather than
+# from REPO_ROOT so a caller passing a non-default frontend dir still pins the
+# dist that build actually produced.
+DIST="$(cd "$FE/.." && pwd)/dist"
+HEAD_SHA="$(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null || true)"
+if [ -n "$HEAD_SHA" ] && [ -d "$DIST" ]; then
+    printf '%s\n' "$HEAD_SHA" > "$DIST/.commit-sha"
+else
+    # No git (tarball install) or no dist dir — a missing pin is handled:
+    # update.sh treats it as "rebuild needed", which is correct and safe.
+    echo "[build-frontend] no commit pin written (git=${HEAD_SHA:-none} dist=$DIST)" >&2
+fi

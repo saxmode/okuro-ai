@@ -7,7 +7,6 @@ import { fileURLToPath } from "node:url";
 const UTILITY_PATTERN = /(?<![\w-])(?:[a-z-]+:)*!?((?:bg|text|border|ring|outline|fill|stroke)-(?!\[)[a-z][a-z0-9-]*(?:\/\d+)?)(?![\w/-])/g;
 
 const NON_CLASS_LITERALS = new Map([
-  ["components/design-engine/tables.tsx", new Set(["border-branded", "border-full", "border-half"])],
   ["pages/prism-gallery.tsx", new Set(["text-only"])],
   ["pages/studio.tsx", new Set(["text-engines", "text-models"])],
 ]);
@@ -19,10 +18,33 @@ function walk(root) {
   });
 }
 
+/**
+ * A `/*` INSIDE A STRING IS NOT A COMMENT, AND READING IT AS ONE BLINDED THIS
+ * GATE TO 46,053 CHARACTERS OF SOURCE.
+ *
+ * Measured across `src/` on 2026-09-15, naive strip vs this one:
+ *
+ *   src/pages/stack.tsx                          34,206 of 58,203   58.8 %
+ *   src/components/task/continue-bar.tsx          5,175 of 17,460   29.6 %
+ *   src/lib/api.ts                                2,159 of 67,749    3.2 %
+ *   src/components/task/artifacts-viewer.tsx      2,148 of 38,900    5.5 %
+ *   src/components/prism/deck2/archetypes.tsx     1,707 of 18,726    9.1 %
+ *   + 3 more files
+ *
+ * The openers are ordinary strings: `accept="image/*"`, a comment mentioning
+ * `/api/stack/*`, a glob. Each one starts a comment that runs to the next
+ * real `*​/`, so everything between — every className in it — was invisible to
+ * the gate. On the largest file that was three fifths of the page.
+ *
+ * THE LOOKBEHIND IS THE WHOLE FIX: a real block comment's `/*` is never
+ * preceded by a word character or a quote, while every false positive above
+ * is (`image/*` -> `e`, `stack/*` -> `k`). Line comments are stripped FIRST so
+ * a `//` that mentions `/*` cannot open one either.
+ */
 function withoutComments(source) {
   return source
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .replace(/^\s*\/\/.*$/gm, "");
+    .replace(/^\s*\/\/.*$/gm, "")
+    .replace(/(?<![\w"'])\/\*[\s\S]*?\*\//g, "");
 }
 
 export function findMissingUtilities(sourceRoot, cssRoot) {

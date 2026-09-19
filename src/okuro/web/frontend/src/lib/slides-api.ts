@@ -40,12 +40,33 @@ export interface VariantsResponse {
   source_id: string;
 }
 
-/** Append the cached bearer to a same-origin /api/ URL so an <img src> (which
- *  can't set headers) authenticates. Non-/api/ srcs (data:, https:) pass through. */
+/**
+ * Append the cached bearer to a same-origin /api/ URL so an <img src> (which
+ * can't set headers) authenticates. Non-/api/ srcs (data:, https:) pass through.
+ *
+ * D8 SAID THIS WAS A LATENT BUG BECAUSE IT IS SYNCHRONOUS AND CAN RETURN AN
+ * UNSIGNED URL ON A COLD CACHE. The premise is right and the conclusion is
+ * wrong, and the reason is an invariant rather than luck: `api()` awaits
+ * `authHeaders()` -> `getToken()` before EVERY request (`lib/api.ts:132`), so
+ * the cache is warm by the time any response body exists. Every caller here
+ * renders a URL that CAME from such a response — a deck, a brand asset, an
+ * assets row — so the cold branch is unreachable on those paths. Pinned by
+ * `slides-bearer-order.test.ts` rather than left as a comment, because the
+ * invariant is in `api()` and could be edited from there.
+ *
+ * Making it async would mean rewriting 14 inline `src={...}` call sites across
+ * SLIDES, PRISM (deferred by R8), ASSETS, STACK and NOTES into state+effect,
+ * which is a bigger change than the defect. Instead the cold branch now WARMS
+ * the cache, so the one path that can reach it — a markdown body delivered over
+ * EventSource, which does not go through `api()` — signs itself on the next
+ * render instead of staying broken.
+ */
 export function tokenizeApiSrc(src?: string): string | undefined {
   if (!src || !src.startsWith("/api/")) return src;
   const t = cachedToken();
-  return t ? `${src}${src.includes("?") ? "&" : "?"}token=${encodeURIComponent(t)}` : src;
+  if (t) return `${src}${src.includes("?") ? "&" : "?"}token=${encodeURIComponent(t)}`;
+  void getToken().catch(() => {});
+  return src;
 }
 
 /** Which background a logo is designed to sit on. */
@@ -132,6 +153,27 @@ function paletteToVars(pal: any, prefix = "--color", out: Record<string, string>
   return out;
 }
 
+/**
+ * Read one resolved engine token off the live document.
+ *
+ * D2's THREE `??` LITERALS HARDCODED okuro's OWN GREEN INTO SOMEONE ELSE'S
+ * DECK. A brand whose design system omits a palette field silently became
+ * `#8ff0a4` on `#0b0f0c` — okuro's retired brand, shipped to a recipient as if
+ * it were theirs. R4 says deck CONTENT renders in the RECIPIENT's brand; it
+ * does not say "and okuro's brand when theirs is incomplete".
+ *
+ * The honest fallback is the ACTIVE KIT, which is what the user is looking at
+ * and what every other surface in okuro resolves to. A deck needs concrete
+ * values rather than `var()` references because `export.ts` emits a standalone
+ * document that cannot reach `/engine.css`, so the value is read here, once,
+ * from the sheet that is already applied.
+ */
+function kitToken(name: string, lastResort: string): string {
+  if (typeof document === "undefined") return lastResort;
+  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return v || lastResort;
+}
+
 /** Resolve a brand's design system into a deck theme: four shorthand fields
  *  plus a full `vars` map covering the entire palette + typography. */
 export function brandToTheme(resolved: any): BrandTheme | null {
@@ -143,11 +185,15 @@ export function brandToTheme(resolved: any): BrandTheme | null {
   const font = [v.typography?.primary, v.typography?.fallback].filter(Boolean).join(", ");
   const vars = paletteToVars(pal);
   if (font) vars["--font-family-base"] = font;
+  /* The last-resort strings are reached only with NO document at all (the
+     export worker, a unit test). They are deliberately achromatic so a missing
+     sheet cannot be mistaken for a brand decision — D1's documented-local case,
+     because the engine has no name to reach for when its own sheet is absent. */
   return {
-    background: pal.background?.base ?? "#0b0f0c",
+    background: pal.background?.base ?? kitToken("--color-background-base", "#ffffff"),
     font: font || undefined,
-    accent: pal.accent ?? "#8ff0a4",
-    text: pal.foreground?.primary ?? "#eafff0",
+    accent: pal.accent ?? kitToken("--color-accent", "#666666"),
+    text: pal.foreground?.primary ?? kitToken("--color-foreground-primary", "#111111"),
     vars,
   };
 }

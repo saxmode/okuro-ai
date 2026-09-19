@@ -32,6 +32,18 @@ from .credentials import auth_header
 _HF_API = "https://huggingface.co/api/models"
 _CIVITAI_API = "https://civitai.com/api/v1/models"
 
+#: Every request identifies okuro.
+#:
+#: THIS IS WHY CIVITAI DISCOVERY HAS ALWAYS RETURNED ZERO. Civitai sits behind
+#: Cloudflare, and Cloudflare answers the default `Python-urllib/3.x` agent
+#: with 403 and `error code: 1010` — a browser-integrity block, before any
+#: credential is even looked at. Measured 2026-09-15 against the live endpoint:
+#: identical URL and identical Bearer token, 403 with the default agent and 200
+#: with `curl/8.5.0`, `Mozilla/5.0` or this string. A prior session recorded the
+#: symptom as "Civitai needs a token"; the token was never the cause, and adding
+#: one changed nothing because the request never reached the API.
+_USER_AGENT = "okuro/3 (+model-discovery)"
+
 
 def _get_json(
     url: str,
@@ -43,12 +55,30 @@ def _get_json(
     if params:
         # Civitai accepts repeated + spaces; urlencode with quote_via handles both.
         url = f"{url}?{urllib.parse.urlencode(params, doseq=True)}"
-    req = urllib.request.Request(url, method="GET", headers=headers or {})
+    hdrs = {"User-Agent": _USER_AGENT, **(headers or {})}
+    req = urllib.request.Request(url, method="GET", headers=hdrs)
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return json.loads(resp.read())
     except (urllib.error.URLError, urllib.error.HTTPError, ValueError, OSError):
         return None
+
+
+#: Fields requested from the HF list endpoint.
+#:
+#: `expand` REPLACES `full=true` rather than adding to it — measured against
+#: the live API on 2026-09-15, a request carrying both returns only the
+#: expanded fields. So this list must name everything `catalog.from_hf_model`
+#: reads, and it does. The reason to move off `full=true` at all is
+#: `safetensors`: it is the only place HF publishes an exact parameter count
+#: and dtype breakdown on a LIST response, and without it every vision, 3d,
+#: music and video candidate arrives with no footprint and is dropped by the
+#: runnability gate before anyone sees it.
+_HF_EXPAND = (
+    "safetensors", "cardData", "tags", "library_name", "sha", "lastModified",
+    "downloads", "likes", "trendingScore", "createdAt", "gated", "pipeline_tag",
+    "author",
+)
 
 
 def search_hf(
@@ -64,7 +94,7 @@ def search_hf(
         "limit": limit,
         "sort": sort,
         "direction": -1,
-        "full": "true",
+        "expand": list(_HF_EXPAND),
     }
     if query:
         params["search"] = query
@@ -138,14 +168,22 @@ _MODALITY_SOURCES = {
     "audio": ("hf",),
     "image": ("civitai", "hf"),
     "video": ("civitai", "hf"),
+    # P4 — closes interpretation gap (e): vision and 3d had no source at all,
+    # so `discover(modality='3d')` fell through to querying both sources with
+    # no pipeline hint and returned the generic text firehose.
+    "vision": ("hf",),
+    "3d": ("hf",),
 }
 
-# modality → HF pipeline_tag hint
+# modality → HF pipeline_tag hint. Every tag verified live 2026-09-15.
 _MODALITY_HF_PIPELINE = {
     "text": "text-generation",
     "embedding": "feature-extraction",
     "audio": "text-to-speech",
     "image": "text-to-image",
+    "video": "image-to-video",
+    "vision": "image-text-to-text",
+    "3d": "image-to-3d",
 }
 
 
@@ -159,6 +197,131 @@ _SORT_MAP = {
     "trending": {"hf": "trendingScore", "civitai": "Highest Rated"},
     "new": {"hf": "createdAt", "civitai": "Newest"},
 }
+
+
+# --- the wanted categories --------------------------------------------------
+#
+# Interpretation gap (e): the modalities okuro SCANNED (text, embedding, audio,
+# image, video) were not the categories the user WANTS, and vision and 3d had
+# no scanner at all despite both being installed on this host. This table is
+# that list, and it is config-declarable so a bucket can be added or retuned
+# without a release.
+#
+# One entry = one source query. Fields:
+#   name          the category, and what lands in model_discoveries.category
+#   source        "hf" | "civitai"
+#   modality      what rank() filters on; omit to take the source's own verdict
+#   pipeline_tag  hf only — a string or a list, each fetched and merged
+#   query         free-text search, both sources
+#   types / nsfw  civitai only
+#   requires_tags keep only candidates carrying one of these variant tags
+#   min_downloads override the reputation floor for THIS bucket only
+#
+# `requires_tags` is NOT the drop ruling 3 forbids: it keeps a dedicated bucket
+# on topic. Nothing it excludes is lost, because the plain bucket for the same
+# modality runs with no tag filter at all and the toggle is what hides a
+# variant at READ time.
+#
+# ORDER IS MEANINGFUL: the first category that publishes a candidate in a run
+# owns it, so a variant model that the generic query happens to surface lands
+# in the plain bucket with its tags on it rather than being written twice.
+CATEGORIES_CONVENTION_KEY = "ai_models.discovery_categories"
+
+DEFAULT_CATEGORIES: tuple[dict, ...] = (
+    {"name": "text", "source": "hf", "modality": "text",
+     "pipeline_tag": "text-generation"},
+    {"name": "text-abliterated", "source": "hf", "modality": "text",
+     "pipeline_tag": "text-generation", "query": "abliterated",
+     "requires_tags": ["abliterated", "uncensored"], "min_downloads": 100},
+    {"name": "image", "source": "hf", "modality": "image",
+     "pipeline_tag": "text-to-image"},
+    {"name": "image-nsfw", "source": "civitai", "modality": "image",
+     "types": ["Checkpoint"], "nsfw": True, "requires_tags": ["nsfw"]},
+    {"name": "video", "source": "hf", "modality": "video",
+     "pipeline_tag": ["image-to-video", "text-to-video"]},
+    # Civitai has no video TYPE and its nsfw video work is almost all LoRAs
+    # over a base video model, not checkpoints. Measured against the live API
+    # 2026-09-15 with types=[LORA, Checkpoint] and nsfw=true: query='wan' gives
+    # 19 video candidates of which 18 survive the gate tagged nsfw,
+    # query='hunyuan video' gives 7, and query='video' gives 1 — the search is
+    # token-based and the base-model name is what the titles actually carry.
+    # Retune this in config when the dominant video family changes.
+    {"name": "video-nsfw", "source": "civitai", "modality": "video",
+     "types": ["LORA", "Checkpoint"], "nsfw": True, "query": "wan",
+     "requires_tags": ["nsfw"]},
+    # text-to-audio is where the music generators live (YuE, MiniMax-Music,
+    # stable-audio); audio-to-audio carries the stem/remix models. Both
+    # verified against the live HF API 2026-09-15.
+    {"name": "music", "source": "hf", "modality": "audio",
+     "pipeline_tag": ["text-to-audio", "audio-to-audio"], "min_downloads": 500},
+    {"name": "vision", "source": "hf", "modality": "vision",
+     "pipeline_tag": "image-text-to-text"},
+    {"name": "3d", "source": "hf", "modality": "3d",
+     "pipeline_tag": ["image-to-3d", "text-to-3d"], "min_downloads": 100},
+    {"name": "embedding", "source": "hf", "modality": "embedding",
+     "pipeline_tag": ["feature-extraction", "sentence-similarity"]},
+)
+
+
+def categories() -> list[dict]:
+    """The wanted categories — the host's override, else the shipped default.
+
+    A malformed override falls back to the default rather than scanning
+    nothing: a typo in a config key must not silently turn the weekly scan off.
+    """
+    try:
+        from okuro.yu.conventions import get_convention
+
+        raw = get_convention(CATEGORIES_CONVENTION_KEY, None)
+    except Exception:
+        raw = None
+    if not raw:
+        return [dict(c) for c in DEFAULT_CATEGORIES]
+    if not isinstance(raw, list) or not all(
+            isinstance(c, dict) and c.get("name") for c in raw):
+        import logging
+
+        logging.getLogger("okuro.ai_models.discovery").warning(
+            "%s must be a list of {name, source, ...} — using the shipped default",
+            CATEGORIES_CONVENTION_KEY)
+        return [dict(c) for c in DEFAULT_CATEGORIES]
+    return [dict(c) for c in raw]
+
+
+def search_category(cat: dict, *, limit: int = 20, sort: str = "trending",
+                    storage=None,
+                    search_hf_fn=None, search_civitai_fn=None) -> list[CatalogEntry]:
+    """Fetch one category from its declared source. Deduped by catalog_id.
+
+    Gathering only — the gate is :func:`catalog.rank` and the tag filter is the
+    caller's, so this function can be checked against a live source without a
+    database or a ranking policy in the way.
+    """
+    hf_fn = search_hf_fn or search_hf
+    civitai_fn = search_civitai_fn or search_civitai
+    sortmap = _SORT_MAP.get(sort, _SORT_MAP["popular"])
+    query = cat.get("query") or None
+    seen: set[str] = set()
+    out: list[CatalogEntry] = []
+
+    if (cat.get("source") or "hf") == "civitai":
+        found = civitai_fn(query, types=cat.get("types") or None, limit=limit,
+                           sort=sortmap["civitai"], nsfw=bool(cat.get("nsfw")),
+                           storage=storage)
+        batches = [found]
+    else:
+        tags = cat.get("pipeline_tag")
+        tags = tags if isinstance(tags, (list, tuple)) else [tags]
+        batches = [hf_fn(query, pipeline_tag=t or None, limit=limit,
+                         sort=sortmap["hf"], storage=storage) for t in tags]
+
+    for found in batches:
+        for e in found or []:
+            if e.catalog_id in seen:
+                continue
+            seen.add(e.catalog_id)
+            out.append(e)
+    return out
 
 
 def discover(

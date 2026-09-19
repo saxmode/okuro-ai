@@ -117,7 +117,15 @@ export function TimelineEntry({
         <button
           type="button"
           onClick={onClick}
-          className="block w-full rounded text-left transition-colors hover:bg-surface-elevated/40 -mx-2 px-2 py-1.5"
+          /* THE ROW HOVER USED TO PAINT NOTHING. `hover:bg-surface-elevated/40`
+             is 40% of a token that EQUALS THE GROUND in both appearances —
+             measured live on 2026-09-15 with a real mouse on a real BRAIN row,
+             `matches(':hover')` true, `--color-surface-elevated` #131313 dark
+             against a #131313 ground and #ffffff light against #ffffff, so the
+             composite is the ground at any alpha. `bg-surface-subtle` is the
+             engine's own name for a plane that differs from the ground (#1a1a1a
+             dark, #f8f8f8 light) and it is D1-clean besides. */
+          className="block w-full rounded text-left transition-colors hover:bg-surface-subtle -mx-2 px-2 py-1.5"
         >
           {inner}
         </button>

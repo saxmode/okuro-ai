@@ -8,7 +8,6 @@ import {
   type SystemTimer,
 } from "@/lib/api";
 import type { RecurringDef } from "@/types/api";
-import { PageHeader } from "@/components/shell/page-header";
 import { SectionLabel } from "@/components/ui/section-label";
 import { MetricCard } from "@/components/ui/metric-card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -20,6 +19,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { FieldLabel } from "@/components/ui/form-primitives";
 import { toast } from "@/components/ui/toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -40,6 +46,7 @@ import {
   TH,
   THEAD_ROW,
 } from "@/components/schedule/cells";
+import { usePaneInterval } from "@/lib/pane-active";
 import {
   formatDuration,
   humanizeCron,
@@ -53,10 +60,23 @@ import {
 export function ScheduledPage() {
   return (
     <div className="page-shell space-y-8">
-      <PageHeader
-        title="Scheduled"
-        subtitle="Everything that runs on a clock — recurring runs, daemon jobs, system timers"
-      />
+      {/* R1 (86b8f1f0) — THE LEAF TITLE IS THE SHELL'S. `TopicBar` renders
+          `<h1 class="c-title">Scheduled</h1>` above this pane, so the page's
+          own PageHeader h1 is gone.
+
+          THE SUBTITLE SURVIVES AS CONTENT, and here that is not a courtesy:
+          it names the three layers the page stacks, and a reader who does not
+          know that "recurring runs", "daemon jobs" and "system timers" are
+          three different schedulers cannot tell the panels apart. The START
+          pass kept its two subtitles for the same reason.
+
+          `text-fg-muted` rather than `PageHeader`'s `text-tertiary`: that
+          token is the standing AA failure (kit todo c581c9b2), and re-homing
+          the line was the chance to stop feeding it. */}
+      <p className="type-small text-fg-muted">
+        Everything that runs on a clock — recurring runs, daemon jobs, system
+        timers.
+      </p>
       <RecurringPanel />
       <div className="space-y-3">
         <SectionLabel>Daemon jobs</SectionLabel>
@@ -73,10 +93,43 @@ export function ScheduledPage() {
 
 function RecurringPanel() {
   const [creating, setCreating] = useState(false);
+  /**
+   * THE DELETE CONFIRM LIVES HERE, NOT IN THE ROW, AND THE CONSOLE IS WHY.
+   *
+   * `DialogContent` renders an IN-TREE `<span {...probe} />` marker before it
+   * portals (`ui/dialog.tsx:116`) — it carries the ground the dialog was
+   * declared on, so the scrim gets the right alpha. A row renders inside
+   * `<tbody>`, and a `<span>` there is invalid HTML: React logged
+   * "<tbody> cannot contain a nested <span>" and "In HTML, <span> cannot be a
+   * child of <tbody>. This will cause a hydration error." twice per page in
+   * all 12 contract states, while the modal itself looked and behaved
+   * perfectly. So the panel owns one dialog and the rows ask for it, which is
+   * also the shape `components/models/vram-reclaim-modal.tsx` already uses.
+   */
+  const [pendingDelete, setPendingDelete] = useState<RecurringDef | null>(null);
+  const qcPanel = useQueryClient();
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => recurringApi.remove(id),
+    onSuccess: (_r, id) => {
+      toast.success("Deleted", { description: pendingDelete?.title ?? id });
+      setPendingDelete(null);
+      qcPanel.invalidateQueries({ queryKey: ["recurring"] });
+    },
+    onError: (err: unknown) =>
+      toast.error("Failed to delete", {
+        description: err instanceof Error ? err.message : String(err),
+      }),
+  });
   const { data, isLoading, error } = useQuery({
     queryKey: ["recurring"],
     queryFn: () => recurringApi.list(),
-    refetchInterval: 60_000,
+    // L4 / T9 — POLL ONLY WHILE THE PANE IS ON SCREEN. Law 3 keeps all five
+    // topic panes mounted, so an unguarded interval keeps asking while the
+    // user is four topics away. MEASURED before this line, real topic-bar
+    // clicks (not `goto`, which remounts the document), 70-second windows:
+    // on /system/scheduled 3 calls, at /know/repos with all 5 panes still
+    // mounted 3 calls, back on the route 3 calls.
+    refetchInterval: usePaneInterval(60_000),
   });
 
   const defs = data?.definitions ?? [];
@@ -135,21 +188,97 @@ function RecurringPanel() {
               </thead>
               <tbody>
                 {defs.map((d) => (
-                  <RecurringRow key={d.id} def_={d} />
+                  <RecurringRow
+                    key={d.id}
+                    def_={d}
+                    onRequestDelete={() => setPendingDelete(d)}
+                    deleting={
+                      deleteMutation.isPending && pendingDelete?.id === d.id
+                    }
+                  />
                 ))}
               </tbody>
             </table>
           </div>
         </>
       )}
+
+      {/* R5 (372ccdb2), PERMANENT BRANCH — A MODAL, NOT AN ARM.
+          The p3 spec (542bd096 §2) records "no confirm found — 0 `confirm(`,
+          no Dialog, no two-step arm". That is wrong and was already wrong at
+          its own measurement HEAD 276fc2a80: a `confirmDelete` arm had been in
+          this file the whole time. So this was not a missing confirm, it was
+          the WRONG KIND of one. `DELETE /api/recurring/{id}` runs
+          `def_path.unlink()` (orchestrator/api/main.py:3516) — no soft delete,
+          no archive, nothing to undo — and R5 reserves the arm for reversible
+          acts.
+
+          `ui/dialog` steers `open` through `usePaneModalOpen`, so this cannot
+          survive a topic change and leave the app unclickable (the class fix
+          from commit 164647757). */}
+      <Dialog
+        open={!!pendingDelete}
+        onOpenChange={(o) => !o && setPendingDelete(null)}
+      >
+        <DialogContent className="max-w-md">
+          {pendingDelete && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Delete “{pendingDelete.title}”?</DialogTitle>
+                <DialogDescription>
+                  {/* THE PATH WAS MEASURED, NOT GUESSED. `OKURO_ROOT` defaults
+                      to `okuro_home() / "orchestrator"` (main.py:122), so the
+                      file is under `~/.okuro/orchestrator/recurring/`, not
+                      `~/.okuro/recurring/` — which is what this sentence said
+                      until `ls` disagreed with it. */}
+                  This removes the definition file{" "}
+                  <span className="font-mono">
+                    ~/.okuro/orchestrator/recurring/{pendingDelete.id}.yaml
+                  </span>{" "}
+                  and the run stops firing. Its past outcomes stay in the run
+                  history, but the schedule, prompt and role are gone and okuro
+                  cannot put them back — you would write the definition again.
+                  <br />
+                  To stop it without losing it, switch it{" "}
+                  <span className="text-fg">off</span> instead.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPendingDelete(null)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  disabled={deleteMutation.isPending}
+                  onClick={() => deleteMutation.mutate(pendingDelete.id)}
+                >
+                  Delete definition
+                </Button>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
 
-function RecurringRow({ def_ }: { def_: RecurringDef }) {
+function RecurringRow({
+  def_,
+  onRequestDelete,
+  deleting,
+}: {
+  def_: RecurringDef;
+  onRequestDelete: () => void;
+  deleting: boolean;
+}) {
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
   const isActive = def_.status === "scheduled";
 
   const failed = (label: string) => (err: unknown) =>
@@ -175,15 +304,6 @@ function RecurringRow({ def_ }: { def_: RecurringDef }) {
       setEditing(false);
     },
     onError: failed("Failed to update schedule"),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: () => recurringApi.remove(def_.id),
-    onSuccess: () => {
-      toast.success("Deleted", { description: def_.title });
-      refresh();
-    },
-    onError: failed("Failed to delete"),
   });
 
   const roles = def_.roles?.length ? def_.roles : def_.role ? [def_.role] : [];
@@ -229,19 +349,19 @@ function RecurringRow({ def_ }: { def_: RecurringDef }) {
             >
               {editing ? "Cancel" : "Edit"}
             </Button>
+            {/* R5's permanent branch is a MODAL, and the panel owns it —
+                see `RecurringPanel`'s `pendingDelete` for why it cannot live
+                in this row. */}
             <Button
               size="sm"
               variant="outline"
               className="h-6 px-2 text-2xs text-error"
-              onClick={() => {
-                if (confirmDelete) deleteMutation.mutate();
-                else setConfirmDelete(true);
-              }}
-              disabled={deleteMutation.isPending}
+              onClick={onRequestDelete}
+              disabled={deleting}
               title="Delete this scheduled run"
+              aria-label={`Delete ${def_.title}`}
             >
               <Trash2 className="h-3 w-3" />
-              {confirmDelete ? "Confirm" : ""}
             </Button>
           </div>
         </td>
@@ -403,7 +523,8 @@ function TimersPanel() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["timers"],
     queryFn: () => timersApi.list(),
-    refetchInterval: 60_000,
+    // Same measurement, same rule — see RecurringPanel above.
+    refetchInterval: usePaneInterval(60_000),
   });
   const timers = data?.timers ?? [];
 

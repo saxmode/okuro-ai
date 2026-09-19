@@ -116,7 +116,7 @@ export default function FlowEmbed({ flowId, caption, accent = "var(--color-accen
           >
             <Maximize2 size={12} /> Edit
           </button>
-          <Link to={`/flow?id=${encodeURIComponent(flowId)}`} className="underline decoration-dotted underline-offset-2 opacity-70 hover:opacity-100">
+          <Link to={`/work/flow/${encodeURIComponent(flowId)}`} className="underline decoration-dotted underline-offset-2 opacity-70 hover:opacity-100">
             Open →
           </Link>
         </div>
@@ -146,7 +146,7 @@ export default function FlowEmbed({ flowId, caption, accent = "var(--color-accen
               <span className="rounded-full bg-accent/10 px-2 py-0.5 text-xs text-accent">okuro flow · editing</span>
               <span className="truncate opacity-70">{name || flowId}</span>
               <Link
-                to={`/flow?id=${encodeURIComponent(flowId)}`}
+                to={`/work/flow/${encodeURIComponent(flowId)}`}
                 className="ml-auto text-xs underline decoration-dotted underline-offset-2 opacity-70 hover:opacity-100"
               >
                 Open full page →

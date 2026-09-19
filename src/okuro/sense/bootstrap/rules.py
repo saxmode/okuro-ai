@@ -104,6 +104,17 @@ def render_rule(rule_id: str, *, prefix: str | None = None) -> str:
     for group in rule.get("groups") or []:
         if group.get("title"):
             lines += ["", f"### {group['title']}"]
-        for item in group.get("items") or []:
+        # `body` is raw markdown emitted verbatim. It exists because a rule
+        # whose shape is a numbered procedure or a fenced call example cannot
+        # be expressed as `- item` bullets — rendering those as a bullet list
+        # mangles them. Before this, such a rule could only live as a Python
+        # string constant in a builder, which is how seven doctrine blocks
+        # ended up reaching exactly one emitted surface.
+        if group.get("body"):
+            lines += ["", str(group["body"]).rstrip("\n")]
+        items = group.get("items") or []
+        if items and group.get("body"):
+            lines.append("")
+        for item in items:
             lines.append(f"- {item}")
     return "\n".join(lines)

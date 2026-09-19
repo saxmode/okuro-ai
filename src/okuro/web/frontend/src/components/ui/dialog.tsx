@@ -4,12 +4,29 @@ import { Dialog as DialogPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 import { useFrameStamp } from "@/lib/ground-portal"
+import { usePaneModalOpen } from "@/lib/pane-active"
 import { Button } from "@/components/ui/button"
 
+/**
+ * A DIALOG DOES NOT SURVIVE ITS PANE LEAVING THE SCREEN. Law 3 keeps a
+ * departing pane mounted, so without this a modal opened in one leaf hangs over
+ * another topic with `pointer-events: none` on `<body>` and the whole app
+ * unclickable. The rule and its measurements live in `usePaneModalOpen`.
+ */
 function Dialog({
+  open,
+  onOpenChange,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Root>) {
-  return <DialogPrimitive.Root data-slot="dialog" {...props} />
+  const paneOpen = usePaneModalOpen(open, onOpenChange)
+  return (
+    <DialogPrimitive.Root
+      data-slot="dialog"
+      open={paneOpen}
+      onOpenChange={onOpenChange}
+      {...props}
+    />
+  )
 }
 
 function DialogTrigger({

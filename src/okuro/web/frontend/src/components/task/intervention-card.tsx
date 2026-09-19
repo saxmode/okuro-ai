@@ -63,7 +63,7 @@ export const InterventionCard = memo(function InterventionCard({
       >
         <div className="flex items-center gap-2">
           <Icon className="h-3 w-3 shrink-0 text-fg-muted" aria-hidden="true" />
-          <span className="text-3xs font-bold uppercase tracking-wider text-fg-muted">
+          <span className="text-3xs font-bold case-label tracking-wider text-fg-muted">
             {label}
           </span>
           {intervention.ts && (

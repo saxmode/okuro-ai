@@ -15,7 +15,7 @@ with the real number; an option claim → an options block; a risk claim → a r
 register) so modules carry real values, not fabrications. Places denser modules on
 deeper rungs (depth = density) and never on a rung above the audience ceiling.
 
-Mirrors the ``prism-component-expert`` charter (roles/catalog).
+Mirrors the ``prism-component-expert`` charter (the roles table).
 """
 
 from __future__ import annotations

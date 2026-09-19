@@ -84,6 +84,20 @@ def session_kind(native_session_id: str) -> str:
     Claude Code names subagent transcripts ``agent-<hash>``; a top-level
     session carries a plain uuid. This is the only reliable in-band signal —
     the events themselves look identical.
+
+    CLAUDE-CODE ONLY, and the id prefix is the whole rule. The transcript also
+    carries ``isSidechain``; measured on the newest 400 transcripts
+    2026-09-17, the two agree 395 times out of the 395 carrying the flag, so
+    there is no second rule worth having.
+
+    OTHER PROVIDERS: ``agent_sessions.session_kind`` (migration 161) carries
+    the same vocabulary across every provider, filled at ingest from whatever
+    marker that provider writes — codex's ``session_meta.originator``, which
+    also yields a third value ``'imported'`` for a conversation Codex Desktop
+    copied in from elsewhere. A codex id looks like a uuid whether a person or
+    ``codex exec`` produced it, so this function would call all 278 of this
+    host's ``codex exec`` runs human-facing. Read the column for anything
+    that is not claude-code.
     """
     return "subagent" if str(native_session_id).startswith("agent-") else "human-facing"
 
@@ -115,7 +129,11 @@ _MACHINE_AUTHORED: tuple[re.Pattern, ...] = (
     # Harness control markers, not prose.
     re.compile(r"^\s*\[Request interrupted by user", re.IGNORECASE),
     re.compile(r"^\s*\[The user (?:sent|has)\b", re.IGNORECASE),
-    # okuro's own protocol preamble echoed into a turn.
+    # okuro's own protocol preamble echoed into a turn. The file was deleted
+    # 2026-09-13 and nothing emits this line any more, but five call sites did
+    # for months and the transcripts they wrote are what this list classifies.
+    # Dropping the pattern would silently reclassify those stored turns as
+    # human prose.
     re.compile(r"read\s+~/\.okuro/TOOL-PROTOCOL\.md", re.IGNORECASE),
     # okuro's bootstrap packet, echoed back into an input turn.
     re.compile(r"^\s*#\s*Agent Context\s*—\s*Okuro", re.IGNORECASE | re.MULTILINE),

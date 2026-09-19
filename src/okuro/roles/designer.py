@@ -6,13 +6,14 @@
 # AGENT_HEADER_END -->
 """Role designer: storage API for agent-generated roles.
 
-The canonical role structure below is DERIVED from the shipped catalog
-(src/okuro/roles/catalog/*.yaml, 85 roles measured 2026-08-25), not invented.
+The canonical role structure below is DERIVED from the shipped roles
+(87 of them, measured 2026-08-25 while they were still YAML; migration 155
+moved them into the `roles` table and deleted the files), not invented.
 Reproduce the measurement with:
 
     .venv/bin/python -m okuro.roles.audit_structure
 
-Grade-specific, because the grades genuinely differ in the catalog:
+Grade-specific, because the grades genuinely differ across roles:
   full  — carries the persona block (traits/neurotype/cognitive profile): 74-80%
   lean  — does NOT carry the persona block (2-8%); CORE/PROTOCOL/COLLABORATION
   micro — flat YAML; `purpose` + `expertise` feed the description AND embedding
@@ -25,8 +26,8 @@ from datetime import datetime, timezone
 import yaml
 
 from okuro.db import get_db
-from okuro.embed import embed_one
-from okuro.embed.client import to_bytes
+from okuro.roles.fences import search_unfenced
+from okuro.roles.write import promote_role, upsert_role
 
 
 # Maintenance schedule defaults by domain
@@ -113,6 +114,30 @@ MICRO_REQUIRED_KEYS = ("purpose", "expertise")
 MICRO_RECOMMENDED_KEYS = ("id", "skills", "constraints", "protocol", "tools", "success")
 
 
+def micro_label(key: str) -> str:
+    """The exact label ``validate_role_structure`` emits for a missing micro key.
+
+    Exported because a consumer has to be able to tell a real missing-key label
+    apart from the sentinel messages below ("micro is not parseable YAML …"),
+    and the only other way to do that is to hand-copy this f-string. A copy is a
+    contract nothing enforces: change the wording here and the copy keeps
+    matching nothing, silently, forever.
+    """
+    return f"micro key '{key}'"
+
+
+MICRO_REQUIRED_LABELS = tuple(micro_label(k) for k in MICRO_REQUIRED_KEYS)
+MICRO_RECOMMENDED_LABELS = tuple(micro_label(k) for k in MICRO_RECOMMENDED_KEYS)
+
+#: Every gating label, by grade — the labels ``validate_role_structure`` puts
+#: in ``missing``. One definition, so a scorer never reconstructs them.
+REQUIRED_LABELS: dict[str, tuple[str, ...]] = {
+    "full": tuple(label for label, _ in FULL_REQUIRED),
+    "lean": tuple(label for label, _ in LEAN_REQUIRED),
+    "micro": MICRO_REQUIRED_LABELS,
+}
+
+
 def validate_role_structure(role_content: dict) -> dict:
     """Check role_content against the canonical structure, per grade.
 
@@ -122,6 +147,15 @@ def validate_role_structure(role_content: dict) -> dict:
           "missing": {grade: [...]},   # required, gating
           "advisory": {grade: [...]},  # recommended, non-gating
         }
+
+    FENCE-AWARE. A marker inside a fenced code block does NOT satisfy the
+    gate. Ten role bodies carry an output template in a fence, and the
+    markdown in such a template is what the role is told to PRODUCE — reading
+    it as the role's own structure let ``role-researcher`` pass on an
+    ``**Archetype:**`` and a ``Neurotype Balance`` it only ever tells its
+    adopter to write, while carrying no persona block itself. The fence
+    detection is :mod:`okuro.roles.fences`, the same one the repair engine
+    has always used; this function used to have the second, blind answer.
     """
     missing: dict[str, list[str]] = {}
     advisory: dict[str, list[str]] = {}
@@ -131,9 +165,9 @@ def validate_role_structure(role_content: dict) -> dict:
             missing[grade] = [f"grade '{grade}' is empty"]
             return
         miss = [label for label, pat in required
-                if not re.search(pat, text, re.M | re.I)]
+                if not search_unfenced(pat, text, re.M | re.I)]
         adv = [label for label, pat in recommended
-               if not re.search(pat, text, re.M | re.I)]
+               if not search_unfenced(pat, text, re.M | re.I)]
         if miss:
             missing[grade] = miss
         if adv:
@@ -158,8 +192,8 @@ def validate_role_structure(role_content: dict) -> dict:
                 missing["micro"] = ["micro parsed as prose, not a YAML mapping "
                                     "— description and embedding fall back to the role name"]
             else:
-                miss = [f"micro key '{k}'" for k in MICRO_REQUIRED_KEYS if not parsed.get(k)]
-                adv = [f"micro key '{k}'" for k in MICRO_RECOMMENDED_KEYS if not parsed.get(k)]
+                miss = [micro_label(k) for k in MICRO_REQUIRED_KEYS if not parsed.get(k)]
+                adv = [micro_label(k) for k in MICRO_RECOMMENDED_KEYS if not parsed.get(k)]
                 if miss:
                     missing["micro"] = miss
                 if adv:
@@ -168,12 +202,83 @@ def validate_role_structure(role_content: dict) -> dict:
     return {"ok": not missing, "missing": missing, "advisory": advisory}
 
 
+#: Openings that mean the caller sent a POINTER instead of a role body. An
+#: agent that has just written a long artifact reaches for "see artifact
+#: <id>" as if the reader could follow it; the role table stores text and
+#: nothing dereferences it, so the role ships as that one sentence.
+ARTIFACT_REFERENCE_PREFIXES = ("see artifact", "see file", "see task", "refer to")
+
+#: Below this length a grade that opens with one of the prefixes above is a
+#: pointer, not prose that happens to start that way.
+_POINTER_MAX_CHARS = 200
+
+
+def flatten_missing(missing: dict) -> list[str]:
+    """``{"full": ["IDENTITY"]}`` -> ``["full: IDENTITY"]``.
+
+    One renderer, because every refusal message and every advisory payload in
+    the system quotes this list and they must read identically.
+    """
+    return [
+        f"{grade}: {', '.join(items)}" for grade, items in sorted(missing.items())
+    ]
+
+
+def artifact_reference_error(role_content: dict) -> str | None:
+    """The pointer guard, or None when every grade carries real text."""
+    for grade in ("full", "lean", "micro"):
+        val = role_content.get(grade) or ""
+        if (
+            val
+            and len(val) < _POINTER_MAX_CHARS
+            and any(
+                val.strip().lower().startswith(prefix)
+                for prefix in ARTIFACT_REFERENCE_PREFIXES
+            )
+        ):
+            return (
+                f"role_content['{grade}'] contains an artifact reference "
+                f"instead of actual content ({len(val)} chars). "
+                f"Pass the full role text, not a pointer."
+            )
+    return None
+
+
+def gate_role_body(role_content: dict) -> dict:
+    """THE body gate: pointer guard + canonical structure, in one verdict.
+
+    Every surface that accepts a role body has to apply both checks, and
+    before this function existed each one carried its own copy — the pointer
+    guard was duplicated verbatim in ``store_designed_role`` and
+    ``draft_role``, and the MCP verb had the structure half and not the
+    pointer half at all. Two gates that are supposed to agree and are written
+    twice do not stay agreeing; they drift on the first edit to either.
+
+    Returns ``{ok, error, missing, advisory, flat_missing}``. ``error`` is the
+    pointer refusal (a sentence, because it names one grade and one fix);
+    ``missing`` is the per-grade gating list and ``flat_missing`` its rendered
+    form. ``ok`` is false when EITHER half objects, so a caller cannot pass by
+    checking only the half it remembered.
+    """
+    pointer = artifact_reference_error(role_content)
+    structure = validate_role_structure(role_content)
+    return {
+        "ok": pointer is None and structure["ok"],
+        "error": pointer,
+        "missing": structure["missing"],
+        "advisory": structure["advisory"],
+        "flat_missing": flatten_missing(structure["missing"]),
+    }
+
+
 def store_designed_role(
     name: str,
     domain: str,
     role_content: dict,
     research_sources: list[str] | None = None,
     strict: bool = False,
+    tier: str = "standard",
+    model: str = "sonnet",
 ) -> dict:
     """Store a fully designed role.
 
@@ -186,6 +291,14 @@ def store_designed_role(
             text under a SOURCES heading or they are lost.
         strict: refuse the write outright when the canonical structure is
             incomplete. Default False — see the structure gate below.
+        tier: canonical dispatch tier, checked against CANONICAL_TIERS by the
+            write helper. Used to be the literal 'standard' in this function's
+            INSERT, so a role designed for the top model came out running on
+            the default one and only a follow-up `update_role_info` could fix
+            it. The defaults preserve the old behaviour for callers that do
+            not pass them.
+        model: provider model name. Was the literal 'sonnet' for the same
+            reason.
 
     Structure gate (soft by design):
         A role missing a REQUIRED canonical section is still stored, but is
@@ -206,26 +319,19 @@ def store_designed_role(
     if "micro" not in role_content:
         return {"error": "role_content must include 'micro' key"}
 
-    # Guard: reject artifact references
-    for grade in ("full", "lean", "micro"):
-        val = role_content.get(grade, "")
-        if val and len(val) < 200 and any(
-            val.strip().lower().startswith(prefix)
-            for prefix in ("see artifact", "see file", "see task", "refer to")
-        ):
-            return {
-                "error": f"role_content['{grade}'] contains an artifact reference "
-                f"instead of actual content ({len(val)} chars). "
-                f"Pass the full role text, not a pointer."
-            }
+    # Pointer guard + structure gate, through the one shared verdict.
+    gate = gate_role_body(role_content)
+    if gate["error"]:
+        return {"error": gate["error"]}
 
-    # Structure gate — canonical sections, per grade
-    structure = validate_role_structure(role_content)
+    structure = {
+        "ok": gate["ok"],
+        "missing": gate["missing"],
+        "advisory": gate["advisory"],
+    }
     warnings: list[str] = []
     if not structure["ok"]:
-        flat = "; ".join(
-            f"{grade}: {', '.join(items)}" for grade, items in structure["missing"].items()
-        )
+        flat = "; ".join(gate["flat_missing"])
         if strict:
             return {
                 "error": "role_content is structurally incomplete — "
@@ -252,48 +358,63 @@ def store_designed_role(
     schedule = DOMAIN_SCHEDULES.get(domain, "monthly")
     now = datetime.now(timezone.utc).isoformat()
 
-    embedding = embed_one(description)
-    emb_bytes = to_bytes(embedding)
+    # The row, the tags, the vector and updated_at all go through the one
+    # write path. This used to be a hand-written INSERT with its own
+    # DELETE/INSERT on vec_roles, which wrote the embedding WITHOUT setting
+    # `description_embedded` — so the staleness backfill could not tell this
+    # role's vector from one built before the description changed, and
+    # re-embedded it on every daemon start forever.
+    #
+    # `tier` and `model` were literals in that INSERT: every designed role came
+    # out 'standard'/'sonnet' no matter what it was designed for, and the
+    # role-designer brief had to tell its adopter to follow up with a second
+    # `update_role_info` call. They are parameters now.
+    written = upsert_role(
+        {
+            "role_id": name,
+            "domain": domain,
+            "description": description,
+            "tier": tier,
+            "model": model,
+            "prompt": role_content.get("full"),
+            "lean_prompt": role_content.get("lean"),
+            "micro_prompt": role_content["micro"],
+            "maturity": target_maturity,
+            "maintenance_schedule": schedule,
+        },
+        actor="roles.designer:store_designed_role",
+    )
+
     db = get_db()
 
-    with db.transaction():
-        db.execute(
-            "INSERT INTO roles (role_id, domain, description, maturity, "
-            "maintenance_schedule, last_maintained, "
-            "prompt, lean_prompt, micro_prompt, tier, model, origin) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'standard', 'sonnet', 'user') "
-            "ON CONFLICT(role_id) DO UPDATE SET "
-            "domain = excluded.domain, "
-            "description = excluded.description, "
-            # A structurally complete body promotes to active; an incomplete one
-            # leaves the existing maturity alone — never demotes a live role.
-            "maturity = CASE WHEN excluded.maturity = 'active' "
-            "THEN 'active' ELSE roles.maturity END, "
-            "last_maintained = excluded.last_maintained, "
-            "prompt = excluded.prompt, "
-            "lean_prompt = excluded.lean_prompt, "
-            "micro_prompt = excluded.micro_prompt",
-            (
-                name,
-                domain,
-                description,
-                target_maturity,
-                schedule,
-                now,
-                role_content.get("full"),
-                role_content.get("lean"),
-                role_content["micro"],
-            ),
-        )
+    # One column the write contract does not cover, kept here on purpose:
+    # `last_maintained` is a maintenance fact — this call IS the maintenance,
+    # because the body was just authored.
+    #
+    # `origin = 'user'` used to ride along in this statement. Migration 162
+    # dropped the column (E3): the seeder it fenced against is gone, and the
+    # one question it still answered — does a migration ship this role — is
+    # computed by `repair_plan.migration_carried_ids`, never stored.
+    db.execute(
+        "UPDATE roles SET last_maintained = ? WHERE role_id = ?",
+        (now, name),
+    )
 
-        db.execute("DELETE FROM vec_roles WHERE id = ?", (name,))
-        db.execute(
-            "INSERT INTO vec_roles (id, embedding) VALUES (?, ?)",
-            (name, emb_bytes),
-        )
+    # A structurally complete body promotes to active; an incomplete one leaves
+    # the existing maturity alone. The helper writes `maturity` on INSERT only —
+    # exactly so a content rewrite cannot demote a live role — so the promotion
+    # half is its own explicit step rather than a CASE inside the upsert.
+    embedded = written["embedded"]
+    if target_maturity == "active":
+        promoted = promote_role(name, actor="roles.designer:store_designed_role")
+        # Report the LATER outcome when promotion did vector work of its own,
+        # so the caller is not told "written" about a vector that promotion
+        # then failed to refresh.
+        if promoted["embedded"] != "unchanged":
+            embedded = promoted["embedded"]
 
-    # Read the maturity back rather than asserting it — the upsert's CASE may
-    # have kept the pre-existing value.
+    # Read the maturity back rather than asserting it — an incomplete body
+    # leaves whatever the role already had.
     row = db.fetchone("SELECT maturity FROM roles WHERE role_id = ?", (name,))
     stored_maturity = (row.get("maturity") or target_maturity) if row else target_maturity
 
@@ -301,8 +422,13 @@ def store_designed_role(
         "id": name,
         "domain": domain,
         "maturity": stored_maturity,
-        "origin": "designed",
+        # No `origin` key. It reported "designed" while the row it described
+        # said 'user' (migration 155 wrote that mismatch down), and migration
+        # 162 removed the column it was pretending to mirror. A response field
+        # naming a column that does not exist is how the next reader learns a
+        # rule that is no longer true.
         "structure_ok": structure["ok"],
+        "embedded": embedded,
     }
     if warnings:
         result["warnings"] = warnings

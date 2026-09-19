@@ -26,6 +26,7 @@ from typing import Any, Optional
 
 from okuro.prism.brands import a4_brands, is_a4_brand
 from okuro.db.engine import okuro_home
+from okuro.fsutil import data_entries
 
 STORE_DIR = okuro_home() / "prism-deck2"
 _SAFE_ID = re.compile(r"[^A-Za-z0-9_.-]")
@@ -105,7 +106,11 @@ def list_decks() -> list[dict[str, Any]]:
     import datetime as _dt
 
     out: list[dict[str, Any]] = []
-    for p in _dir().glob("*.json"):
+    # Filename rule from okuro.fsutil: a dotfile is never a deck. The
+    # try/except below drops a corrupt file, but a generated sidecar is not
+    # corrupt — it parses, and would have entered the gallery under its own
+    # stem. Same walker rule as canon and the recurring loader.
+    for p in data_entries(_dir(), suffixes=(".json",)):
         try:
             d = json.loads(p.read_text())
         except Exception:  # noqa: BLE001 — a corrupt file just drops from the index

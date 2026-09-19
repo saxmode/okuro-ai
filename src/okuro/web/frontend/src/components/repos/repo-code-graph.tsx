@@ -12,6 +12,7 @@ import {
   type NodeProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import { useGraphColorMode } from "@/lib/graph-theme";
 import { Maximize2, Minimize2 } from "lucide-react";
 import {
   forceSimulation,
@@ -80,7 +81,7 @@ function FileNode({ data, selected }: NodeProps) {
       <Handle type="target" position={Position.Top} className="!opacity-0" />
       <Handle type="source" position={Position.Bottom} className="!opacity-0" />
       <div className="max-w-[26rem] truncate text-xs font-medium">{n.label}</div>
-      <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider opacity-70">
+      <div className="flex items-center gap-1 text-3xs case-label tracking-wider text-fg-muted">
         <span>{n.layer ?? "—"}</span>
         <span>· deg {n.degree}</span>
       </div>
@@ -138,6 +139,14 @@ export function RepoCodeGraph({
   onSelect?: (id: string | null) => void;
   selectedId?: string | null;
 }) {
+  // R6 (372ccdb2): ONE theme bridge for every `@xyflow/react` mount in okuro.
+  // The vendor sheet carries its own light and dark blocks and defaults to
+  // `light`, so a mount without this draws a light canvas on the dark ground —
+  // which is what made PEOPLE's nodes near-invisible circles before
+  // `lib/graph-theme.ts` existed. Read ONCE into a const here: a hook called
+  // inline in JSX sits one refactor away from a conditional-hook violation,
+  // which is the trap the p4 DELIVER pane-gate adoption hit out loud.
+  const graphColorMode = useGraphColorMode();
   const idSig = useMemo(
     () => nodes.map((n) => n.id).sort().join("|"),
     [nodes],
@@ -232,7 +241,7 @@ export function RepoCodeGraph({
 
   if (nodes.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+      <div className="flex h-full items-center justify-center text-sm text-fg-muted">
         No code-graph edges — the repo may be a flat set of files.
       </div>
     );
@@ -241,6 +250,7 @@ export function RepoCodeGraph({
   return (
     <div className={isFull ? "fixed inset-0 z-50 bg-surface" : "h-full w-full"}>
       <ReactFlow
+        colorMode={graphColorMode}
         nodes={rfNodes}
         edges={rfEdges}
         nodeTypes={nodeTypes}

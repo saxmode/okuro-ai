@@ -28,6 +28,27 @@ test("reports semantic utilities that Tailwind dropped", (t) => {
   assert.equal(formatMissing(missing), "  border-warning/40: component.tsx");
 });
 
+test("a `/*` inside a string does not blind the scan that follows it", (t) => {
+  // The real shape: `accept="image/*"` on a file input, or a comment that
+  // mentions `/api/stack/*`. Naively that opens a block comment which runs to
+  // the next real `*/`, and every className in between disappears — measured
+  // at 46,053 characters across eight files, 58.8 % of `pages/stack.tsx`.
+  const paths = fixture(
+    '<input accept="image/*" />\n' +
+      '/* a real comment with bg-phantom in it */\n' +
+      '<div className="bg-surface text-invented-tone" />',
+    ".bg-surface{background:#000}",
+  );
+  t.after(() => fs.rmSync(paths.root, { recursive: true, force: true }));
+
+  // `text-invented-tone` sits AFTER the string that used to open the fake
+  // comment, so it is only reported once the lookbehind is in place.
+  assert.equal(
+    formatMissing(findMissingUtilities(paths.sourceRoot, paths.cssRoot)),
+    "  text-invented-tone: component.tsx",
+  );
+});
+
 test("ignores comments and non-colour Tailwind utilities", (t) => {
   const paths = fixture(
     '// text-ghost\n/* bg-phantom */\n<div className="text-left border-0" />',

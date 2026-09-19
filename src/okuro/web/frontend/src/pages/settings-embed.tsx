@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
+import { usePaneInterval, useIsPaneActive } from "@/lib/pane-active";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { ArrowLeft, Loader2, RefreshCw, AlertTriangle } from "lucide-react";
-import { PageHeader } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -58,7 +58,10 @@ export function SettingsEmbedPage() {
   const health = useQuery({
     queryKey: ["embed", "health"],
     queryFn: embedApi.health,
-    refetchInterval: 5000,
+        // L4 / T9 — Law 3 keeps all five topic panes mounted, so an unguarded
+    // interval polls from four topics away. MEASURED off-screen before the
+    // guard; see the pass report for the A/B.
+    refetchInterval: usePaneInterval(5000),
   });
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -106,19 +109,26 @@ export function SettingsEmbedPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <PageHeader
-        title="Embedding"
-        subtitle="Pick the model okuro uses to embed your codebase + memories. Switching tiers requires a re-embed."
-        right={
+      {/* R1 (86b8f1f0) — the shell renders `<h1 class="c-title">Settings</h1>`
+          above this pane, so this sub-view drops its own h1. The sentence and
+          the Back link stay, on one row, which is where the header had them.
+          `text-fg-muted` rather than `text-tertiary` (kit todo c581c9b2). */}
+      <div className="flex items-start justify-between gap-3">
+        <p className="type-small min-w-0 flex-1 text-fg-muted">
+          Pick the model okuro uses to embed your codebase + memories. Switching tiers requires a re-embed.
+        </p>
+        <div className="shrink-0">{
           <Link
-            to="/settings"
+            /* EMBED HAS NO ORIGIN TAB — measured, `grep` over `src` finds no inbound
+                 link to it anywhere in the UI, so GENERAL is the honest target. */
+            to="/system/settings"
             className="flex items-center gap-1 text-xs text-fg-tertiary hover:text-fg-primary"
           >
             <ArrowLeft size={12} />
             Back to Settings
           </Link>
-        }
-      />
+        }</div>
+      </div>
 
       <CurrentChip cfg={cfg.data} health={health.data} />
 
@@ -166,7 +176,7 @@ function CurrentChip({
   return (
     <div className="rounded border border-border bg-surface-elevated p-4 flex items-center gap-4 text-sm">
       <div>
-        <div className="text-xs uppercase tracking-wider text-fg-tertiary">
+        <div className="text-xs case-label tracking-wider text-fg-tertiary">
           Current
         </div>
         <div className="font-mono text-fg-primary">
@@ -175,7 +185,7 @@ function CurrentChip({
       </div>
       <div className="border-l border-border h-10" />
       <div>
-        <div className="text-xs uppercase tracking-wider text-fg-tertiary">
+        <div className="text-xs case-label tracking-wider text-fg-tertiary">
           Service
         </div>
         <div
@@ -190,7 +200,7 @@ function CurrentChip({
       </div>
       <div className="border-l border-border h-10" />
       <div>
-        <div className="text-xs uppercase tracking-wider text-fg-tertiary">
+        <div className="text-xs case-label tracking-wider text-fg-tertiary">
           Set
         </div>
         <div className="font-mono text-fg-secondary">
@@ -213,7 +223,7 @@ function HardwareCard({
   return (
     <div className="rounded border border-border bg-surface-elevated p-4">
       <div className="flex items-center justify-between mb-3">
-        <div className="text-xs uppercase tracking-wider text-fg-tertiary">
+        <div className="text-xs case-label tracking-wider text-fg-tertiary">
           Hardware
         </div>
         <button
@@ -244,7 +254,7 @@ function HardwareCard({
               <span className="text-fg-primary">{g.name}</span>
               <span className="text-fg-tertiary">{g.vram_gb} GB</span>
               {g.is_display && (
-                <span className="rounded bg-warning-subtle/15 text-warning text-[11px] px-1.5 py-0.5">
+                <span className="rounded bg-warning-subtle text-warning text-[11px] px-1.5 py-0.5">
                   display GPU
                 </span>
               )}
@@ -276,7 +286,7 @@ function TierList({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="text-xs uppercase tracking-wider text-fg-tertiary">
+      <div className="text-xs case-label tracking-wider text-fg-tertiary">
         Available tiers
       </div>
       {tiers.tiers.map((t) => {
@@ -298,12 +308,19 @@ function TierList({
           >
             <div className="flex items-baseline justify-between">
               <div>
-                <div className="text-sm uppercase font-bold text-fg-primary">
-                  {t.tier}
+                {/* THE LABEL AND THE BADGE ARE NOW SIBLINGS, which is what
+                    lets both take the kit's word for their own case. Before
+                    this the tier name carried a literal `uppercase` and the
+                    badge inside it carried `normal-case` to undo it — a
+                    literal fighting a literal, and the p3 spec singled it out
+                    as the proof that the case ruling was not merely
+                    unapplied but self-contradictory here. */}
+                <div className="flex items-baseline gap-2">
+                  <span className="case-label text-sm font-bold text-fg-primary">
+                    {t.tier}
+                  </span>
                   {isCurrent && (
-                    <span className="ml-2 text-xs normal-case text-accent">
-                      current
-                    </span>
+                    <span className="text-xs text-accent">current</span>
                   )}
                 </div>
                 <div className="text-xs text-fg-tertiary">
@@ -439,6 +456,7 @@ function SwitchModal({
 }
 
 function ReindexProgress({ jobId }: { jobId: string }) {
+  const paneActive = useIsPaneActive();
   const job = useQuery({
     queryKey: ["cortex", "reindex", jobId],
     queryFn: async () => {
@@ -455,15 +473,18 @@ function ReindexProgress({ jobId }: { jobId: string }) {
         error?: string | null;
       }>;
     },
+    // The second function-valued interval on this leaf, and the same rule:
+    // "running" can be true while the user is four topics away, and a 2s poll
+    // is the fastest one in SETTINGS.
     refetchInterval: (q) =>
-      q.state.data?.status === "running" ? 2000 : false,
+      paneActive && q.state.data?.status === "running" ? 2000 : false,
   });
   const data = job.data;
   if (!data) return null;
   const indexed = data.indexed ?? data.indexed_so_far ?? 0;
   return (
     <div className="rounded border border-border bg-surface-elevated p-4">
-      <div className="text-xs uppercase tracking-wider text-fg-tertiary mb-2">
+      <div className="text-xs case-label tracking-wider text-fg-tertiary mb-2">
         Re-embedding ({data.status})
       </div>
       <div className="text-sm text-fg-primary">

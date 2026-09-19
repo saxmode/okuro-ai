@@ -17,6 +17,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useGraphColorMode } from "@/lib/graph-theme";
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -57,8 +58,8 @@ const TYPE_CLASS: Record<KnowledgeNodeType, string> = {
   memory: "bg-accent-subtle text-accent",
   thought: "bg-warning/15 text-warning",
   artifact: "bg-info/15 text-info",
-  progress: "bg-tertiary/15 text-tertiary",
-  kg_entity: "bg-fg-muted/10 text-fg-muted",
+  progress: "bg-surface-subtle text-tertiary",
+  kg_entity: "bg-surface-subtle text-fg-muted",
 };
 
 // Layer palette for code_ref entities. Overrides TYPE_CLASS when n.layer is set.
@@ -112,7 +113,7 @@ function KnowledgeNodeCard({ data, selected }: NodeProps) {
       <Handle type="target" position={Position.Top} className="!opacity-0" />
       <Handle type="source" position={Position.Bottom} className="!opacity-0" />
 
-      <div className="flex items-center justify-between gap-1 text-[10px] uppercase tracking-wider">
+      <div className="flex items-center justify-between gap-1 text-2xs case-label tracking-wider">
         <span className="font-mono">{TYPE_LABEL_SHORT[n.type]}</span>
         {n.project && (
           <span className="font-mono text-tertiary truncate max-w-[14rem]">
@@ -125,7 +126,7 @@ function KnowledgeNodeCard({ data, selected }: NodeProps) {
         {n.label}
       </div>
       {n.type === "kg_entity" && n.layer && (
-        <div className="mt-0.5 text-[9px] uppercase tracking-wider opacity-70">
+        <div className="mt-0.5 text-3xs case-label tracking-wider text-fg-muted">
           {n.layer}
         </div>
       )}
@@ -220,6 +221,7 @@ export function UnifiedGraph({
   onSelect,
   selectedId,
 }: UnifiedGraphProps) {
+  const graphColorMode = useGraphColorMode();
   // Stable signature of node ids so we only re-layout when the set changes.
   const idSig = useMemo(
     () => nodes.map((n) => n.id).sort().join("|"),
@@ -276,7 +278,7 @@ export function UnifiedGraph({
   );
 
   return (
-    <div className="relative h-[68vh] w-full overflow-hidden rounded-sm border border-border-subtle bg-surface-subtle">
+    <div className="relative h-[calc((100dvh-var(--sh-strip-h,56px))*0.68)] w-full overflow-hidden rounded-sm border border-border-subtle bg-surface-subtle">
       <ReactFlowProvider>
         <ReactFlow
           nodes={rfNodes}
@@ -292,7 +294,11 @@ export function UnifiedGraph({
           elementsSelectable
           onNodeClick={(_, node) => onSelect?.(node.id)}
           onPaneClick={() => onSelect?.(null)}
-          colorMode="dark"
+          /* WAS THE LITERAL "dark", which is a D1 violation in the other
+             direction: correct on the dark ground, wrong on the light one.
+             `lib/graph-theme.ts` is the one place this question is
+             answered now — see its header for the adoption ledger. */
+          colorMode={graphColorMode}
         >
           <Background gap={32} size={1} color="var(--color-border-subtle)" />
           <Controls
@@ -354,7 +360,7 @@ function Legend() {
   const [open, setOpen] = useState(false);
   return (
     <div
-      className="absolute bottom-3 right-3 z-10 max-w-[28rem] rounded-sm border border-border-subtle bg-surface/95 px-2.5 py-2 text-2xs uppercase tracking-wider text-tertiary backdrop-blur"
+      className="absolute bottom-3 right-3 z-10 max-w-[28rem] rounded-sm border border-border-subtle bg-surface-overlay px-2.5 py-2 text-2xs case-label tracking-wider text-tertiary backdrop-blur"
     >
       <button
         type="button"
@@ -409,7 +415,7 @@ function LayerLegend({ nodes }: { nodes: KnowledgeNode[] }) {
   if (present.length === 0) return null;
 
   return (
-    <div className="absolute bottom-3 left-3 z-10 max-w-[28rem] rounded-sm border border-border-subtle bg-surface/95 px-2.5 py-2 text-2xs uppercase tracking-wider text-tertiary backdrop-blur">
+    <div className="absolute bottom-3 left-3 z-10 max-w-[28rem] rounded-sm border border-border-subtle bg-surface-overlay px-2.5 py-2 text-2xs case-label tracking-wider text-tertiary backdrop-blur">
       <div className="font-mono">layers</div>
       <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1">
         {present.map(([layer, count]) => (

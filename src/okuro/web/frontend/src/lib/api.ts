@@ -20,10 +20,18 @@ import type {
   SystemStatus,
   RoleInfo,
   RoleDetail,
+  RoleFitDetail,
+  FleetFit,
   RoleKnowledgeEntry,
   RoleMaintenanceSummary,
   MaintenanceJob,
   MaintenanceBulkResponse,
+  StructureSourceList,
+  StructureResearchRun,
+  StructureAction,
+  StructureActionList,
+  StructureActionImplemented,
+  StructureActionVerified,
   ToolCatalog,
   FlowSummary,
   FlowDetail,
@@ -687,6 +695,23 @@ export interface DecisionGateInfo {
   selected_option_id: string;
   selected_rationale: string;
   resolved_at: string;
+  /**
+   * S2 — the artifact this decision is made AGAINST, and its body hash
+   * when the gate was posed. Empty for a gate with no subject, which is
+   * every gate created before the field existed. The backend refuses to
+   * lock an ADR (409) when the artifact's body no longer matches.
+   */
+  subject_artifact_id: string;
+  subject_sha256: string;
+  /** Resolved server-side so the panel can name the basis, not just id it. */
+  subject_title: string;
+  /**
+   * True when resolving would be refused right now. Computed for PENDING
+   * gates only. Advisory: the verdict that decides anything is the one
+   * the resolver takes under its file lock, so a submit can still come
+   * back 409 even when this is false.
+   */
+  basis_moved: boolean;
 }
 
 export interface GatesListResponse {
@@ -855,6 +880,11 @@ export const roleApi = {
     return { roles, count: roles.length };
   },
   get: (id: string) => api<RoleDetail>(`/api/roles/${id}`),
+
+  // -- Fit analytics (five segments: structure, tiers, size, knowledge, hygiene) --
+  fleetFit: () => api<FleetFit>("/api/roles/fit"),
+  fit: (id: string) => api<RoleFitDetail>(`/api/roles/${id}/fit`),
+
   update: (id: string, data: Partial<RoleDetail>) =>
     api<{ status: string }>(`/api/roles/${id}`, {
       method: "PUT",
@@ -912,6 +942,47 @@ export const roleApi = {
     api<{ status: string; entry_id: string; soft: boolean }>(
       `/api/roles/${id}/knowledge/${entryId}`,
       { method: "DELETE" },
+    ),
+
+  // -- Structural maintenance (source registry + the research dispatch) --
+  // POST polls the registry INLINE and then spawns, so it is slower than a
+  // normal mutation by however long nine HTTP fetches take. That ordering is
+  // the point: the bodies are stored before the agent starts, so every quote
+  // it makes is checkable against something it did not fetch.
+  structureSources: () =>
+    api<StructureSourceList>("/api/roles/structure-sources"),
+  runStructureResearch: () =>
+    api<StructureResearchRun>("/api/roles/structure-research", {
+      method: "POST",
+    }),
+
+  structureActions: () =>
+    api<StructureActionList>("/api/roles/structure-actions"),
+  approveStructureAction: (id: string, reason?: string) =>
+    api<StructureAction>(`/api/roles/structure-actions/${id}/approve`, {
+      method: "POST",
+      body: JSON.stringify({ reason: reason ?? null }),
+    }),
+  rejectStructureAction: (id: string, reason: string) =>
+    api<StructureAction>(`/api/roles/structure-actions/${id}/reject`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    }),
+
+  // -- The update pipeline. `implement` carries out a decision that has
+  // already been made; the row must be `approved` or the server refuses with
+  // a 409 naming the state it is actually in. `verify` answers 200 even when
+  // the measurement says no — the write happened, and a refusal to verify is
+  // a finding rather than a failed request.
+  implementStructureAction: (id: string) =>
+    api<StructureActionImplemented>(
+      `/api/roles/structure-actions/${id}/implement`,
+      { method: "POST", body: JSON.stringify({}) },
+    ),
+  verifyStructureAction: (id: string) =>
+    api<StructureActionVerified>(
+      `/api/roles/structure-actions/${id}/verify`,
+      { method: "POST", body: JSON.stringify({}) },
     ),
 
   // -- Maintenance --

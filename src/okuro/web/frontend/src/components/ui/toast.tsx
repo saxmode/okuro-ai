@@ -60,7 +60,7 @@ export const TOAST_TONES = ["success", "error", "warning", "info"] as const;
  * MOUNT THIS EXACTLY ONCE PER APP, in the shell (`app.tsx`). Having no portal is
  * the same reason a second mount is a bug: the store behind `toast()` is a
  * MODULE SINGLETON, so every mounted Toaster renders every toast, in its own
- * document. A second one inside the design-engine preview frame put two boxes on
+ * document. A second one inside the preview frame put two boxes on
  * screen 12px apart -- that frame's `right:24px` is measured from the iframe's
  * edge -- wearing two different resolved border colours, which read as "a border
  * detached from the box" and cost a root-cause session. A SPECIMEN of a toast is

@@ -679,11 +679,19 @@ COMPONENT_ANCHOR_RUNG = "L"
 every size the app publishes is stated 1:1.
 
 His ruling, 2026-09-06: *"The rung is an absolute default! it's coming from the
-main design system and cannot be overwritten by a copy! what can be overwritten,
-what brand takes what rung as default for mobile and for desktop."*
+main design system and cannot be overwritten by a copy!"*
+
+THE SECOND HALF OF THAT SENTENCE IS RETIRED. It continued *"what can be
+overwritten, what brand takes what rung as default for mobile and for desktop"*,
+and his ruling of 2026-09-17 reverses exactly that: a brand takes no rung at all.
+*"The font sizes are everywhere the same. The font rungs aren't. ... It should
+use the same size over all design systems, standard for the viewer: if desktop
+standard is L, for mobile it might be M."* The rung is now ONE system setting per
+viewport class -- `ViewportRungs`, resolved from the profile -- and every kit
+inherits it. The ANCHOR half below is untouched and is why that works.
 
 So `[data-rung="L"]` has to mean ONE geometry in every brand. That is only true
-if the ladder is re-based against a FIXED rung; re-basing against the brand's own
+if the ladder is re-based against a FIXED rung; re-basing against a per-brand
 default makes the same name mean two things -- measured before this constant
 existed, `[data-rung="L"]` published 0.5rem inside okuro-ds and 0.4348rem inside
 a brand defaulting to XL.
@@ -761,26 +769,61 @@ def line_height(style: str) -> float:
         ) from None
 
 
-class RungDefaults(_Strict):
-    """WHICH RUNG A BRAND OPENS ON, per viewport class.
+VIEWPORT_CLASSES: tuple[str, ...] = ("desktop", "mobile")
+"""THE VIEWER CLASSES THE ENGINE CAN SPELL, and there are exactly two.
 
-    The owner's ruling of 2026-08-18, the other half of "the mother table is
-    locked": a brand does not get to move the size TABLE, and it does get to say
-    which ROW of it is its default -- once for desktop and once for mobile.
+`desktop` is the unprefixed rules; `mobile` is the one media block the emitter
+writes, at `scale.MOBILE_MAX_PX`. There is no tablet class, and adding one is a
+media query plus a field here -- not a guess. Named as a tuple so the validator,
+the API resolver and any future third class read one list.
+"""
 
-    This is the only sizing choice a brand still owns, and it is a POINTER into
-    the engine's table rather than a value in it. That is what keeps rule 10
-    intact: every size is still `base x factor` off one engine-defined table, and
-    two brands that pick the same rung get identical numbers.
 
-    Both names must be text rungs (`TEXT_RUNGS`). One attribute drives both
-    families -- the emitted `[data-rung="RUNG"]` rules prefix the text classes
-    AND the component classes -- so a rung named here sizes type and components
-    together, which is the frame inheritance of rule 10.
+class ViewportRungs(_Strict):
+    """WHICH RUNG THE VIEWER OPENS ON, per viewport class. A SYSTEM setting.
+
+    HIS RULING, 2026-09-17, and it REVERSES the 2026-08-18 one this class
+    replaces:
+
+        "The font sizes are everywhere the same. The font rungs aren't. A design
+        system has titles, headings, leads, content. The ladder of the font-sizes
+        is documented. It should use the same size over all design systems,
+        standard for the viewer: if desktop standard is L, for mobile it might be
+        M. Both have a ladder."
+
+    and, on where the desktop value is decided:
+
+        "okuro-design-system has a configuration item for this. Standard can be
+        defined."
+
+    WHAT THIS IS NOT. It is not a `Brand` field, and that is the whole change.
+    `Brand.defaults.rung` used to hold it, so every kit carried its own answer to
+    a question that is not a kit's -- measured 2026-09-17 across the four kits on
+    this machine: the ACTIVE one opened at XL and the other three at L, which was
+    the entire reason the app's type moved when the kit changed. The ladders
+    themselves were byte-identical at every rung. A kit now has no way to state a rung, so sizes cannot change with
+    the kit; they change with the VIEWER, which is what a rung was always for.
+
+    WHERE THE VALUE COMES FROM. `api._configured_rungs()` reads
+    `profile.design.rung`, a sibling of `profile.design.kit` and resolved
+    server-side for the same reason that one is: `/engine.css` is fetched by a
+    bare `<link>` that carries no state.
+
+    THE DEFAULTS ARE WHAT `standard` RENDERED BEFORE THIS EXISTED. XL on both, so
+    the emitted sheet is byte-identical on the day this lands and the desktop
+    value stays HIS to choose rather than one this class chose for him. Mobile is
+    XL rather than the old M for the same reason -- `standard` set mobile to XL
+    too, so no mobile block was ever emitted, and starting to emit one would be a
+    visible change nobody asked for in this commit.
+
+    Both names must be text rungs (`TEXT_RUNGS`). One rung drives both families --
+    the emitted `[data-rung="RUNG"]` rules prefix the text classes AND the
+    component classes -- so a rung named here sizes type and components together,
+    which is the frame inheritance of rule 10.
     """
 
-    desktop: str = "L"
-    mobile: str = "M"
+    desktop: str = "XL"
+    mobile: str = "XL"
 
     @field_validator("desktop", "mobile")
     @classmethod
@@ -791,13 +834,6 @@ class RungDefaults(_Strict):
                 f"unknown rung {value!r}; expected one of {TEXT_RUNGS}"
             )
         return rung
-
-
-class Defaults(_Strict):
-    """The brand's opening state. One member today; a namespace on purpose, so
-    the next default does not become a second top-level Brand field."""
-
-    rung: RungDefaults = RungDefaults()
 
 
 AUTHORED_TEXT_PX: dict[str, dict[str, float]] = {
@@ -903,166 +939,168 @@ ICON-SIZE-DOUBLE "(*2)", ICON-SUBTRACTION "(*-1)", ICON-SMALLER-SUBTRACTION
 """
 
 
-class SizeFactors(_Strict):
-    """THE FACTOR TABLE. Every size is `base x factor`; nothing is a pixel.
+# ---------------------------------------------------------------------------
+# The size tables -- ENGINE-OWNED, and no longer a brand's to move
+# ---------------------------------------------------------------------------
+#
+# HIS RULING, 2026-09-17: *"The font sizes are everywhere the same. The font
+# rungs aren't. ... It should use the same size over all design systems."*
+#
+# The rung half of that sentence was answered first, by `ViewportRungs`. THIS is
+# the other half, and without it the first was enforced by habit: a kit could no
+# longer say which ROW of the table it opened on, and could still rewrite the
+# TABLE. Five authored slots on a former `Brand.sizes` did it -- the 168 text
+# cells, the component anchor, the rung step, the seven role ratios, and a whole
+# per-brand override of the component ladder. Measured 2026-09-17 across every
+# kit on the machine: not one moved, and no kit file even had the key. So the
+# door was open and nobody had walked through it, which is the worst of the three
+# states -- the property held, and nothing made it hold.
+#
+# WHAT "LOCKED" MEANS HERE. These are module constants and `Brand` has no `sizes`
+# field, so there is no slot to author. Not a validator, not a convention, not a
+# gate that goes red afterwards: two brands cannot differ in a size, because
+# neither of them has anywhere to put one.
+#
+# WHAT IT COSTS, stated rather than discovered later: a guest or client brand
+# that genuinely needs a different scale can no longer have one. That case is
+# hypothetical today. If it arrives, it comes back as a SYSTEM-level setting --
+# the shape the rung just took -- and not as a per-kit field.
+#
+# THE ESCAPE HATCH THAT STAYS: `[data-rung]` on a frame. A document already
+# renders any rung of the ladder it likes; what it cannot do is change what the
+# rungs are worth.
 
-    Register rule 10, and his own question that produced it:
+TEXT_FACTORS: dict[str, dict[str, float]] = {
+    rung: dict(row) for rung, row in AUTHORED_TEXT_FACTORS.items()
+}
+"""HIS 168 cells, as factors of the system base. 8 rungs x 21 styles."""
 
-        "why is the grid even existing? shouldnt the sizes just be calculated?
-        base * factor? 2 * 8 = 16?"
+COMPONENT_ANCHOR_FACTOR = 5.0
+"""The `L` COMPONENT rung: 5.0 x base = 40 px on base 8."""
 
-    P1 stored per-rung anchors as literal dictionaries. P3's first attempt made
-    them positions on a generated grid ladder. Both are gone: the ladder was a
-    Figma artefact and the note says so about itself, so there is no ladder to
-    hold a position on and no value to snap back to.
+COMPONENT_RUNG_STEP = 0.75
+"""Factor difference between neighbouring component rungs: 6.5 / 5.75 / 5.0 /
+4.25 / 3.5 / 2.75 / 2.0 / 1.25 / 0.5 -- 52 px down to 4 px."""
 
-    THE RULE, and TEXT and COMPONENTS answer it differently because he authored
-    one of the two tables himself.
+ROLE_RATIOS: dict[str, float] = {
+    "container-size": 1.0,
+    "icon-size": 0.5,
+    "padding": 0.4,
+    "margin": 0.4,
+    "icon-size-smaller": 0.35,
+    "gap": 0.25,
+    "negative-adjustment": 0.2,
+}
+"""The seven INDEPENDENT component roles. The other nine are his own multipliers
+of these."""
 
-      1. TEXT is AUTHORED PER CELL. `text_factors` holds his own 168 factors --
-         8 rungs x {T 6, H 6, N 9} -- and a cell is `base x text_factors[rung]
-         [style]`. There is no anchor and no per-style ratio for text, because
-         his table is not the product of one: T1 falls 136 -> 128 -> 120 while
-         H1 falls 80 -> 72 -> 64 over the same rungs, which no single rung
-         factor can produce. Inventing a ratio ladder that reproduces it only
-         approximately is exactly the frozen-grid failure in a new costume.
-      2. COMPONENTS are still DERIVED, because he authored no table for them.
-         A component rung has a factor (`L` anchored at 5.0 = 40 px on base 8,
-         neighbours a stated step apart) and a cell is `base x rung_factor x
-         role_ratio` over the seven independent roles in `ROLE_PICK_ORDER`.
 
-    Both stay one multiplication away from the base, which is the ruling, and
-    both are per-brand authored slots the growth UI can move.
+def text_factor(rung: str, style: str) -> float:
+    """The factor for one cell of his text table. A lookup, not a product."""
+    rung = rung.upper()
+    style = style.upper()
+    row = TEXT_FACTORS.get(rung)
+    if row is None:
+        raise ValueError(f"unknown text rung {rung!r}; expected one of {TEXT_RUNGS}")
+    if style not in row:
+        raise ValueError(f"unknown text style {style!r}; expected T1-6, H1-6 or N1-9")
+    return row[style]
 
-    THE COMPONENT numbers below are still the ENGINE's default, not his -- the
-    note fixes their shape (9 rungs x 16 roles, every derived role a stated
-    multiplier) and the numbers lived in Figma. The TEXT numbers are his.
+
+def component_rung_factors() -> dict[str, float]:
+    """The component ladder, derived from the anchor and the step."""
+    pivot = COMPONENT_RUNGS.index(COMPONENT_ANCHOR_RUNG)
+    return {
+        name: COMPONENT_ANCHOR_FACTOR + (pivot - i) * COMPONENT_RUNG_STEP
+        for i, name in enumerate(COMPONENT_RUNGS)
+    }
+
+
+def component_factor(rung: str, role: str) -> float:
+    """The factor for one INDEPENDENT component role."""
+    return component_rung_factors()[rung.upper()] * ROLE_RATIOS[role]
+
+
+def _check_size_tables(
+    *,
+    text_factors: dict[str, dict[str, float]] | None = None,
+    role_ratios: dict[str, float] | None = None,
+    anchor: float | None = None,
+    step: float | None = None,
+) -> None:
+    """Every factor table descends and stays positive.
+
+    THE ARGUMENTS EXIST FOR THE GATES, not for callers. With nothing to author
+    there is no submitted value to validate, so the engine calls this once with
+    no arguments over its own constants. The tests pass BROKEN candidates -- a
+    band that rises, a column that rises, a short table, a ladder that runs to
+    zero -- because the checks themselves are worth keeping proven, and after the
+    lock there is no other way to exercise them.
+
+    THIS USED TO BE A PYDANTIC VALIDATOR on the authored model, and it ran on
+    every brand that was ever loaded. There is nothing left to author, so it runs
+    ONCE, here, against the engine's own constants -- an `M` rung above its `L`
+    or an H3 larger than an H2 is now a bug in this file rather than a value
+    somebody submitted.
+
+    IT IS NOT DELETED WITH THE FIELDS, and that is deliberate: the tables are
+    still edited by hand when the register changes, and a broken ladder would
+    still render. It would just no longer be a size system.
     """
+    text_factors = TEXT_FACTORS if text_factors is None else text_factors
+    role_ratios = ROLE_RATIOS if role_ratios is None else role_ratios
+    anchor = COMPONENT_ANCHOR_FACTOR if anchor is None else anchor
+    step = COMPONENT_RUNG_STEP if step is None else step
 
-    text_factors: dict[str, dict[str, float]] = Field(
-        default_factory=lambda: {
-            rung: dict(row) for rung, row in AUTHORED_TEXT_FACTORS.items()
-        }
-    )
-    """HIS 168 cells, as factors of the brand's base. Editable per brand."""
+    missing = set(ROLE_PICK_ORDER) - set(role_ratios)
+    if missing:
+        raise ValueError(f"ROLE_RATIOS is missing {sorted(missing)}")
+    roles = [role_ratios[role] for role in ROLE_PICK_ORDER]
+    if roles != sorted(roles, reverse=True):
+        raise ValueError(f"ROLE_RATIOS does not descend: {roles}")
+    if any(v <= 0 for v in roles):
+        raise ValueError(f"ROLE_RATIOS holds a non-positive ratio: {roles}")
+    if step <= 0:
+        raise ValueError("a rung step is a positive factor difference")
 
-    component_anchor_factor: float = 5.0
-    """The `L` COMPONENT rung: 5.0 x base = 40 px on base 8."""
-
-    component_rung_step: float = 0.75
-    """Factor difference between neighbouring component rungs: 6.5 / 5.75 / 5.0
-    / 4.25 / 3.5 / 2.75 / 2.0 / 1.25 / 0.5 -- 52 px down to 4 px."""
-
-    role_ratios: dict[str, float] = Field(
-        default_factory=lambda: {
-            "container-size": 1.0,
-            "icon-size": 0.5,
-            "padding": 0.4,
-            "margin": 0.4,
-            "icon-size-smaller": 0.35,
-            "gap": 0.25,
-            "negative-adjustment": 0.2,
-        }
-    )
-    """The seven independent roles as fractions of the container. At rung `L` on
-    base 8: 40 / 20 / 16 / 16 / 14 / 10 / 8 px."""
-
-    component_rung_factor: dict[str, float] | None = None
-    """Per-brand override of the component rung factors. `None` means derive
-    from the anchor and the step."""
-
-    @model_validator(mode="after")
-    def _factors_are_ladders(self) -> "SizeFactors":
-        """Every factor table must descend and stay positive.
-
-        A `gap` factored above `container-size`, an H3 larger than an H2, or an
-        `M` rung above its `L` is not an override -- it is a broken ladder. Both
-        directions of the text table are checked, because it is two-dimensional
-        now: each band descends WITHIN a rung, and each style descends ACROSS
-        the rungs. A table that failed either would still render; it would just
-        no longer be a size system.
-        """
-        missing = set(ROLE_PICK_ORDER) - set(self.role_ratios)
-        if missing:
-            raise ValueError(f"role_ratios is missing {sorted(missing)}")
-        roles = [self.role_ratios[role] for role in ROLE_PICK_ORDER]
-        if roles != sorted(roles, reverse=True):
-            raise ValueError(f"role_ratios does not descend: {roles}")
-        if any(v <= 0 for v in roles):
-            raise ValueError(f"role_ratios holds a non-positive ratio: {roles}")
-        if self.component_rung_step <= 0:
-            raise ValueError("a rung step is a positive factor difference")
-
-        if set(self.text_factors) != set(TEXT_RUNGS):
+    if set(text_factors) != set(TEXT_RUNGS):
+        raise ValueError(
+            f"TEXT_FACTORS must hold exactly the {len(TEXT_RUNGS)} text rungs; "
+            f"got {sorted(text_factors)}"
+        )
+    for rung in TEXT_RUNGS:
+        row = text_factors[rung]
+        if set(row) != set(TEXT_STYLES):
             raise ValueError(
-                f"text_factors must hold exactly the {len(TEXT_RUNGS)} text rungs; "
-                f"got {sorted(self.text_factors)}"
+                f"TEXT_FACTORS[{rung!r}] must hold exactly the "
+                f"{len(TEXT_STYLES)} styles; got {sorted(row)}"
             )
-        for rung in TEXT_RUNGS:
-            row = self.text_factors[rung]
-            if set(row) != set(TEXT_STYLES):
+        for letter, _name, count in TEXT_BANDS:
+            band = [row[f"{letter}{i}"] for i in range(1, count + 1)]
+            if band != sorted(band, reverse=True):
                 raise ValueError(
-                    f"text_factors[{rung!r}] must hold exactly the "
-                    f"{len(TEXT_STYLES)} styles; got {sorted(row)}"
+                    f"TEXT_FACTORS[{rung!r}] band {letter} does not descend: {band}"
                 )
-            for letter, _name, count in TEXT_BANDS:
-                band = [row[f"{letter}{i}"] for i in range(1, count + 1)]
-                if band != sorted(band, reverse=True):
-                    raise ValueError(
-                        f"text_factors[{rung!r}] band {letter} does not descend: {band}"
-                    )
-                if any(v <= 0 for v in band):
-                    raise ValueError(
-                        f"text_factors[{rung!r}] band {letter} holds a "
-                        f"non-positive factor: {band}"
-                    )
-        for style in TEXT_STYLES:
-            column = [self.text_factors[rung][style] for rung in TEXT_RUNGS]
-            if column != sorted(column, reverse=True):
+            if any(v <= 0 for v in band):
                 raise ValueError(
-                    f"text_factors column {style} does not descend across the "
-                    f"rungs: {column}"
+                    f"TEXT_FACTORS[{rung!r}] band {letter} holds a "
+                    f"non-positive factor: {band}"
                 )
-
-        if self.component_rung_factor is not None and any(
-            v <= 0 for v in self.component_rung_factor.values()
-        ):
-            raise ValueError("component_rung_factor holds a non-positive factor")
-        values = [self.component_rung_factors()[name] for name in COMPONENT_RUNGS]
-        if values != sorted(values, reverse=True) or values[-1] <= 0:
-            raise ValueError(f"component rung factors do not descend: {values}")
-        return self
-
-    # -- text: his authored cell ---------------------------------------------
-
-    def text_factor(self, rung: str, style: str) -> float:
-        """The factor for one cell of his text table. A lookup, not a product."""
-        rung = rung.upper()
-        style = style.upper()
-        row = self.text_factors.get(rung)
-        if row is None:
-            raise ValueError(f"unknown text rung {rung!r}; expected one of {TEXT_RUNGS}")
-        if style not in row:
+    for style in TEXT_STYLES:
+        column = [text_factors[rung][style] for rung in TEXT_RUNGS]
+        if column != sorted(column, reverse=True):
             raise ValueError(
-                f"unknown text style {style!r}; expected T1-6, H1-6 or N1-9"
+                f"TEXT_FACTORS column {style} does not descend across the rungs: "
+                f"{column}"
             )
-        return row[style]
 
-    # -- components: a rung factor times a role ratio ------------------------
+    pivot = COMPONENT_RUNGS.index(COMPONENT_ANCHOR_RUNG)
+    values = [anchor + (pivot - i) * step for i, _ in enumerate(COMPONENT_RUNGS)]
+    if values != sorted(values, reverse=True) or values[-1] <= 0:
+        raise ValueError(f"component rung factors do not descend: {values}")
 
-    def component_rung_factors(self) -> dict[str, float]:
-        if self.component_rung_factor is not None:
-            return self.component_rung_factor
-        pivot = COMPONENT_RUNGS.index(COMPONENT_ANCHOR_RUNG)
-        return {
-            name: self.component_anchor_factor + (pivot - i) * self.component_rung_step
-            for i, name in enumerate(COMPONENT_RUNGS)
-        }
 
-    def component_factor(self, rung: str, role: str) -> float:
-        """The factor for one INDEPENDENT component role. The other nine roles
-        are the note's own multipliers of these."""
-        return self.component_rung_factors()[rung.upper()] * self.role_ratios[role]
+_check_size_tables()
 
 
 # ---------------------------------------------------------------------------
@@ -1101,8 +1139,21 @@ class Brand(_Strict):
     effects: EffectSettings = EffectSettings()
     motion: MotionSettings = MotionSettings()
     shadow_anchors: ShadowAnchors = ShadowAnchors()
-    sizes: SizeFactors = SizeFactors()
-    defaults: Defaults = Defaults()
+    # NO `sizes` FIELD -- the size tables are the ENGINE's (2026-09-17, option A).
+    # A brand used to author five slots here, from the 168 text cells to a whole
+    # override of the component ladder. See "The size tables" above for why the
+    # lock is a missing field rather than a validator.
+    #
+    # NO `defaults` FIELD, and its absence is the 2026-09-17 ruling. It held
+    # `RungDefaults` and nothing else; the rung is now `ViewportRungs`, a SYSTEM
+    # setting off the profile, so a kit has no way to state one. `Defaults` was
+    # "a namespace on purpose, so the next default does not become a second
+    # top-level Brand field" -- with its one member gone the namespace is empty,
+    # and an empty strict model is a slot inviting the next thing that does not
+    # belong to a brand. It comes back when a real brand-level default exists.
+    #
+    # A STORED KIT THAT STILL CARRIES ONE STILL OPENS: `store.migrate` drops the
+    # key on load, exactly as it does for `base` and `root_percent`.
 
     # NO `base` AND NO `root_percent`. Both were authored slots until his ruling
     # of 2026-08-17 -- "Brands do not change their base. Base is always the

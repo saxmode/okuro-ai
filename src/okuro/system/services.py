@@ -37,13 +37,18 @@ def _okuro_default_services() -> dict[str, dict]:
         from okuro.system.port_registry import orchestrator_port, embed_port
         out["okuro-orchestrator"] = {
             "port": orchestrator_port(),
-            "health": "/health",
+            # /api/health, not /health: the SPA owns /health as a client-side
+            # route, so the old path was answered by the SPA catch-all — a
+            # 200 that proves a static file exists, not that the API is up.
+            "health": "/api/health",
             "category": "core",
+            "service": "orchestrator",
         }
         out["okuro-embed"] = {
             "port": embed_port(),
             "health": "/health",
             "category": "core",
+            "service": "embed",
         }
     except Exception as exc:  # noqa: BLE001
         log.debug("port_registry unavailable (%s)", exc)
@@ -60,11 +65,56 @@ def _okuro_default_services() -> dict[str, dict]:
                 "port": int(port),
                 "health": "/health",
                 "category": "core",
+                "service": "daemon",
             }
     except Exception as exc:  # noqa: BLE001
         log.debug("daemon mcp config unavailable (%s)", exc)
 
     return out
+
+
+def _annotate_owner(entry: dict, raw: bytes, service: Optional[str], port: int) -> None:
+    """Stamp ``install`` / ``foreign`` onto a health entry.
+
+    An entry answered by another okuro install is downgraded to
+    ``unhealthy`` with the one-line reason: from the caller's point of
+    view THIS install's service is not running, whatever the socket says.
+    Non-okuro services (the caller's own dict form, no ``service`` key)
+    are left exactly as they were.
+    """
+    if not service:
+        return
+    try:
+        from okuro.system.install_identity import (
+            describe_install,
+            identity_from_payload,
+            is_own_install,
+            socket_owner_uid,
+            this_install,
+        )
+
+        payload = json.loads(raw.decode("utf-8", "replace")) if raw else None
+        identity = identity_from_payload(payload)
+        mine = this_install()
+        if identity is not None:
+            if is_own_install(identity, mine):
+                entry["install"] = "this"
+                return
+            entry["install"] = describe_install(identity)
+            entry["foreign"] = True
+        else:
+            uid = socket_owner_uid(port)
+            if uid is None or uid == int(mine["uid"]):
+                entry["install"] = "this" if uid is not None else "unknown"
+                return
+            entry["install"] = describe_install(None, uid)
+            entry["foreign"] = True
+        entry["status"] = "unhealthy"
+        entry["error"] = (
+            f"port {port} is held by another okuro install: {entry['install']}"
+        )
+    except Exception as exc:  # noqa: BLE001
+        log.debug("owner annotation failed for port %s (%s)", port, exc)
 
 
 def get_service_health(
@@ -121,9 +171,14 @@ def get_service_health(
             req = urllib.request.Request(url, method="GET")
             with urllib.request.urlopen(req, timeout=5) as resp:
                 elapsed = (time.time() - t0) * 1000
+                raw = resp.read(65536)
                 entry["status"] = "healthy" if resp.status < 400 else "unhealthy"
                 entry["response_time_ms"] = round(elapsed, 1)
                 entry["http_status"] = resp.status
+            # VERIFY BEFORE TRUST. A 200 says something is listening, not that
+            # it is OURS. Without this, a second install's services report as
+            # this install's — healthy, green, and answering for someone else.
+            _annotate_owner(entry, raw, cfg.get("service"), port)
         except Exception as e:
             entry["status"] = "unhealthy"
             entry["error"] = str(type(e).__name__)

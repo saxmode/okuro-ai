@@ -16,6 +16,8 @@ from okuro.db import get_db
 from okuro.sense.retrieval import vec_write
 from okuro.embed import embed_one
 from okuro.embed.client import to_bytes
+from okuro.roles.designer import artifact_reference_error
+from okuro.roles.write import promote_role as _write_promote, upsert_role
 
 
 def draft_role(
@@ -24,6 +26,8 @@ def draft_role(
     role_content: dict | None = None,
     seed_knowledge: list[str] | None = None,
     domain: str = "engineering",
+    tier: str = "standard",
+    model: str = "sonnet",
 ) -> dict:
     """Create a draft role immediately for current use.
 
@@ -33,20 +37,20 @@ def draft_role(
         role_content: Optional dict with "micro" / "lean" / "full" keys
         seed_knowledge: Optional list of initial knowledge entries
         domain: Domain for the role
+        tier: canonical dispatch tier, checked against CANONICAL_TIERS by the
+            write helper. Used to be the literal 'standard' in this function's
+            INSERT. The default preserves the old behaviour.
+        model: provider model name. Was the literal 'sonnet' for the same
+            reason.
     """
-    # Guard: reject artifact references
+    # Pointer guard, through the shared gate rather than a second copy of it.
+    # Only the pointer half applies here: draft_role SYNTHESISES the lean and
+    # micro grades when the caller omits them, so a structure verdict on what
+    # the caller sent would judge text this function is about to write itself.
     if role_content:
-        for grade in ("full", "lean", "micro"):
-            val = role_content.get(grade, "")
-            if val and len(val) < 200 and any(
-                val.strip().lower().startswith(prefix)
-                for prefix in ("see artifact", "see file", "see task", "refer to")
-            ):
-                return {
-                    "error": f"role_content['{grade}'] contains an artifact reference "
-                    f"instead of actual content ({len(val)} chars). "
-                    f"Pass the full role text, not a pointer."
-                }
+        pointer = artifact_reference_error(role_content)
+        if pointer:
+            return {"error": pointer}
 
     # Generate or use provided content
     if role_content and "micro" in role_content:
@@ -74,31 +78,35 @@ def draft_role(
 
     full_content = role_content.get("full") if role_content else None
 
-    # Store in DB
-    embedding = embed_one(description)
-    emb_bytes = to_bytes(embedding)
+    # The row, the tags, the vector and updated_at go through the one write
+    # path. The hand-written INSERT this replaces wrote vec_roles directly
+    # without setting `description_embedded`, so the staleness backfill could
+    # never tell this role's vector from a stale one; and `tier`/`model` were
+    # literals, so every drafted role came out 'standard'/'sonnet' whatever it
+    # was drafted for.
+    written = upsert_role(
+        {
+            "role_id": name,
+            "domain": domain,
+            "description": description,
+            "tier": tier,
+            "model": model,
+            "micro_prompt": micro_content,
+            "lean_prompt": lean_content,
+            "prompt": full_content,
+            "maturity": "draft",
+        },
+        actor="roles.drafter:draft_role",
+    )
+
     db = get_db()
+    # The `UPDATE roles SET origin = 'user'` that stood here is gone with the
+    # column (migration 162, E3). It marked a drafted role as the user's so a
+    # re-seeder would not overwrite it; migration 155 deleted that seeder, and
+    # "does a migration ship this role" is now computed by
+    # `repair_plan.migration_carried_ids` from the migration files themselves.
 
     with db.transaction():
-        db.execute(
-            "INSERT INTO roles (role_id, domain, description, maturity, "
-            "micro_prompt, lean_prompt, prompt, tier, model, origin) "
-            "VALUES (?, ?, ?, 'draft', ?, ?, ?, 'standard', 'sonnet', 'user') "
-            "ON CONFLICT(role_id) DO UPDATE SET "
-            "description = excluded.description, "
-            "micro_prompt = excluded.micro_prompt, "
-            "lean_prompt = excluded.lean_prompt, "
-            "prompt = excluded.prompt",
-            (name, domain, description, micro_content, lean_content, full_content),
-        )
-
-        # Upsert vec_roles
-        db.execute("DELETE FROM vec_roles WHERE id = ?", (name,))
-        db.execute(
-            "INSERT INTO vec_roles (id, embedding) VALUES (?, ?)",
-            (name, emb_bytes),
-        )
-
         # Seed knowledge
         if seed_knowledge:
             for learning in seed_knowledge:
@@ -119,6 +127,7 @@ def draft_role(
         "domain": domain,
         "maturity": "draft",
         "seed_knowledge_count": len(seed_knowledge) if seed_knowledge else 0,
+        "embedded": written["embedded"],
     }
 
 
@@ -168,16 +177,29 @@ def promote_role(role_id: str) -> dict:
 
 
 def confirm_promote(role_id: str) -> dict:
-    """Actually promote a draft to active. Called after user approval."""
-    db = get_db()
-    row = db.fetchone(
+    """Actually promote a draft to active. Called after user approval.
+
+    The bare UPDATE this replaces was the same defect as the HTTP promote
+    endpoint and was missed by the audit because it is spelled differently:
+    a draft is invisible to ``roles_match``, so promotion is the first moment
+    the role's vector and tags have to be right, and neither was written here.
+
+    Raises ``RolePromotionRefused`` when the stored body does not pass the
+    canonical structure audit. Deliberately NOT converted to an ``{"error":
+    ...}`` dict like the two lookups above: those report a bad ARGUMENT, which
+    a caller can be trusted to read, while this reports that a role was about
+    to go live incomplete. A caller that ignores the return value would
+    promote it anyway, and every caller ignores a return value eventually.
+    """
+    if not get_db().fetchone(
         "SELECT role_id FROM roles WHERE role_id = ?", (role_id,)
-    )
-    if not row:
+    ):
         return {"error": f"Role '{role_id}' not found"}
 
-    db.execute(
-        "UPDATE roles SET maturity = 'active' WHERE role_id = ?",
-        (role_id,),
-    )
-    return {"id": role_id, "maturity": "active", "status": "promoted"}
+    result = _write_promote(role_id, actor="roles.drafter:confirm_promote")
+    return {
+        "id": role_id,
+        "maturity": "active",
+        "status": "promoted",
+        "embedded": result["embedded"],
+    }

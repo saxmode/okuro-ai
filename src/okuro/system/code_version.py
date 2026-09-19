@@ -27,9 +27,8 @@ construction, changes the process cannot have loaded.
 The working-tree half exists because commit-based detection alone was blind
 to the dominant dev case. An agent edits ``src/okuro/foo.py``, does not
 commit, and "tests" it — the commit check reports "in sync" while the
-running code and the file on disk differ. Six untracked role YAMLs under
-``src/okuro/roles/catalog/`` were loaded at runtime and invisible to every
-drift surface before this.
+running code and the file on disk differ. Six untracked role YAML files were
+once loaded at runtime and invisible to every drift surface before this.
 
 Changed-since-boot is the criterion, and it is decided on CONTENT, not on
 mtime. A file edited BEFORE this process booted was loaded in its edited
@@ -143,8 +142,8 @@ def _iter_watched(path: Path):
     """Yield watched source files at ``path`` — itself, or its tree if a dir.
 
     ``git status --porcelain`` collapses an untracked directory to a single
-    entry (``?? src/okuro/roles/catalog/``), so a directory has to be walked
-    or every file inside it is missed.
+    entry (``?? src/okuro/some/dir/``), so a directory has to be walked or
+    every file inside it is missed.
     """
     if path.is_dir():
         for sub in path.rglob("*"):

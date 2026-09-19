@@ -61,6 +61,30 @@ export function segment(name: RegExp | string): HTMLElement {
   return screen.getByRole("radio", { name });
 }
 
+/**
+ * OPEN A COLLAPSED BAND FILTER, so its facets are reachable at all.
+ *
+ * D7 (2026-09-17) collapsed a leaf's filter groups into one item labelled
+ * `Filter` that opens into the band's second row, so five inbox tests that
+ * reached straight for `segment(/Task/)` stopped matching — the radios are real
+ * and correct, they are just behind one press now. That is the same class of
+ * failure this whole module was written for: the tests described an anatomy
+ * that legitimately changed, not a defect.
+ *
+ * `aria-expanded` IS THE CONTRACT, so this reads the state the trigger
+ * publishes rather than inferring it from what is on screen, and it is
+ * IDEMPOTENT — a test that opens the panel twice would close it again, which is
+ * a wonderfully confusing way to fail.
+ */
+export async function openBandFilter(
+  click: (element: HTMLElement) => Promise<void>,
+  label: RegExp | string = /^Filter/,
+): Promise<HTMLElement> {
+  const trigger = screen.getByRole("button", { name: label });
+  if (trigger.getAttribute("aria-expanded") !== "true") await click(trigger);
+  return trigger;
+}
+
 /** Whether that option is the chosen one. */
 export function segmentChecked(name: RegExp | string): boolean {
   return segment(name).getAttribute("aria-checked") === "true";

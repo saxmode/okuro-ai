@@ -24,8 +24,9 @@ interface PulseCanvasProps {
   services?: Array<{ active: string }>;
   className?: string;
   /**
-   * Optional live-status indicator (typically `<OkuroThinker />`),
-   * rendered in the middle text stack between the CALLS/AGENTS row
+   * Optional live-status indicator — `<InlineThinker />` today; the shell's
+   * `<OkuroThinker />` was the other one until it was deleted on 2026-09-17.
+   * Rendered in the middle text stack between the CALLS/AGENTS row
    * and the ambient quote — co-located with the other "what's
    * happening right now" affordances rather than next to the
    * accordion controls below the canvas.
@@ -519,7 +520,8 @@ function PulseTextStack({
         <Stat value={agentsText} label="AGENTS" />
       </div>
 
-      {/* Block 2.5 — live status thinker (OkuroThinker). Sits between the
+      {/* Block 2.5 — live status thinker, whatever `thinker` is given. Sits
+          between the
           stats and the quote so it reads as part of the "what's happening"
           surface rather than next to the accordion controls below the
           canvas. The wrapper is pointer-events:none, so re-enable it

@@ -26,7 +26,71 @@ _STOPWORDS = frozenset({
     # 'by' and 'agent' come from the auto-registration boilerplate itself, so
     # any hint mentioning an agent scored 2 against every placeholder row.
     "by", "agent", "on", "at", "this", "that", "my", "our",
+    # Ordinary English connective vocabulary. Measured 2026-09-16: the hint
+    # "GPUs not detected after sudo apt upgrade ... NVIDIA driver/kernel
+    # mismatch" bound the RETIRED project `tm-illustrator` on the overlap
+    # {"after", "not", "—"} — three words that describe no subject matter.
+    "not", "no", "after", "before", "when", "while", "then", "than", "as",
+    "be", "am", "are", "was", "were", "been", "being", "has", "have", "had",
+    "do", "does", "did", "will", "would", "can", "could", "should", "may",
+    "from", "into", "over", "under", "about", "against", "between", "during",
+    "without", "within", "through", "up", "down", "out", "off", "again",
+    "all", "any", "both", "each", "more", "most", "other", "some", "such",
+    "only", "own", "same", "so", "too", "very", "just", "also", "still",
+    "here", "there", "these", "those", "they", "them", "their", "its",
+    "what", "which", "who", "whom", "whose", "why", "how", "if", "but",
+    "new", "old", "one", "two", "now", "via", "per", "use", "used", "using",
+    # Short task verbs. At a 3-character floor these appear in half the hints
+    # and in many descriptions, and they say nothing about WHICH project.
+    "fix", "run", "add", "set", "get", "put", "see", "let", "way", "end",
+    "top", "job", "make", "made", "need", "want", "help", "keep", "show",
+    "take", "give", "find", "look", "call", "said", "say", "went", "goes",
 })
+
+# Tokens that carry subject matter. Punctuation-only tokens ("—", "->") are
+# not evidence, whatever tier is asking. The floor is 3, not 4, because this
+# domain's most distinctive words are three-letter acronyms — gpu, llm, api,
+# svg, ssh — and the stopword list plus the document-frequency ceiling below
+# are what actually hold back common short words.
+_MIN_WORD_LEN = 3
+_WORD_RE = re.compile(r"[a-z0-9][a-z0-9._/-]*")
+
+# Hints and descriptions disagree on number: a hint says "GPUs not detected,
+# driver mismatch", the description says "two NVIDIA cards, GPU broker,
+# drivers, mismatches". Without folding plurals those share exactly one word
+# and the tier declines a project that plainly matches.
+_PLURAL_ES_STEMS = ("s", "x", "z", "ch", "sh")
+# Endings that are not a plural -s. "us" is deliberately NOT here: it would
+# leave "gpus" unfolded against a description saying "GPU", and gpu is this
+# host's central noun. The cost is that "status" folds to "statu" — harmless,
+# because both sides fold the same way.
+_KEEPS_TRAILING_S = ("ss", "is", "as")
+
+# A word appearing in this share of describable descriptions is vocabulary of
+# the corpus, not of a project ("okuro", "deck", "agent"), so it cannot
+# distinguish one project from another.
+_MAX_DOC_FREQUENCY = 0.20
+
+# Tier 4 must clear the same two bars tiers 1 and 5 already clear: enough
+# evidence, and a clear winner. Without them it was first-row-wins over every
+# project that shared two words with the hint.
+_KEYWORD_MIN_WORDS = 2
+_KEYWORD_MARGIN = 1
+
+# Retirement markers. A retired row is kept for history — its description
+# describes something that no longer exists, so a FUZZY tier must never bind
+# it. An explicit slug or name mention (tier 1) still does: naming a retired
+# project is a deliberate request for its archive.
+#
+# The marker must OPEN the description, because that is how a retirement is
+# actually written ("RETIRED 2026-09-05 — …", "okuro Project Manager
+# (SUPERSEDED → okuro-kanban)"). Scanning further in, or admitting the word
+# "deleted", misread a LIVE project: okuro-design-systems says "the ONLY
+# design layer since v0 was deleted 2026-09-06" and was silently dropped from
+# both fuzzy tiers, which is the same class of confident-wrong-answer this
+# filter exists to prevent.
+_RETIRED_MARKERS = ("retired", "superseded", "archival only")
+_RETIRED_WINDOW = 60
 
 # Project descriptions are the documents; the task hint is the query. Without
 # an explicit instruction this inherits embed_query()'s default, which asks for
@@ -64,6 +128,54 @@ _SEMANTIC_MIN_CORPUS = 10
 
 def _is_placeholder_description(desc: str) -> bool:
     return desc.strip().lower() in _PLACEHOLDER_DESCRIPTIONS
+
+
+def _is_retired_description(desc: str) -> bool:
+    """True when the description OPENS by marking the project as history.
+
+    Only the head is inspected: a live project may well MENTION a retired
+    sibling ("supersedes the old engine") further down without being retired
+    itself.
+    """
+    return any(m in desc[:_RETIRED_WINDOW].lower() for m in _RETIRED_MARKERS)
+
+
+def _singular(word: str) -> str:
+    """Fold a plural onto its singular. Deliberately crude, applied to BOTH sides.
+
+    Only regular -s/-es forms; irregulars are left alone. Both the hint and the
+    description pass through it, so the two sides agree whatever it does — a
+    wrong fold costs nothing as long as it is the same wrong fold on both.
+    """
+    if len(word) < 4 or not word.endswith("s") or word.endswith(_KEEPS_TRAILING_S):
+        return word
+    if word.endswith("es"):
+        stem = word[:-2]
+        if stem.endswith(_PLURAL_ES_STEMS):
+            return stem
+    return word[:-1]
+
+
+def _content_words(text: str) -> set[str]:
+    """Subject-matter tokens: long enough, not punctuation, not a stopword."""
+    words = set()
+    for raw in _WORD_RE.findall(text.lower()):
+        if len(raw) < _MIN_WORD_LEN or raw in _STOPWORDS:
+            continue
+        w = _singular(raw)
+        if w not in _STOPWORDS:
+            words.add(w)
+    return words
+
+
+def _describable(rows: list) -> list:
+    """Rows a fuzzy tier may score: a real description, and still current."""
+    return [
+        r for r in rows
+        if r.get("description")
+        and not _is_placeholder_description(r["description"])
+        and not _is_retired_description(r["description"])
+    ]
 
 
 def _mentions(needle: str, haystack: str) -> bool:
@@ -151,16 +263,42 @@ def resolve_project(task_hint: str) -> str | None:
         if r.get("path") and r["path"].lower() in task_lower:
             return r["id"]
 
-    # 4. Keyword match in description
-    for r in rows:
-        desc = r.get("description")
-        if desc and not _is_placeholder_description(desc):
-            desc_words = set(desc.lower().split())
-            task_words = set(task_lower.split())
-            overlap = desc_words & task_words
-            meaningful = overlap - _STOPWORDS
-            if len(meaningful) >= 2:
-                return r["id"]
+    # 4. Keyword match in description — scored, not first-row-wins.
+    #
+    # This tier used to return the first row sharing two non-stopword tokens
+    # with the hint, over an unordered query. Measured 2026-09-16: a GPU/driver
+    # hint matched four projects on {"after", "not", "—"} and bound the first,
+    # `tm-illustrator` — a project RETIRED eleven days earlier. The packet
+    # rendered a deleted tool's memory and todos with full confidence.
+    #
+    # Three bars now, the same ones tiers 1 and 5 already enforce: only words
+    # that carry subject matter count, a word common across the corpus counts
+    # for nothing, and the winner must beat the runner-up.
+    describable = _describable(rows)
+    task_words = _content_words(task_lower)
+    if task_words and describable:
+        doc_words = [_content_words(r["description"]) for r in describable]
+        df: dict[str, int] = {}
+        for words in doc_words:
+            for w in words:
+                df[w] = df.get(w, 0) + 1
+        ceiling = max(1, int(len(describable) * _MAX_DOC_FREQUENCY))
+
+        keyword_scored: list[tuple[int, str]] = []
+        for r, words in zip(describable, doc_words):
+            overlap = {w for w in (words & task_words) if df[w] <= ceiling}
+            if len(overlap) >= _KEYWORD_MIN_WORDS:
+                keyword_scored.append((len(overlap), r["id"]))
+
+        if keyword_scored:
+            keyword_scored.sort(reverse=True)
+            runner_up = keyword_scored[1][0] if len(keyword_scored) > 1 else 0
+            if keyword_scored[0][0] - runner_up >= _KEYWORD_MARGIN:
+                return keyword_scored[0][1]
+            log.debug(
+                "resolve_project: keyword tie (%d vs %d) — falling through",
+                keyword_scored[0][0], runner_up,
+            )
 
     # 5. Semantic match (expensive)
     #
@@ -183,11 +321,8 @@ def resolve_project(task_hint: str) -> str | None:
         task_embedding = embed_query(task_hint, instruction=_PROJECT_QUERY_INSTRUCTION)
         norm_a = sum(a * a for a in task_embedding) ** 0.5
 
-        describable = [
-            r for r in rows
-            if r.get("description") and not _is_placeholder_description(r["description"])
-        ]
-
+        #   d) retired projects were scored like live ones. Same filter as
+        #      tier 4 now — an archival row describes what was deleted.
         scored: list[tuple[float, str]] = []
         for r in describable:
             desc = r["description"]

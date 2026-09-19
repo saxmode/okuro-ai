@@ -44,7 +44,7 @@ export function LivenessBanner({
         />
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
-            <span className="text-2xs font-bold uppercase tracking-wider text-warning">
+            <span className="text-2xs font-bold case-label tracking-wider text-warning">
               Engine recovering
             </span>
             <span className="text-2xs text-fg-muted">
@@ -69,7 +69,7 @@ export function LivenessBanner({
       />
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2">
-          <span className="text-2xs font-bold uppercase tracking-wider text-error">
+          <span className="text-2xs font-bold case-label tracking-wider text-error">
             Engine not responding
           </span>
           <span className="text-2xs text-fg-muted">

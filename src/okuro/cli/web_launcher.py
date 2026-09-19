@@ -25,6 +25,7 @@ Used by `okuro init` (wizard mode) and `okuro dashboard` to:
 
 from __future__ import annotations
 
+import importlib.util
 import logging
 import os
 import platform
@@ -40,6 +41,10 @@ from urllib.request import urlopen
 from okuro.db.engine import okuro_home
 
 log = logging.getLogger("okuro.cli.web_launcher")
+
+# pywebview reads this at IMPORT time (webview/guilib.py), so anything that
+# writes it must run before `import webview`. See _pin_webview_backend.
+_BACKEND_ENV = "PYWEBVIEW_GUI"
 
 
 # Self-heal a poisoned webview profile. A caching service worker from an older
@@ -106,8 +111,14 @@ _SW_SELF_HEAL_JS = """
 _OKURO_PROCESS_NAME = "Okuro"
 
 
-def _macos_icon_path() -> Optional[Path]:
-    """Locate the Okuro icon for ``setApplicationIconImage_``.
+def _app_icon_path() -> Optional[Path]:
+    """Locate the Okuro icon for the running app.
+
+    RENAMED FROM ``_macos_icon_path``: under the Qt backend this feeds
+    ``QApplication.setWindowIcon`` on Linux and Windows too, so a name that
+    says macOS would have read as a specification to the next agent. The
+    search order below is unchanged — candidate 2 is already a .png, which is
+    what every non-Apple platform wants.
 
     Search order:
       1. ``Okuro.app/Contents/Resources/okuro.icns`` — if running from
@@ -160,6 +171,40 @@ def _set_macos_process_name() -> None:
     except Exception as exc:  # noqa: BLE001
         log.debug("setProcessName_ failed (%s) — Dock title will say 'Python'", exc)
 
+    # AND THE PROCESS NAME IS NOT WHERE macOS READS THE APP NAME FROM — but
+    # the fix for that is NOT here, and deliberately so.
+    #
+    # Measured 2026-09-19 on macOS 26.6.2 / arm64, running the same probe down
+    # two different launch paths inside one ad-hoc Okuro.app:
+    #
+    #   via Contents/MacOS/okuro     (compiled launcher.c, embeds Python)
+    #       bundlePath   -> /Users/.../OkuroTest.app
+    #       CFBundleName -> "Okuro"          <- from the real Info.plist
+    #       processName  -> "okuro"
+    #
+    #   via Contents/MacOS/okuro-cli (a COPY of the framework interpreter)
+    #       bundlePath   -> .../Python.framework/.../Python.app
+    #       CFBundleName -> "Python"
+    #       processName  -> "Python"
+    #
+    # So the name is already correct on the shipped path, with nothing patched
+    # at runtime. `okuro.system.interpreter._try_compile_native_launcher`
+    # builds that launcher at install time, and `launcher.c` explains the
+    # mechanism: framework Python re-execs into Python.app and sets
+    # __PYVENV_LAUNCHER__, so _NSGetExecutablePath reports the FRAMEWORK path
+    # and AppKit walks up to Python.app. A launcher that dlopens libpython
+    # never re-execs, so the executable path stays inside Okuro.app.
+    #
+    # AN EARLIER REVISION WROTE CFBundleName INTO THE LIVE infoDictionary HERE.
+    # It worked — the dictionary is a mutable __NSDictionaryM and the menu bar
+    # picked it up — but it was a patch over Homebrew's bundle to fix a
+    # symptom that only appears when okuro is launched as bare venv Python,
+    # which is not how it ships. Removed rather than kept as a fallback: a
+    # second mechanism for the same fact is how the two of them drift.
+    #
+    # If the Dock or the menu bar ever says "Python" again, the question is
+    # "did the native launcher get built?" — not "should we patch the name?".
+
 
 def _set_macos_app_icon() -> None:
     """Override ``NSApp.applicationIconImage`` so the Dock shows okuro.icns.
@@ -171,7 +216,7 @@ def _set_macos_app_icon() -> None:
     """
     if platform.system() != "Darwin":
         return
-    icon_path = _macos_icon_path()
+    icon_path = _app_icon_path()
     if icon_path is None:
         log.debug("no okuro.icns / icon-512.png on disk — Dock icon will be Python rocket")
         return
@@ -193,6 +238,51 @@ def _set_macos_app_icon() -> None:
             pass
     except Exception as exc:  # noqa: BLE001
         log.debug("setApplicationIconImage_ failed (%s) — Dock icon stays Python", exc)
+
+
+def _set_qt_app_identity() -> None:
+    """Give the Qt application its own name and icon.
+
+    WHY THIS IS NOT THE macOS BLOCK ABOVE. That block drives AppKit directly
+    because pywebview's cocoa backend creates ``NSApplication`` from pyobjc,
+    and ``NSBundle.mainBundle()`` then resolves to Homebrew's ``Python.app``.
+    Under Qt the NSApplication belongs to Qt, so the identity is Qt's to set —
+    ``QApplication.applicationName`` / ``applicationDisplayName`` feed the
+    macOS Dock title and menu bar, and ``setWindowIcon`` feeds the Dock icon,
+    the GNOME/KDE task list and the Windows taskbar from one call.
+
+    IT CURES THE ICON, AND THE NAME WAS NEVER ITS JOB — measured by eye on
+    macOS 26.6.2 on 2026-09-19, which corrects the guess this docstring used
+    to carry. ``setWindowIcon`` owns the Dock tile outright, so the Python
+    rocket is gone the moment Qt runs. The menu bar reads ``CFBundleName`` off
+    the main bundle instead, and no runtime setter feeds it — that one is
+    already solved on the shipped path by the compiled launcher in
+    ``okuro.system.interpreter``; see the note in ``_set_macos_process_name``.
+
+    Safe on every platform and every backend: it no-ops when Qt is not the
+    thing running, because then there is no ``QApplication.instance()``.
+    """
+    try:
+        from qtpy.QtGui import QIcon  # noqa: PLC0415
+        from qtpy.QtWidgets import QApplication  # noqa: PLC0415
+    except Exception as exc:  # noqa: BLE001 — not a Qt run
+        log.debug("Qt identity skipped (no qtpy): %r", exc)
+        return
+
+    app = QApplication.instance()
+    if app is None:
+        log.debug("Qt identity skipped — no QApplication yet")
+        return
+    try:
+        app.setApplicationName(_OKURO_PROCESS_NAME)
+        app.setApplicationDisplayName(_OKURO_PROCESS_NAME)
+        icon_path = _app_icon_path()
+        if icon_path is not None:
+            app.setWindowIcon(QIcon(str(icon_path)))
+        else:
+            log.debug("no icon on disk — Qt window keeps its default")
+    except Exception as exc:  # noqa: BLE001
+        log.debug("Qt identity failed: %r", exc)
 
 
 def _macos_post_start_callback() -> None:
@@ -341,6 +431,61 @@ def open_in_browser(url: str) -> bool:
         return False
 
 
+def _pin_webview_backend() -> str:
+    """Choose the rendering backend EXPLICITLY, before ``import webview``.
+
+    THE DEFAULT IS NOT A CHOICE, IT IS THE USER'S DESKTOP. ``webview/guilib.py:93``
+    reads::
+
+        forced_gui = 'qt' if 'KDE_FULL_SESSION' in os.environ else None
+
+    and nothing here ever set ``PYWEBVIEW_GUI``. So okuro shipped TWO engines:
+    a KDE session got Qt/QtWebEngine (Chromium), every other Linux session got
+    WebKitGTK. Same build, same version, different renderer — which means no
+    measurement taken on one machine transferred to another.
+
+    WHY QT, AND WHY ON EVERY PLATFORM. WebKitGTK 2.52.6 has no compositor path
+    for animations: measured 2026-09-18 with an external 60fps screen recording
+    of the real window, a ``translateX`` driven by the Web Animations API froze
+    for 633ms under a 700ms main-thread block, behaving identically to an
+    animated ``left``. Chrome 153 held 17ms — one frame — through the same
+    block. The engine cannot be fixed from our side; it is pinned away from.
+    Qt everywhere (rather than Linux-only) is the owner's call: one engine is
+    what makes a gate result mean the same thing for every user.
+
+    AN EXPLICIT ``PYWEBVIEW_GUI`` WINS. This is a default, not a lock — a user
+    debugging a backend-specific problem must be able to ask for the other one.
+
+    Returns the backend name that will be used, for logging by the caller.
+    """
+    override = os.environ.get(_BACKEND_ENV, "").strip().lower()
+    if override:
+        log.info("webview backend: %r (PYWEBVIEW_GUI override, not okuro's default)", override)
+        return override
+
+    if importlib.util.find_spec("qtpy") and (
+        importlib.util.find_spec("PySide6.QtWebEngineWidgets")
+        or importlib.util.find_spec("PyQt6.QtWebEngineWidgets")
+    ):
+        os.environ[_BACKEND_ENV] = "qt"
+        log.info("webview backend: qt (QtWebEngine/Chromium)")
+        return "qt"
+
+    # The native backend for this platform, named rather than left to guilib's
+    # own ordering so the log says what actually happened. Windows is already
+    # Chromium (WebView2) and macOS is Apple WebKit, not WebKitGTK — neither
+    # is the engine the pin exists to avoid, so falling back there is cheap.
+    native = {"Linux": "gtk", "Darwin": "cocoa", "Windows": "edgechromium"}.get(
+        platform.system(), "gtk"
+    )
+    log.warning(
+        "Qt/QtWebEngine bindings not installed — falling back to %r. "
+        "Install the desktop extra for the Chromium renderer: pip install 'okuro[desktop]'",
+        native,
+    )
+    return native
+
+
 def _grant_gtk_media_permissions(window_uid: str) -> bool:
     """GTK/WebKit denies ``getUserMedia`` by default (no permission-request
     handler), so the intake-drawer mic fails with "request is not allowed".
@@ -429,8 +574,22 @@ def open_in_webview(
     # Python.framework's own bundle resolution.
     _set_macos_process_name()
 
+    # MUST precede `import webview` — guilib resolves the backend at import
+    # time, so a pin written afterwards is read by nobody.
+    backend = _pin_webview_backend()
+
     try:
         import webview
+
+        # A REAL DOWNLOAD PATH, FOR THE FIRST TIME ON THE DESKTOP.
+        # `<a download>` is a silent no-op in WKWebView and WebKitGTK — both
+        # ignore the attribute — which is why the artifacts viewer routes
+        # binaries through `open_external` with a tokenised URL instead.
+        # QtWebEngine has an actual download API, and pywebview wires it at
+        # qt.py:449-450 — but only when this setting is on, and it ships off.
+        # Turning it on costs nothing on the other backends (they read the
+        # same flag and have no such hook).
+        webview.settings["ALLOW_DOWNLOADS"] = True
     except Exception as e:
         log.warning("pywebview import failed (%s); falling back to default browser", e)
         open_in_browser(url)
@@ -729,10 +888,40 @@ def open_in_webview(
             height=height,
             resizable=True,
             frameless=True,
-            # easy_drag=True would hijack every mousedown in the window for
-            # a move-drag, which blocks our custom edge-resize handlers. Keep
-            # it False; drag is driven by the .pywebview-drag-region class on
-            # the React title-bar (see window-chrome.tsx).
+            # THE DRAG REGION IS THE ONLY THING THAT MOVES THIS WINDOW, and
+            # easy_drag is NOT what switches it on or off. Verified 2026-09-17
+            # against the installed pywebview 6.2.1:
+            #
+            #   webview/js/customize.js:89   attaches `mousedown` to
+            #       document.body UNCONDITIONALLY, on every platform, and walks
+            #       up from the target looking for the drag selector
+            #   webview/__init__.py:122      that selector is
+            #       `.pywebview-drag-region`
+            #   webview/util.py:379-380      the extra whole-window drag that
+            #       easy_drag would add is gated to `edgechromium`
+            #   webview/platforms/gtk.py:229-235 / cocoa.py:462,477
+            #       the NATIVE drag handlers are gated on
+            #       `frameless and easy_drag`
+            #
+            # So the older note here — "easy_drag=True would hijack every
+            # mousedown in the window" — was only ever true on Windows. On GTK
+            # and Cocoa the JS path would do nothing at all; GTK would instead
+            # connect native button-press / motion-notify handlers, which is the
+            # real reason to keep this False, because those would fight the
+            # custom edge-resize bridge in _WindowApi.resize_to above.
+            #
+            # The region itself is mounted by the shell (`shell/App.tsx`, styled
+            # in `shell/styles/shell.css`); `window-chrome.tsx`, which the old
+            # note pointed at, is only reachable from the onboarding wizard, so
+            # for the dashboard window there was no drag surface in the DOM at
+            # all and the window could not be moved on any host.
+            #
+            # AND THERE IS A FOURTH HOST. webview/guilib.py:93 reads
+            # `forced_gui = 'qt' if 'KDE_FULL_SESSION' in os.environ else None`,
+            # so on a KDE session pywebview selects Qt/QtWebEngine (Chromium),
+            # not WebKitGTK — this module never sets PYWEBVIEW_GUI. Stated here
+            # because the shell's engine sniff assumes Linux implies WebKitGTK;
+            # nothing about the behaviour below depends on it.
             easy_drag=False,
             # pywebview defaults text_select=False on the GTK / WebKit backend
             # — drag-to-select is disabled at the webview layer, so no CSS
@@ -755,20 +944,37 @@ def open_in_webview(
             window.events.loaded += _purge_stale_service_worker
         except Exception as exc:  # noqa: BLE001
             log.debug("could not wire SW self-heal on loaded: %r", exc)
-        # Grant mic/media permission on the GTK WebKit webview (once). The
-        # BrowserView instance exists by the time `loaded` fires.
-        _media_granted = {"done": False}
+        # MEDIA PERMISSIONS ARE A PER-BACKEND CONCERN, AND ONLY ONE BACKEND
+        # NEEDS US. Verified in pywebview 6.2.1:
+        #
+        #   qt.py:283   `featurePermissionRequested` is connected, and
+        #   qt.py:293-299 grants MediaAudioCapture / MediaVideoCapture /
+        #               MediaAudioVideoCapture outright, denying everything
+        #               else. So mic and camera work on Qt with no help from
+        #               us — and screen share, clipboard-read and
+        #               notifications are DENIED there. If okuro ever needs
+        #               one of those, this is the seam, not a new hook.
+        #
+        #   gtk.py      ships no permission handler at all, which is why
+        #               _grant_gtk_media_permissions exists. It stays for the
+        #               fallback path, and only runs when we are on GTK.
+        #
+        # Calling the GTK grant on Qt was harmless (it returns False on an
+        # import error) but it logged a failure on every load and read as a
+        # broken mic to anyone looking. Dispatch instead of probing.
+        if backend == "gtk":
+            _media_granted = {"done": False}
 
-        def _grant_media_once() -> None:
-            if _media_granted["done"]:
-                return
-            if _grant_gtk_media_permissions(window.uid):
-                _media_granted["done"] = True
+            def _grant_media_once() -> None:
+                if _media_granted["done"]:
+                    return
+                if _grant_gtk_media_permissions(window.uid):
+                    _media_granted["done"] = True
 
-        try:
-            window.events.loaded += _grant_media_once
-        except Exception as exc:  # noqa: BLE001
-            log.debug("could not wire media-permission grant on loaded: %r", exc)
+            try:
+                window.events.loaded += _grant_media_once
+            except Exception as exc:  # noqa: BLE001
+                log.debug("could not wire media-permission grant on loaded: %r", exc)
         # macOS: override Dock icon NOW that NSApp.sharedApplication()
         # exists (pywebview triggers its creation during create_window).
         # Without this, the Dock shows Python.framework's rocket icon
@@ -789,7 +995,17 @@ def open_in_webview(
         # calling setApplicationIconImage_ before this can be reset by
         # AppKit's own launch-sequence icon initialisation. Linux + Windows
         # backends accept ``func`` and ignore it gracefully.
-        post_start = _macos_post_start_callback if platform.system() == "Darwin" else None
+        # THE IDENTITY PASS, AND IT IS NOW TWO PASSES, NOT ONE PLATFORM'S.
+        # `start(func=...)` runs on the GUI runloop once the toolkit's
+        # application object exists — the earliest point at which either
+        # identity can be set and stick. Both calls are safe unconditionally:
+        # the macOS one returns on non-Darwin, the Qt one returns when there
+        # is no QApplication. Running both also covers the Qt-on-macOS case,
+        # where Qt owns the identity but AppKit's icon setter still applies to
+        # the same shared NSApplication.
+        def post_start() -> None:
+            _set_macos_app_icon()
+            _set_qt_app_identity()
         if private_mode:
             webview.start(
                 func=post_start,

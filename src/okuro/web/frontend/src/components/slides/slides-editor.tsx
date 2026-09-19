@@ -7,6 +7,7 @@ import { elementHeight } from "./measure";
 import { renderRich } from "./rich-text";
 import { ElementInner } from "./element-body";
 import { tokenizeApiSrc } from "@/lib/slides-api";
+import { deckBackground, editorMark, editorMarkHint, editorGuide, elementInk } from "./deck-theme";
 
 /**
  * SlidesEditor — the editable canvas for ONE slide.
@@ -74,7 +75,7 @@ export function elementStyle(el: SlideElement, interactive: boolean): React.CSSP
   const isText = hugs(el.kind);
   return {
     background: el.bg ?? "transparent",
-    color: el.color ?? "#eafff0",
+    color: elementInk(el),
     fontSize: el.fontSize ?? 28,
     fontWeight: el.fontWeight ?? 400,
     fontFamily: el.font ?? undefined,
@@ -145,6 +146,12 @@ export function SlidesEditor({
 
   const slide = deck.slides[slideIndex];
   const elements = slide?.elements ?? [];
+  /* The editor's own marks. Computed ONCE per render from the deck's ground, so
+     the selection outline, the handles, the caret and the hint can never drift
+     apart, and none of them is a brand colour. */
+  const mark = editorMark(deck);
+  const markHint = editorMarkHint(deck);
+  const guide = editorGuide();
 
   // Snap targets: canvas edges/centre + every OTHER element's edges/centres.
   // Uses the RENDERED box (renderBox) — snapping to a frame's authored h:10 would
@@ -200,14 +207,15 @@ export function SlidesEditor({
         }}
         className="h-full w-full resize-none border-0 bg-transparent p-0 outline-none"
         style={{
-          color: el.color ?? "#eafff0",
+          color: elementInk(el),
           fontSize: el.fontSize ?? 28,
           fontWeight: el.fontWeight ?? 400,
           fontFamily: el.font ?? deck.font,
           lineHeight: el.lineHeight ?? DEFAULT_LINE_HEIGHT,
           letterSpacing: el.letterSpacing ? `${el.letterSpacing}px` : undefined,
           textAlign: el.align ?? "left",
-          caretColor: "#8ff0a4",
+          /* okuro CHROME on a recipient's canvas -- asks the deck's ground. */
+          caretColor: mark,
         }}
       />
     ) : (
@@ -313,7 +321,7 @@ export function SlidesEditor({
     >
       <div
         className="relative origin-center overflow-hidden rounded-lg shadow-2xl"
-        style={{ width: canvasW * scale, height: canvasH * scale, background: deck.background ?? "#0b0f0c" }}
+        style={{ width: canvasW * scale, height: canvasH * scale, background: deckBackground(deck) }}
       >
         <div
           className="absolute left-0 top-0 origin-top-left"
@@ -342,7 +350,7 @@ export function SlidesEditor({
                   width: box.w,
                   height: box.h,
                   zIndex: el.z ?? 0,
-                  outline: selected ? "2px solid #8ff0a4" : "1px dashed rgba(143,240,164,0.25)",
+                  outline: selected ? `2px solid ${mark}` : `1px dashed ${markHint}`,
                   ...elementStyle(el, true),
                   ...(scrim ? { background: scrim, borderRadius: el.radius || 6 } : {}),
                 }}
@@ -376,7 +384,7 @@ export function SlidesEditor({
                         style={{
                           left: c.x, top: c.y, width: c.w, height: c.h, zIndex: c.z ?? 0,
                           ...elementStyle(c, false),
-                          outline: cSelected ? "2px solid #8ff0a4" : undefined,
+                          outline: cSelected ? `2px solid ${mark}` : undefined,
                           cursor: c.kind === "text" ? "text" : "pointer",
                           ...(cScrim ? { background: cScrim, borderRadius: c.radius || 6 } : {}),
                         }}
@@ -415,8 +423,8 @@ export function SlidesEditor({
                     className="absolute"
                     style={
                       heightManaged(el.kind)
-                        ? { right: -6, top: "50%", marginTop: -7, width: 14, height: 14, background: "#8ff0a4", borderRadius: 3, cursor: "ew-resize" }
-                        : { right: -6, bottom: -6, width: 14, height: 14, background: "#8ff0a4", borderRadius: 3, cursor: "nwse-resize" }
+                        ? { right: -6, top: "50%", marginTop: -7, width: 14, height: 14, background: mark, borderRadius: 3, cursor: "ew-resize" }
+                        : { right: -6, bottom: -6, width: 14, height: 14, background: mark, borderRadius: 3, cursor: "nwse-resize" }
                     }
                   />
                 )}
@@ -425,10 +433,10 @@ export function SlidesEditor({
           })}
           {/* smart guides */}
           {guides.v.map((x, i) => (
-            <div key={`v${i}`} className="pointer-events-none absolute" style={{ left: x, top: 0, width: 1, height: canvasH, background: "#ff4d6d" }} />
+            <div key={`v${i}`} className="pointer-events-none absolute" style={{ left: x, top: 0, width: 1, height: canvasH, background: guide }} />
           ))}
           {guides.h.map((y, i) => (
-            <div key={`h${i}`} className="pointer-events-none absolute" style={{ left: 0, top: y, width: canvasW, height: 1, background: "#ff4d6d" }} />
+            <div key={`h${i}`} className="pointer-events-none absolute" style={{ left: 0, top: y, width: canvasW, height: 1, background: guide }} />
           ))}
         </div>
       </div>

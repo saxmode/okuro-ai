@@ -14,7 +14,7 @@ generate content — it EXTRACTS atomic, cited claims from a source the caller
 provides, so nothing downstream is invented: every fact/figure/name a deck shows
 must trace back to a claim id emitted here.
 
-Mirrors the ``prism-source-distiller`` role charter (roles/catalog). Kept as code
+Mirrors the ``prism-source-distiller`` role charter (the roles table). Kept as code
 (not only a role prompt) so the pipeline can call it deterministically and eval
 it against a golden source.
 """

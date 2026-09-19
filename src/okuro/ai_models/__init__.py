@@ -20,7 +20,9 @@ from .catalog import (
 from .acquire import AcquisitionError, pull
 from .credentials import auth_header, credential_status, resolve_token
 from .discovery import discover, resolve_entry, search_civitai, search_hf
-from .discoveries import list_discoveries, mark_installed, set_status, upsert_discovery
+from .discoveries import (list_category_scans, list_discoveries, mark_installed,
+                          mark_installed_if_new, record_category_scan, set_status,
+                          upsert_discovery)
 from .registry import list_models, get_model, scan_models
 
 __all__ = [
@@ -37,6 +39,9 @@ __all__ = [
     "get_model",
     "scan_models",
     "list_discoveries",
+    "list_category_scans",
+    "mark_installed_if_new",
+    "record_category_scan",
     "upsert_discovery",
     "set_status",
     "mark_installed",

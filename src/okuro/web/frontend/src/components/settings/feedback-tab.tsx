@@ -79,7 +79,7 @@ export function FeedbackTab() {
 
       {/* The upgrade gap, stated where it can be fixed. */}
       {enabled && missingOrg && (
-        <div className="flex items-start gap-2 rounded border border-warning/40 bg-warning/5 p-3 text-xs text-warning">
+        <div className="flex items-start gap-2 rounded border border-border bg-warning-subtle p-3 text-xs text-warning">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
           <span>
             Sending is on, but your organisation name is empty — so{" "}

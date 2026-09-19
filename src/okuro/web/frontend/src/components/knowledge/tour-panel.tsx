@@ -35,9 +35,9 @@ export function TourPanel({ project, onFocus, onClose }: TourPanelProps) {
   }, [tours, activeId]);
 
   return (
-    <div className="flex h-[68vh] w-[40rem] flex-col rounded-sm border border-border-subtle bg-surface">
+    <div className="flex h-[calc((100dvh-var(--sh-strip-h,56px))*0.68)] w-[40rem] flex-col rounded-sm border border-border-subtle bg-surface">
       <div className="flex items-center justify-between border-b border-border-subtle px-3 py-2">
-        <div className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-tertiary">
+        <div className="flex items-center gap-1.5 text-xs case-label tracking-wider text-tertiary">
           <MapPin className="h-3.5 w-3.5" />
           <span className="font-mono">tour</span>
           {project && (
@@ -119,7 +119,7 @@ export function TourPanel({ project, onFocus, onClose }: TourPanelProps) {
                       <span className="truncate text-xs font-mono text-fg">
                         {step.file}
                       </span>
-                      <span className="ml-auto text-[9px] uppercase tracking-wider text-tertiary">
+                      <span className="ml-auto text-3xs case-label tracking-wider text-tertiary">
                         {step.layer}
                       </span>
                     </div>
@@ -131,7 +131,7 @@ export function TourPanel({ project, onFocus, onClose }: TourPanelProps) {
                         {step.symbols.slice(0, 5).map((s) => (
                           <span
                             key={s}
-                            className="rounded-sm bg-surface-subtle px-1.5 py-0.5 font-mono text-[10px] text-tertiary"
+                            className="rounded-sm bg-surface-subtle px-1.5 py-0.5 font-mono text-2xs text-tertiary"
                           >
                             {s}
                           </span>
@@ -139,7 +139,7 @@ export function TourPanel({ project, onFocus, onClose }: TourPanelProps) {
                       </div>
                     )}
                     {step.prerequisites.length > 0 && (
-                      <div className="mt-1 text-[10px] text-tertiary">
+                      <div className="mt-1 text-2xs text-tertiary">
                         after step{step.prerequisites.length > 1 ? "s" : ""}{" "}
                         <span className="font-mono">
                           {step.prerequisites.join(", ")}
@@ -155,7 +155,7 @@ export function TourPanel({ project, onFocus, onClose }: TourPanelProps) {
       </div>
 
       {activeTour && (
-        <div className="border-t border-border-subtle px-3 py-1.5 text-2xs uppercase tracking-wider text-tertiary">
+        <div className="border-t border-border-subtle px-3 py-1.5 text-2xs case-label tracking-wider text-tertiary">
           {activeTour.body.steps.length} steps
           {activeTour.body.focus_layer
             ? ` · focus ${activeTour.body.focus_layer}`

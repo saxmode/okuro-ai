@@ -7,7 +7,7 @@
  */
 
 import { useState } from "react";
-import { X, Plus, Bookmark } from "lucide-react";
+import { X, Plus, Bookmark, Check } from "lucide-react";
 import { useSavedQueries, useSaveQueryMutations } from "@/hooks/use-knowledge";
 import { cn } from "@/lib/utils";
 import type { FilterState } from "@/components/knowledge/facet-sidebar";
@@ -26,6 +26,8 @@ export function SavedQueryChips({
   const { data: queries = [], isLoading } = useSavedQueries();
   const { create, remove, touch } = useSaveQueryMutations();
   const [adding, setAdding] = useState(false);
+  /** R5 — which chip's delete is armed. One slot, so an arm cannot travel. */
+  const [armed, setArmed] = useState<string | null>(null);
   const [name, setName] = useState("");
 
   const applyChip = async (id: string, dsl: Record<string, unknown>) => {
@@ -68,14 +70,36 @@ export function SavedQueryChips({
             <Bookmark className="h-3 w-3" />
             <span className="font-medium">{q.name}</span>
           </button>
-          <button
-            type="button"
-            onClick={() => remove.mutate(q.id)}
-            aria-label={`Delete ${q.name}`}
-            className="px-1 py-0.5 text-tertiary opacity-0 hover:text-error group-hover:opacity-100"
-          >
-            <X className="h-3 w-3" />
-          </button>
+          {/* R5 (372ccdb2) — TWO-STEP ARM, and the arm rather than a modal is a
+              judgement worth stating. The row really is deleted, but the thing
+              lost is a NAME over the current filters, and "save view" recreates
+              it in one click — the same reading by which the START pass gave
+              `dismiss` an arm. A modal to drop a filter chip would be friction
+              with no recovery value. Keyed per chip, so an arm on one cannot
+              confirm another. */}
+          {armed === q.id ? (
+            <button
+              type="button"
+              onClick={() => {
+                setArmed(null);
+                remove.mutate(q.id);
+              }}
+              aria-label={`Confirm delete ${q.name}`}
+              className="px-1 py-0.5 text-error"
+              title="Click again to delete this view"
+            >
+              <Check className="h-3 w-3" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setArmed(q.id)}
+              aria-label={`Delete ${q.name}`}
+              className="px-1 py-0.5 text-tertiary opacity-0 hover:text-error group-hover:opacity-100"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          )}
         </div>
       ))}
 
@@ -97,7 +121,7 @@ export function SavedQueryChips({
           <button
             type="submit"
             disabled={create.isPending || !name.trim()}
-            className="text-2xs uppercase tracking-wider text-accent disabled:opacity-50"
+            className="text-2xs case-label tracking-wider text-accent disabled:text-fg-disabled"
           >
             save
           </button>
@@ -122,7 +146,7 @@ export function SavedQueryChips({
             "inline-flex items-center gap-1 rounded-sm border border-border-subtle px-2 py-0.5 text-xs",
             hasActive
               ? "text-fg-muted hover:border-accent hover:text-accent"
-              : "text-tertiary opacity-50 cursor-not-allowed",
+              : "text-fg-disabled cursor-not-allowed",
           )}
           title={hasActive ? "Save current filters as a chip" : "Apply some filters first"}
         >

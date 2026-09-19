@@ -35,7 +35,7 @@ Gives the web UI a surface that mirrors the MCP person tools:
 - POST /api/people/match          body {query, limit?} → [{id, display_name, ...}]
 - POST /api/people/{id}/lens      body {context?}      → {markdown: str}
 - POST /api/people/{id}/translate body {source, context?, provider?} → translation result + log_id
-- GET  /api/people/presets        list of role-based starter presets from roles/catalog
+- GET  /api/people/presets        list of role-based starter presets from the roles table
 - GET  /api/people/graph          {me, nodes, edges} for the user-center graph view
 - GET  /api/people/layout         {positions, groups, settings, saved_at} — stored arrangement
 - PUT  /api/people/layout         replace the whole arrangement (localhost-only)

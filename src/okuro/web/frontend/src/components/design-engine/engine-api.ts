@@ -73,6 +73,16 @@ export interface BootPayload {
   kits: KitRow[];
   /** The kit `/engine.css` is currently painting the app with. */
   active: string;
+  /**
+   * THE VIEWER'S RUNG, and the breakpoint it applies below.
+   *
+   * NOT `rung` — the authoring pages already hold one of those, the preview
+   * scene's, which is ephemeral and nullable. This one is the profile setting
+   * every design system inherits (his ruling, 2026-09-17), and `mobile_max_px`
+   * travels with it so the rail can say where the mobile rung starts without a
+   * second copy of the engine's breakpoint living in TypeScript.
+   */
+  viewport: { rungs: Record<string, string>; mobile_max_px: number };
   families: FontFamily[];
   opened: string | null;
 }

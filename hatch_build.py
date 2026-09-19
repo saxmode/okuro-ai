@@ -2,7 +2,8 @@
 """Hatchling build hook — vendors the embedding model into the wheel.
 
 Downloads ``Alibaba-NLP/gte-modernbert-base`` (the LOW / laptop-safe tier,
-768d, ~150MB) into ``src/okuro/embed/models/gte-modernbert-base`` before wheel
+768d, **288 MB on disk** — the "~150MB" this line used to claim was wrong,
+measured 2026-09-19) into ``src/okuro/embed/models/gte-modernbert-base`` before wheel
 assembly so the bundled model matches ``embed.config.TIERS['low']`` and ships
 inside the package. Users never hit the HuggingFace Hub for the default tier,
 nothing lands in ``~/.cache/huggingface/``, and ``rm -rf ~/.okuro`` leaves

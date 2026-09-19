@@ -839,16 +839,19 @@ def _check_design() -> tuple[bool, Optional[str]]:
 
 
 def _check_canon_deploy() -> tuple[bool, Optional[str]]:
-    """Done = at least one provider instruction file or TOOL-PROTOCOL.md exists.
+    """Done = at least one provider instruction file exists.
 
     The canon-deploy step writes per-provider instruction files
     (``~/.claude/CLAUDE.md``, ``~/.gemini/AGENTS.md`` (antigravity),
-    ``~/.codex/AGENTS.md``) plus the shared
-    ``~/.okuro/TOOL-PROTOCOL.md``. The user may have deployed to a subset
+    ``~/.codex/AGENTS.md``). The user may have deployed to a subset
     of detected providers, so we only require one file to consider the
     step done. Cursor currently ships an MCP config only (no adapter for
     instruction generation — H7 backlog), so its presence is not
     counted here.
+
+    A shared ``~/.okuro/TOOL-PROTOCOL.md`` used to count as a fifth marker.
+    It is no longer written, so an install that deployed only that file
+    never existed and the marker would now always be false.
     """
     from pathlib import Path
 
@@ -859,7 +862,6 @@ def _check_canon_deploy() -> tuple[bool, Optional[str]]:
         # (The retired gemini CLI's GEMINI.md was dropped 2026-07-18.)
         home / ".gemini" / "AGENTS.md",
         home / ".codex" / "AGENTS.md",
-        home / ".okuro" / "TOOL-PROTOCOL.md",
     ]
     for path in candidates:
         try:
@@ -1152,8 +1154,8 @@ class CanonDeployRequest(BaseModel):
 @router.post("/canon/deploy")
 def canon_deploy(body: Optional[CanonDeployRequest] = None) -> dict:
     """Write MCP configs + instruction files (CLAUDE.md, AGENTS.md, ...) for
-    every detected provider, plus the shared TOOL-PROTOCOL.md. Edits the
-    user's home directory — callable only after onboarding confirms consent.
+    every detected provider. Edits the user's home directory — callable only
+    after onboarding confirms consent.
 
     Returns per-target results so the UI can show exactly what was written
     and which targets (if any) failed.
@@ -1423,28 +1425,46 @@ def complete_onboarding(request: Request) -> OnboardingState:
         logger.exception("complete failed")
         raise HTTPException(status_code=500, detail=f"complete failed: {exc}")
 
-    # Seed the role catalog on first completion. Without this, fresh
-    # installs have zero rows in the `roles` table and every roles_match
-    # call returns empty forever — the wizard steps don't own role data.
-    # Idempotent: no-op when roles already exist (returning user,
-    # tm-Supabase migration, custom roles added).
+    # Embed the roles on first completion. The rows arrive with migration 155
+    # — the database is a role's only home — but a SQL migration cannot reach
+    # the embed service, and roles_match searches the vector index rather than
+    # the table. Without this pass the wizard finishes onto a full roles table
+    # that matches nothing. Idempotent: embeds only what has no vector yet.
     #
-    # We only seed when the DB file already exists — _run_web_init always
+    # We only run when the DB file already exists — _run_web_init always
     # creates it via migrate() before /complete can fire. Skipping when
     # absent means isolated endpoint tests don't create ~/.okuro/ just by
     # completing onboarding.
     try:
         from okuro.cli.db_helpers import default_db_path, get_db
-        from okuro.roles.seed import seed_if_empty
+        from okuro.roles.vectors import backfill_missing_role_vectors
 
         if default_db_path().exists():
             db = get_db()
-            inserted = seed_if_empty(db)
+            written = backfill_missing_role_vectors(db)
             db.close()
-            if inserted:
-                logger.info("post-onboarding: seeded %d roles from catalog", inserted)
+            if written:
+                logger.info("post-onboarding: embedded %d role(s)", written)
     except Exception as exc:  # noqa: BLE001
-        logger.warning("post-onboarding role seed skipped: %s", exc)
+        logger.warning("post-onboarding role embedding skipped: %s", exc)
+
+    # Install the shipped recurring definitions. Same call the CLI's
+    # `_install_recurring_defs` makes — one function, two doors, so a web
+    # install and a headless one land the same set of scheduled jobs. Without
+    # it the weekly structure watch simply never exists on a wizard install and
+    # nothing says so. Idempotent and never overwriting.
+    try:
+        from okuro.orchestrator.config import load_config
+        from okuro.orchestrator.recurring import install_bundled_defs
+
+        installed = install_bundled_defs(load_config().recurring_dir)
+        if installed:
+            logger.info(
+                "post-onboarding: installed %d recurring def(s): %s",
+                len(installed), ", ".join(installed),
+            )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("post-onboarding recurring-def install skipped: %s", exc)
 
     # Install the orchestrator so subsequent `okuro` launches reuse it.
     # We only auto-install orchestrator + daemon; embed is opt-in because
@@ -1519,8 +1539,8 @@ def complete_onboarding(request: Request) -> OnboardingState:
         logger.exception("post-onboarding service install raised before producing results")
 
     # H6: the pre-H6 silent safety net here unconditionally wrote to the user's
-    # home directory (~/.claude/, ~/.codex/, ~/.gemini/, ~/.cursor/,
-    # ~/.okuro/TOOL-PROTOCOL.md) on every /complete call — even when the user
+    # home directory (~/.claude/, ~/.codex/, ~/.gemini/, ~/.cursor/) on every
+    # /complete call — even when the user
     # skipped the canon-deploy step. That was a trust gap the audit flagged
     # as CRITICAL-3 (01-promises.md). Canon deployment is now first-class in
     # STEP_DEFS with explicit consent UX (CanonDeployStep). Skipping means

@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { ArrowLeft, Loader2, Check, Lock, Cpu, AlertTriangle } from "lucide-react";
-import { PageHeader } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import {
@@ -57,22 +56,31 @@ export function SettingsSttPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <PageHeader
-        title="Dictation"
-        subtitle="Choose the speech-to-text model okuro uses when you record notes. Higher tiers are more accurate; the top tier needs a GPU."
-        right={
+      {/* R1 (86b8f1f0) — the shell renders `<h1 class="c-title">Settings</h1>`
+          above this pane, so this sub-view drops its own h1. The sentence and
+          the Back link stay, on one row, which is where the header had them.
+          `text-fg-muted` rather than `text-tertiary` (kit todo c581c9b2). */}
+      <div className="flex items-start justify-between gap-3">
+        <p className="type-small min-w-0 flex-1 text-fg-muted">
+          Choose the speech-to-text model okuro uses when you record notes. Higher tiers are more accurate; the top tier needs a GPU.
+        </p>
+        <div className="shrink-0">{
           <Link
-            to="/settings"
+            /* STT IS REACHED FROM THE DICTATION TAB (`settings.tsx:2922`), so that is
+                 where Back goes. Before: `to="/settings"` — a bare legacy path that
+                 redirects and lands on Identity, so a two-click excursion put the
+                 user on a tab they never chose. */
+            to="/system/settings?tab=dictation"
             className="flex items-center gap-1 text-xs text-fg-tertiary hover:text-fg-primary"
           >
             <ArrowLeft size={12} />
             Back to Settings
           </Link>
-        }
-      />
+        }</div>
+      </div>
 
       {data.reason === "env-override" && (
-        <div className="rounded border border-warning/40 bg-warning-subtle/10 p-3 flex items-start gap-2 text-sm">
+        <div className="rounded border border-border bg-warning-subtle p-3 flex items-start gap-2 text-sm">
           <AlertTriangle size={14} className="text-warning mt-0.5 shrink-0" />
           <div>
             <span className="text-fg-primary font-medium">
@@ -89,7 +97,7 @@ export function SettingsSttPage() {
       <EffectiveChip data={data} />
 
       <div className="flex flex-col gap-3">
-        <div className="text-xs uppercase tracking-wider text-fg-tertiary">
+        <div className="text-xs case-label tracking-wider text-fg-tertiary">
           Tiers
         </div>
         {data.tiers.map((t) => (
@@ -116,7 +124,7 @@ function EffectiveChip({ data }: { data: SttTiersResponse }) {
   return (
     <div className="rounded border border-border bg-surface-elevated p-4 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm">
       <Field label="Active tier">
-        <span className="font-mono text-fg-primary uppercase">{data.effective}</span>
+        <span className="font-mono text-fg-primary case-label">{data.effective}</span>
         <span className="text-fg-tertiary"> · {reasonLabel}</span>
       </Field>
       <div className="border-l border-border h-10 hidden sm:block" />
@@ -136,7 +144,7 @@ function EffectiveChip({ data }: { data: SttTiersResponse }) {
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
-      <div className="text-xs uppercase tracking-wider text-fg-tertiary">{label}</div>
+      <div className="text-xs case-label tracking-wider text-fg-tertiary">{label}</div>
       <div>{children}</div>
     </div>
   );
@@ -172,12 +180,12 @@ function TierCard({
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm font-bold text-fg-primary">{spec.label}</span>
             {isEffective && (
-              <Badge className="bg-accent/15 text-accent">
+              <Badge className="bg-accent-subtle text-accent">
                 <Check size={11} /> active
               </Badge>
             )}
             {isRecommended && !isEffective && (
-              <Badge className="bg-success-subtle/15 text-success">recommended</Badge>
+              <Badge className="bg-success-subtle text-success">recommended</Badge>
             )}
             {spec.needs_gpu && (
               <Badge className="bg-surface-subtle text-fg-tertiary">
@@ -185,7 +193,7 @@ function TierCard({
               </Badge>
             )}
             {locked && (
-              <Badge className="bg-warning-subtle/15 text-warning">
+              <Badge className="bg-warning-subtle text-warning">
                 <Lock size={11} /> okuro-{spec.tier}
               </Badge>
             )}

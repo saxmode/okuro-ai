@@ -65,7 +65,7 @@ from .resolve import (
     Resolver,
 )
 from . import schema
-from .schema import COMPONENT_RUNGS, TEXT_RUNGS, Brand
+from .schema import COMPONENT_RUNGS, TEXT_RUNGS, Brand, ViewportRungs
 
 BODY_STYLE = "N5"
 """The cell the DOCUMENT's own text size comes from -- the normal band's body
@@ -1034,7 +1034,7 @@ def _boundary_rules(
         )
 
 
-def _root_rules(w: _Writer, resolver: Resolver) -> None:
+def _root_rules(w: _Writer, resolver: Resolver, rungs: ViewportRungs) -> None:
     """The ground with no surround, and the only user-facing switch.
 
         "On the UI a user can only chose dark / light. signal and brand are
@@ -1055,12 +1055,12 @@ def _root_rules(w: _Writer, resolver: Resolver) -> None:
     # canvas CTAs rendered at 8px, because a button carries `font: inherit` and
     # the sheet gave `body` a family and a weight and no size.
     #
-    # So `body` states the NORMAL band's body cell at the brand's default rung.
-    # It is not a new number: it is the same `N5` cell the adapter's `body` role
-    # already reads, off the same table, so unclassed text lands on the system's
-    # own paragraph rather than on the base constant. A `.ds-*` class still wins
-    # over it -- this is the floor, not an override.
-    body_rung = brand.defaults.rung.desktop
+    # So `body` states the NORMAL band's body cell at the CONFIGURED desktop
+    # rung. It is not a new number: it is the same `N5` cell the adapter's `body`
+    # role already reads, off the same table, so unclassed text lands on the
+    # system's own paragraph rather than on the base constant. A `.ds-*` class
+    # still wins over it -- this is the floor, not an override.
+    body_rung = rungs.desktop
     w.rule(
         "body",
         {
@@ -1090,7 +1090,7 @@ def _root_rules(w: _Writer, resolver: Resolver) -> None:
     # Sizes, radii, fonts and motion do not move with the ground, so they are
     # written here and inherited; the ground half is written per root selector
     # below, because each of those roots IS a different ground.
-    system = adapter.system_declarations(brand)
+    system = adapter.system_declarations(brand, rungs.desktop)
 
     for i, (selector, ground) in enumerate(roots):
         palette = resolver.palette(ground)
@@ -1170,7 +1170,7 @@ def _portal_rules(
         )
 
 
-def _size_rules(w: _Writer, brand: Brand) -> None:
+def _size_rules(w: _Writer, brand: Brand, rungs: ViewportRungs) -> None:
     """Sizes, and SCALES as an axis of the sheet.
 
         "Exist, so that one switch downsizes everything based on their current
@@ -1242,17 +1242,19 @@ def _size_rules(w: _Writer, brand: Brand) -> None:
             decls["--ds-corner-gap"] = _rem(value)
         return decls
 
-    # THE BRAND'S OWN DEFAULT RUNG, per viewport class (his ruling of
-    # 2026-08-18). It replaces two hard-coded "L"s. The table is still the
-    # engine's and still not editable -- this is a POINTER into it, which is the
-    # only sizing choice a brand kept when the mother table was locked.
+    # THE CONFIGURED DESKTOP RUNG, per viewport class (his ruling of 2026-09-17,
+    # which replaces the per-brand pair of 2026-08-18). The table is still the
+    # engine's and still not editable; what changed is WHO points into it. A kit
+    # no longer can -- "font sizes are everywhere the same, the font rungs
+    # aren't" -- so the pointer is one system setting the viewer owns and every
+    # kit inherits.
     #
     # ONE RUNG DRIVES BOTH FAMILIES. `[data-rung="RUNG"]` already prefixes the
     # text classes and the component classes, so naming a rung sizes type and
     # components together -- the frame inheritance of rule 10 rather than two
     # independent defaults.
-    default_text = brand.defaults.rung.desktop
-    default_component = brand.defaults.rung.desktop
+    default_text = rungs.desktop
+    default_component = rungs.desktop
 
     def scaled_frame(rung: str, cls: str) -> str:
         """The scaled form of one frame rung.
@@ -1345,22 +1347,30 @@ def _size_rules(w: _Writer, brand: Brand) -> None:
                 component_decls(sizing.downscale_component(rung), role),
             )
 
-    # THE BRAND'S MOBILE DEFAULT RUNG. His 2026-08-18 ruling gives a brand two
-    # defaults, and the second one only means anything if the sheet acts on it.
+    # THE CONFIGURED MOBILE RUNG. His 2026-09-17 ruling keeps the two viewport
+    # classes and moves them off the kit: "if desktop standard is L, for mobile
+    # it might be M. Both have a ladder."
     #
     # It re-declares the UNPREFIXED rules at the mobile rung, so it moves exactly
-    # what the desktop default set and nothing else: a frame that named its own
+    # what the desktop rung set and nothing else: a frame that named its own
     # `[data-rung]` has specificity (0,1,1) against this block's (0,1,0) and
     # keeps its rung at every width. That is the frame rule of register 10 --
     # an explicit rung is an override, and a default is what you get without one.
-    if brand.defaults.rung.mobile != brand.defaults.rung.desktop:
+    #
+    # WHEN THE TWO AGREE THERE IS NO BLOCK, and that is not a micro-optimisation:
+    # it is why no mobile block has ever shipped. Measured 2026-09-17 on the live
+    # sheet -- zero `max-width: 767px` blocks, because `standard` stored XL for
+    # both. The shipped `ViewportRungs` defaults keep it that way until he sets a
+    # mobile rung, so turning the block on stays a decision rather than a
+    # side effect.
+    if rungs.mobile != rungs.desktop:
         w.blank()
         w.comment(
-            f"the brand's MOBILE default rung ({brand.defaults.rung.mobile}); an "
+            f"the configured MOBILE rung ({rungs.mobile}); an "
             "explicit [data-rung] frame still wins on specificity"
         )
         w.open_block(f"@media (max-width: {scale.MOBILE_MAX_PX}px)", counts=False)
-        mobile = brand.defaults.rung.mobile
+        mobile = rungs.mobile
         # The document floor moves with the default too, or unclassed text would
         # keep the desktop rung while everything named moved.
         w.rule(
@@ -1475,14 +1485,27 @@ def _brand_blocks(
 def emit(
     brand: Brand,
     *,
+    rungs: ViewportRungs | None = None,
     font_sources: dict[str, str] | None = None,
     guests: tuple[Brand, ...] = (),
 ) -> Sheet:
     """Render a brand's whole system as one static sheet.
 
+    `rungs` is the VIEWER's rung per viewport class, and it is a parameter rather
+    than a brand field because his ruling of 2026-09-17 took it off the kit: "the
+    font sizes are everywhere the same, the font rungs aren't ... standard for
+    the viewer". It reaches three places -- the document floor, the unprefixed
+    class rules, and the `:root` consumer names -- so handing it in once is what
+    keeps them from disagreeing. `None` means the shipped default, which is what
+    a test, the CLI and any caller with no profile should get; the app passes
+    `api._configured_rungs()`.
+
+    THE SHEET IS STILL A PURE FUNCTION OF ITS ARGUMENTS. The emitter does no I/O
+    and reads no profile -- resolving the rung is the caller's job precisely so
+    that this stays true and a sheet reproduces byte for byte.
+
     `font_sources` maps a face descriptor to a URL. It is authored by the kit
-    and not discovered here: the emitter does no I/O, so a sheet is a pure
-    function of a brand and reproduces byte for byte.
+    and not discovered here.
 
     `guests` are brands nested INSIDE this one -- the case he insists the system
     must express: "we have nested brands inside light / dark or even branded
@@ -1493,6 +1516,7 @@ def emit(
     is how one falls to brand-full and another to the neutral fallback with a
     branded CTA, from the same rule.
     """
+    rungs = rungs or ViewportRungs()
     resolver = Resolver(brand)
     grounds = reachable_grounds(resolver)
     w = _Writer()
@@ -1511,7 +1535,7 @@ def emit(
         w.blank()
 
     w.comment('the root: "BASE IS 10px ... Calculation is done on 62,5%"')
-    _root_rules(w, resolver)
+    _root_rules(w, resolver, rungs)
     w.blank()
 
     _additional_rules(w, brand, scope=None)
@@ -1543,7 +1567,7 @@ def emit(
 
     w.blank()
     w.comment("--- sizes, radius, weights, motion -------------------------------")
-    _size_rules(w, brand)
+    _size_rules(w, brand, rungs)
 
     return Sheet(
         css=w.text(),

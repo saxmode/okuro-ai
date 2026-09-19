@@ -70,7 +70,7 @@ export function SessionsPanel({
               key={s.session_id}
               type="button"
               onClick={() => setActive(s)}
-              className="flex w-full items-center gap-3 border-b border-border-subtle px-1 py-2 text-left text-xs transition-fast last:border-b-0 hover:bg-surface-elevated/60"
+              className="flex w-full items-center gap-3 border-b border-border-subtle px-1 py-2 text-left text-xs transition-fast last:border-b-0 hover:bg-surface-subtle"
             >
               <span
                 className={`h-1.5 w-1.5 shrink-0 rounded-full ${s.ended_at ? "bg-fg-subtle" : "bg-success"}`}
